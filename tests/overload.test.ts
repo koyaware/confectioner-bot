@@ -88,6 +88,10 @@ describe('overload mode', () => {
     const port = new FakePort();
     const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
 
+    await bot.handleUpdate(cb(0, 'c0', 555, 10, 'adm:set:list'));
+    const listEdits = port.getCallsForMethod('editMessageText');
+    expect(JSON.stringify(listEdits[0]!.args[3])).toContain('adm:set:edit:toggle_accept');
+
     await bot.handleUpdate(cb(1, 'c1', 555, 10, 'adm:set:edit:toggle_accept'));
     let rows = await getDb().select().from(tenants);
     expect(rows[0]!.acceptOrders).toBe(false);

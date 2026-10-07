@@ -51,7 +51,7 @@ export function registerSettingsHandlers(bot: Bot<BotContextWithSession>): void 
       rows.push([
         {
           text: ctx.tenant.acceptOrders ? 'Перегруз: выключить приём' : 'Перегруз: включить приём',
-          callback_data: 'adm:set:toggle_accept',
+          callback_data: 'adm:set:edit:toggle_accept',
         },
       ]);
       rows.push([{ text: 'Назад', callback_data: 'adm:menu' }]);
