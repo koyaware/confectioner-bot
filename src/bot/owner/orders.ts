@@ -530,6 +530,27 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
         const order = rows[0];
         if (!order || order.tenantId !== ctx.tenant.id || order.status !== 'new') return;
 
+        const itemRows = await db.select().from(orderItems).where(eq(orderItems.orderId, orderId));
+        const cartLines = itemRows
+          .filter((i) => i.productId !== null)
+          .map((i, idx) => ({
+            lineId: `l${idx}`,
+            productId: i.productId!,
+            qty: i.qty,
+            optionIds: [] as string[],
+          }));
+        const avail = await getDateAvailability(
+          ctx.tenant.id,
+          iso,
+          iso,
+          { lines: cartLines },
+          new Date()
+        );
+        if (!avail[iso]?.available) {
+          await ctx.port.answerCallback(ctx.callbackQuery.id, 'Дата уже недоступна.');
+          return;
+        }
+
         await db.update(orders).set({ proposedDate: iso }).where(eq(orders.id, orderId));
 
         const crows = await db

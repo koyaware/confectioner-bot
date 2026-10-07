@@ -118,6 +118,21 @@ describe('proposed date', () => {
     );
   });
 
+  it('pd to an unavailable date is rejected', async () => {
+    const { tenantId, order } = await setup();
+    const tooSoon = addDays(toIsoDate(now, 'Europe/Moscow'), 1);
+    const port = new FakePort();
+    const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
+
+    await bot.handleUpdate(cb(1, 'c1', 555, 10, `adm:ord:pd:${order.id}:${tooSoon}`));
+
+    const rows = await getDb().select().from(orders);
+    expect(rows[0]!.proposedDate).toBeNull();
+    const answers = port.getCallsForMethod('answerCallback');
+    expect(answers[answers.length - 1]!.args[1]).toBe('Дата уже недоступна.');
+    expect(tenantId).toBeTruthy();
+  });
+
   it('double pd:yes accepts once, second is rejected', async () => {
     const { tenantId, order } = await setup();
     const newDate = addDays(toIsoDate(now, 'Europe/Moscow'), 8);
