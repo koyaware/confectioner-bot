@@ -1,4 +1,5 @@
 import { Bot } from 'grammy';
+import { canAccessOwner } from '../permissions.js';
 import { BotContextWithSession } from '../context.js';
 import { getDb } from '../../db/client.js';
 import { customers, orders, relayMessages } from '../../db/schema.js';
@@ -127,7 +128,7 @@ async function relayToOwner(ctx: BotContextWithSession): Promise<void> {
 
 export function registerRelayHandlers(bot: Bot<BotContextWithSession>): void {
   bot.callbackQuery(/^adm:relay:block:(.+)$/, async (ctx) => {
-    if (ctx.role !== 'owner') {
+    if (!canAccessOwner(ctx)) {
       await ctx.port.answerCallback(ctx.callbackQuery.id, 'Только владелец.');
       return;
     }

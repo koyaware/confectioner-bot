@@ -1,4 +1,5 @@
 import { Bot } from 'grammy';
+import { canAccessOwner } from '../permissions.js';
 import { BotContextWithSession } from '../context.js';
 import { ru } from '../../i18n/ru.js';
 import { InlineKeyboard } from '../../telegram/port.js';
@@ -7,7 +8,7 @@ import QRCode from 'qrcode';
 
 export function registerLinksHandlers(bot: Bot<BotContextWithSession>): void {
   bot.callbackQuery(/^adm:src:/, async (ctx) => {
-    if (ctx.role !== 'owner') {
+    if (!canAccessOwner(ctx)) {
       await ctx.port.answerCallback(ctx.callbackQuery.id, ru.ownerCatalog.notOwner);
       return;
     }
@@ -24,6 +25,7 @@ export function registerLinksHandlers(bot: Bot<BotContextWithSession>): void {
         { text: s.label, callback_data: `adm:src:view:${s.code}` },
       ]);
       rows.push([{ text: ru.ownerLinks.add, callback_data: 'adm:src:add' }]);
+      rows.push([{ text: 'Назад', callback_data: 'adm:menu' }]);
       await ctx.port.editMessageText(
         chatId,
         messageId,
@@ -36,7 +38,9 @@ export function registerLinksHandlers(bot: Bot<BotContextWithSession>): void {
     if (data === 'adm:src:add') {
       ctx.sessionState = 'owner.edit_field';
       ctx.session.ownerDraft = { kind: 'src_add_label' };
-      await ctx.port.editMessageText(chatId, messageId, ru.ownerLinks.promptLabel);
+      await ctx.port.editMessageText(chatId, messageId, ru.ownerLinks.promptLabel, {
+        keyboard: { inline_keyboard: [[{ text: 'Назад', callback_data: 'adm:menu' }]] },
+      });
       return;
     }
 
@@ -61,6 +65,7 @@ export function registerLinksHandlers(bot: Bot<BotContextWithSession>): void {
         { text: s.label, callback_data: `adm:src:view:${s.code}` },
       ]);
       rows.push([{ text: ru.ownerLinks.add, callback_data: 'adm:src:add' }]);
+      rows.push([{ text: 'Назад', callback_data: 'adm:menu' }]);
       await ctx.port.editMessageText(chatId, messageId, ru.ownerLinks.title, {
         keyboard: { inline_keyboard: rows },
       });

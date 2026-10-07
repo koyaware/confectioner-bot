@@ -1,4 +1,5 @@
 import { Bot } from 'grammy';
+import { canAccessOwner } from '../permissions.js';
 import { BotContextWithSession } from '../context.js';
 import { ru } from '../../i18n/ru.js';
 import { escapeHtml } from '../../domain/escape.js';
@@ -95,7 +96,7 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
   bot.callbackQuery(
     /^adm:ord:(accept|reject|rr|paid|badpay|ready|done|cancel|date|pd):/,
     async (ctx) => {
-      if (ctx.role !== 'owner') {
+      if (!canAccessOwner(ctx)) {
         await ctx.port.answerCallback(ctx.callbackQuery.id, ru.ownerCatalog.notOwner);
         return;
       }

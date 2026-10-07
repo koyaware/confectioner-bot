@@ -1,4 +1,5 @@
 import { Bot } from 'grammy';
+import { canAccessOwner } from '../permissions.js';
 import { BotContextWithSession } from '../context.js';
 import { ru } from '../../i18n/ru.js';
 import { InlineKeyboard } from '../../telegram/port.js';
@@ -61,7 +62,7 @@ function calendarGrid(year: number, month: number, marks: Map<string, string>): 
 
 export function registerCalendarHandlers(bot: Bot<BotContextWithSession>): void {
   bot.callbackQuery(/^adm:cal:/, async (ctx) => {
-    if (ctx.role !== 'owner') {
+    if (!canAccessOwner(ctx)) {
       await ctx.port.answerCallback(ctx.callbackQuery.id, ru.ownerCatalog.notOwner);
       return;
     }

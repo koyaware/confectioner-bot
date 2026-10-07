@@ -1,4 +1,5 @@
 import { Bot } from 'grammy';
+import { canAccessOwner } from '../permissions.js';
 import { BotContextWithSession } from '../context.js';
 import { decodeCallback } from '../callbacks.js';
 import { ru } from '../../i18n/ru.js';
@@ -20,6 +21,7 @@ async function showCategoryList(ctx: BotContextWithSession, edit = true) {
     { text: c.title, callback_data: `adm:cat:edit:${c.id}` },
   ]);
   rows.push([{ text: ru.ownerCatalog.addCategory, callback_data: 'adm:cat:add' }]);
+  rows.push([{ text: 'Назад', callback_data: 'adm:menu' }]);
 
   const text = ru.ownerCatalog.categoriesTitle;
   const chatId = ctx.callbackQuery?.message?.chat.id ?? ctx.chat?.id;
@@ -175,7 +177,7 @@ const PRODUCT_FIELD_LABELS: Record<string, string> = {
 
 export function registerOwnerCatalogHandlers(bot: Bot<BotContextWithSession>): void {
   bot.callbackQuery(/^adm:(cat|prd):/, async (ctx) => {
-    if (ctx.role !== 'owner') {
+    if (!canAccessOwner(ctx)) {
       await ctx.port.answerCallback(ctx.callbackQuery.id, ru.ownerCatalog.notOwner);
       return;
     }

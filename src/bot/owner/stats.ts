@@ -1,4 +1,5 @@
 import { Bot } from 'grammy';
+import { canAccessOwner } from '../permissions.js';
 import { BotContextWithSession } from '../context.js';
 import { ru } from '../../i18n/ru.js';
 import { InlineKeyboard } from '../../telegram/port.js';
@@ -8,7 +9,7 @@ import { escapeHtml } from '../../domain/escape.js';
 
 export function registerStatsHandlers(bot: Bot<BotContextWithSession>): void {
   bot.callbackQuery(/^adm:stats(:(7|30))?$/, async (ctx) => {
-    if (ctx.role !== 'owner') {
+    if (!canAccessOwner(ctx)) {
       await ctx.port.answerCallback(ctx.callbackQuery.id, ru.ownerCatalog.notOwner);
       return;
     }
@@ -56,6 +57,7 @@ export function registerStatsHandlers(bot: Bot<BotContextWithSession>): void {
           { text: '7 дней', callback_data: 'adm:stats:7' },
           { text: '30 дней', callback_data: 'adm:stats:30' },
         ],
+        [{ text: 'Назад', callback_data: 'adm:menu' }],
       ],
     };
     await ctx.port.editMessageText(chatId, messageId, lines.join('\n'), {

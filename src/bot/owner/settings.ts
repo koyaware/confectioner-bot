@@ -1,4 +1,5 @@
 import { Bot } from 'grammy';
+import { canAccessOwner } from '../permissions.js';
 import { BotContextWithSession } from '../context.js';
 import { decodeCallback } from '../callbacks.js';
 import { ru } from '../../i18n/ru.js';
@@ -28,7 +29,7 @@ const FIELD_LABELS: Record<SettingsField, string> = {
 
 export function registerSettingsHandlers(bot: Bot<BotContextWithSession>): void {
   bot.callbackQuery(/^adm:set:/, async (ctx) => {
-    if (ctx.role !== 'owner') {
+    if (!canAccessOwner(ctx)) {
       await ctx.port.answerCallback(ctx.callbackQuery.id, ru.ownerCatalog.notOwner);
       return;
     }
@@ -52,6 +53,7 @@ export function registerSettingsHandlers(bot: Bot<BotContextWithSession>): void 
           callback_data: 'adm:set:toggle_accept',
         },
       ]);
+      rows.push([{ text: 'Назад', callback_data: 'adm:menu' }]);
       await ctx.port.editMessageText(chatId, messageId, ru.ownerSettings.title, {
         keyboard: { inline_keyboard: rows },
       });
@@ -84,7 +86,7 @@ export function registerSettingsHandlers(bot: Bot<BotContextWithSession>): void 
           chatIdR,
           messageIdR,
           nowAccept ? 'Приём заказов включён.' : 'Приём заказов выключен (режим «перегруз»).',
-          {}
+          { keyboard: { inline_keyboard: [[{ text: 'Назад', callback_data: 'adm:set:list' }]] } }
         );
       }
       return;
@@ -111,7 +113,8 @@ export function registerSettingsHandlers(bot: Bot<BotContextWithSession>): void 
       await ctx.port.editMessageText(
         chatId,
         messageId,
-        `${ru.ownerSettings.prompt}: ${FIELD_LABELS[arg]}\nТекущее значение: ${escapeHtml(currentText)}\n\n${ru.ownerSettings.hint}`
+        `${ru.ownerSettings.prompt}: ${FIELD_LABELS[arg]}\nТекущее значение: ${escapeHtml(currentText)}\n\n${ru.ownerSettings.hint}`,
+        { keyboard: { inline_keyboard: [[{ text: 'Назад', callback_data: 'adm:set:list' }]] } }
       );
       return;
     }

@@ -1,4 +1,5 @@
 import { Bot } from 'grammy';
+import { canAccessOwner } from '../permissions.js';
 import { BotContextWithSession } from '../context.js';
 import { decodeCallback } from '../callbacks.js';
 import { ru } from '../../i18n/ru.js';
@@ -8,7 +9,7 @@ import { InlineKeyboard } from '../../telegram/port.js';
 
 export function registerOwnerFaqHandlers(bot: Bot<BotContextWithSession>): void {
   bot.callbackQuery(/^adm:faq:/, async (ctx) => {
-    if (ctx.role !== 'owner') {
+    if (!canAccessOwner(ctx)) {
       await ctx.port.answerCallback(ctx.callbackQuery.id, ru.ownerCatalog.notOwner);
       return;
     }
@@ -28,6 +29,7 @@ export function registerOwnerFaqHandlers(bot: Bot<BotContextWithSession>): void 
         { text: f.question, callback_data: `adm:faq:edit:${f.id}` },
       ]);
       rows.push([{ text: ru.ownerFaq.add, callback_data: 'adm:faq:add' }]);
+      rows.push([{ text: 'Назад', callback_data: 'adm:menu' }]);
       await ctx.port.editMessageText(chatId, messageId, ru.ownerFaq.title, {
         keyboard: { inline_keyboard: rows },
       });
@@ -80,6 +82,7 @@ export function registerOwnerFaqHandlers(bot: Bot<BotContextWithSession>): void 
         { text: f.question, callback_data: `adm:faq:edit:${f.id}` },
       ]);
       rows.push([{ text: ru.ownerFaq.add, callback_data: 'adm:faq:add' }]);
+      rows.push([{ text: 'Назад', callback_data: 'adm:menu' }]);
       await ctx.port.editMessageText(chatId, messageId, ru.ownerFaq.title, {
         keyboard: { inline_keyboard: rows },
       });

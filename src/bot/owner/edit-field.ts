@@ -1,4 +1,5 @@
 import { Bot } from 'grammy';
+import { canAccessOwner } from '../permissions.js';
 import { BotContextWithSession } from '../context.js';
 import { ru } from '../../i18n/ru.js';
 import * as editor from '../../services/catalog-editor.js';
@@ -27,7 +28,7 @@ function parsePriceRubles(s: string): number | null {
 export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void {
   bot.on('message:text', async (ctx, next) => {
     if (
-      ctx.role !== 'owner' ||
+      !canAccessOwner(ctx) ||
       ctx.sessionState !== 'owner.edit_field' ||
       !ctx.session.ownerDraft
     ) {
@@ -229,7 +230,7 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
 
   bot.on('message:photo', async (ctx, next) => {
     if (
-      ctx.role !== 'owner' ||
+      !canAccessOwner(ctx) ||
       ctx.sessionState !== 'owner.edit_field' ||
       !ctx.session.ownerDraft
     ) {
@@ -253,7 +254,7 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
 
   bot.on('message:document', async (ctx, next) => {
     if (
-      ctx.role !== 'owner' ||
+      !canAccessOwner(ctx) ||
       ctx.sessionState !== 'owner.edit_field' ||
       !ctx.session.ownerDraft
     ) {
