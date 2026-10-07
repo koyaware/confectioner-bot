@@ -60,7 +60,13 @@ async function relayToOwner(ctx: BotContextWithSession): Promise<void> {
   const orderLabel = activeOrders[0] ? `, заказ №${activeOrders[0].number}` : '';
 
   const headerText = `${customer.firstName ?? 'Гость'}${customer.username ? ` (@${customer.username})` : ''}${orderLabel}`;
-  const header = await ctx.port.sendMessage(ownerId, headerText);
+  const header = await ctx.port.sendMessage(ownerId, headerText, {
+    keyboard: {
+      inline_keyboard: [
+        [{ text: 'Заблокировать', callback_data: `adm:relay:block:${customer.id}` }],
+      ],
+    },
+  });
   const customerChatId = ctx.chat!.id;
 
   await db.insert(relayMessages).values({
@@ -120,6 +126,29 @@ async function relayToOwner(ctx: BotContextWithSession): Promise<void> {
 }
 
 export function registerRelayHandlers(bot: Bot<BotContextWithSession>): void {
+  bot.callbackQuery(/^adm:relay:block:(.+)$/, async (ctx) => {
+    if (ctx.role !== 'owner') {
+      await ctx.port.answerCallback(ctx.callbackQuery.id, 'Только владелец.');
+      return;
+    }
+    await ctx.port.answerCallback(ctx.callbackQuery.id);
+
+    const m = /^adm:relay:block:(.+)$/.exec(ctx.callbackQuery.data);
+    if (!m) return;
+
+    const db = getDb();
+    await db
+      .update(customers)
+      .set({ isBlocked: true })
+      .where(and(eq(customers.id, m[1]!), eq(customers.tenantId, ctx.tenant.id)));
+
+    const chatId = ctx.callbackQuery.message?.chat.id;
+    const messageId = ctx.callbackQuery.message?.message_id;
+    if (chatId && messageId) {
+      await ctx.port.editMessageText(chatId, messageId, 'Клиент заблокирован.', {});
+    }
+  });
+
   bot.callbackQuery(/^rel:start$/, async (ctx) => {
     await ctx.port.answerCallback(ctx.callbackQuery.id);
     ctx.sessionState = 'relay.compose';

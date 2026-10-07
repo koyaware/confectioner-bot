@@ -97,4 +97,38 @@ describe('relay', () => {
     const toCustomer = copies2.find((c) => c.args[0] === 42);
     expect(toCustomer).toBeTruthy();
   });
+
+  it('owner can block a client from the relay header', async () => {
+    const { tenantId } = await seedDemo(appSecret, new Date());
+    await getDb().update(tenants).set({ ownerTelegramId: 555 }).where(eq(tenants.id, tenantId));
+    const db = getDb();
+    await db.insert(customers).values({
+      id: 'cust-block',
+      tenantId,
+      telegramId: 42,
+      firstSeenAt: new Date(),
+      lastSeenAt: new Date(),
+    });
+
+    const port = new FakePort();
+    const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
+
+    await bot.handleUpdate({
+      update_id: 1,
+      callback_query: {
+        id: 'c1',
+        from: { id: 555, is_bot: false, first_name: 'O' },
+        message: { message_id: 10, date: 1, chat: { id: 555, type: 'private' } },
+        data: 'adm:relay:block:cust-block',
+      },
+    } as never);
+
+    const rows = await getDb().select().from(customers).where(eq(customers.id, 'cust-block'));
+    expect(rows[0]!.isBlocked).toBe(true);
+
+    // future relay from this customer goes nowhere
+    await bot.handleUpdate(msg(2, 42, 'Ещё вопрос'));
+    const sentAfter = port.getCallsForMethod('sendMessage').filter((c) => c.args[0] === 555);
+    expect(sentAfter).toHaveLength(0);
+  });
 });

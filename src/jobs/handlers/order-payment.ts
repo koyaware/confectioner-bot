@@ -3,7 +3,7 @@ import { getDb } from '../../db/client.js';
 import { customers, orders, tenants } from '../../db/schema.js';
 import { eq } from 'drizzle-orm';
 import { applyOrderEvent } from '../../services/orders.js';
-import { TelegramPort } from '../../telegram/port.js';
+import { TelegramPort, TelegramError } from '../../telegram/port.js';
 import { formatMinor } from '../../lib/money.js';
 
 export interface PortResolver {
@@ -37,10 +37,19 @@ export function createPaymentReminderHandler(ports: PortResolver): JobHandler<{ 
     if (!port) {
       return { success: false, error: `no bot for tenant ${order.tenantId}` };
     }
-    await port.sendMessage(
-      customer.telegramId,
-      `Напоминаем: предоплата по заказу №${order.number} — ${formatMinor(order.prepaymentMinor, tenant.currency)}. Срок до ${order.paymentDueAt ? new Date(order.paymentDueAt).toLocaleString('ru-RU') : '—'}.`
-    );
+    try {
+      await port.sendMessage(
+        customer.telegramId,
+        `Напоминаем: предоплата по заказу №${order.number} — ${formatMinor(order.prepaymentMinor, tenant.currency)}. Срок до ${order.paymentDueAt ? new Date(order.paymentDueAt).toLocaleString('ru-RU') : '—'}.`
+      );
+    } catch (error) {
+      if (error instanceof TelegramError && error.code === 'BLOCKED') {
+        const db = getDb();
+        await db.update(customers).set({ botBlocked: true }).where(eq(customers.id, customer.id));
+        return { success: true };
+      }
+      return { success: false, error: String(error) };
+    }
     return { success: true };
   };
 }
@@ -64,8 +73,14 @@ export function createPaymentExpireHandler(ports: PortResolver): JobHandler<{ or
             customer.telegramId,
             `Заказ №${order.number} снят: предоплата не поступила вовремя.`
           );
-        } catch {
-          // customer may have blocked the bot; do not fail the job
+        } catch (error) {
+          if (error instanceof TelegramError && error.code === 'BLOCKED') {
+            const db = getDb();
+            await db
+              .update(customers)
+              .set({ botBlocked: true })
+              .where(eq(customers.id, customer.id));
+          }
         }
       }
       if (tenant?.ownerTelegramId) {
