@@ -78,7 +78,7 @@ async function showDialogScreen(
 
   if (messageId) {
     try {
-      await ctx.port.editMessageText(chatId, messageId, text, { keyboard, parseMode: 'HTML' });
+      await ctx.port.editMessageTextOrSend(chatId, messageId, text, { keyboard, parseMode: 'HTML' });
       return messageId;
     } catch {
       // message gone, send new
@@ -199,12 +199,28 @@ async function handleOwnerDialogMessage(ctx: BotContextWithSession): Promise<boo
 
   // Send to customer
   const replyKb = { inline_keyboard: [[{ text: 'Ответить мастеру', callback_data: `rel:dialog:${orderId}` }]] };
-  if (message.type === 'text') {
-    await ctx.port.sendMessage(customer.telegramId, message.text, { keyboard: replyKb });
-  } else if (message.type === 'photo') {
-    await ctx.port.sendPhoto(customer.telegramId, message.fileId!, message.text, { keyboard: replyKb });
-  } else if (message.type === 'document') {
-    await ctx.port.sendDocument(customer.telegramId, message.fileId!, message.text, { keyboard: replyKb });
+  let sentToCustomer = false;
+  try {
+    if (message.type === 'text') {
+      await ctx.port.sendMessage(customer.telegramId, message.text, { keyboard: replyKb });
+      sentToCustomer = true;
+    } else if (message.type === 'photo') {
+      await ctx.port.sendPhoto(customer.telegramId, message.fileId!, message.text, { keyboard: replyKb });
+      sentToCustomer = true;
+    } else if (message.type === 'document') {
+      await ctx.port.sendDocument(customer.telegramId, message.fileId!, message.text, { keyboard: replyKb });
+      sentToCustomer = true;
+    }
+  } catch (e) {
+    const err = e as { code?: string; description?: string };
+    if (err.code === 'BLOCKED' || err.description?.includes('blocked')) {
+      const db = getDb();
+      await db.update(customers).set({ botBlocked: true }).where(eq(customers.id, customer.id));
+    }
+    // Log error but don't fail the handler
+  }
+  if (!sentToCustomer) {
+    await ctx.port.sendMessage(ctx.chat!.id, '⚠️ Не удалось отправить сообщение клиенту (возможно, бот заблокирован).');
   }
 
   // Update owner's dialog screen
@@ -274,12 +290,20 @@ async function handleCustomerDialogMessage(ctx: BotContextWithSession): Promise<
     const replyKb = order
       ? { inline_keyboard: [[{ text: 'Ответить клиенту', callback_data: `adm:ord:dialog:${order.id}:${customer.id}` }]] }
       : { inline_keyboard: [[{ text: 'Ответить клиенту', callback_data: `adm:ord:dialog::${customer.id}` }]] };
-    if (message.type === 'text') {
-      await ctx.port.sendMessage(ownerId, `${headerText}\n\n${message.text}`, { keyboard: replyKb });
-    } else if (message.type === 'photo') {
-      await ctx.port.sendPhoto(ownerId, message.fileId!, `${headerText}\n\n${message.text}`, { keyboard: replyKb });
-    } else if (message.type === 'document') {
-      await ctx.port.sendDocument(ownerId, message.fileId!, `${headerText}\n\n${message.text}`, { keyboard: replyKb });
+    try {
+      if (message.type === 'text') {
+        await ctx.port.sendMessage(ownerId, `${headerText}\n\n${message.text}`, { keyboard: replyKb });
+      } else if (message.type === 'photo') {
+        await ctx.port.sendPhoto(ownerId, message.fileId!, `${headerText}\n\n${message.text}`, { keyboard: replyKb });
+      } else if (message.type === 'document') {
+        await ctx.port.sendDocument(ownerId, message.fileId!, `${headerText}\n\n${message.text}`, { keyboard: replyKb });
+      }
+    } catch (e) {
+      const err = e as { code?: string; description?: string };
+      if (err.code === 'BLOCKED' || err.description?.includes('blocked')) {
+        const db = getDb();
+        await db.update(customers).set({ botBlocked: true }).where(eq(customers.id, customer.id));
+      }
     }
   }
 

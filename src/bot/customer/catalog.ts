@@ -35,14 +35,14 @@ export function registerCatalogHandlers(bot: Bot<BotContextWithSession>): void {
           [{ text: 'В меню', callback_data: 'nav:menu' }],
         ],
       };
-      await ctx.port.editMessageText(chatId, messageId, text, { keyboard, parseMode: 'HTML' });
+      await ctx.port.editMessageTextOrSend(chatId, messageId, text, { keyboard, parseMode: 'HTML' });
       return;
     }
 
     if (decoded.value.ns === 'cat' && decoded.value.action === 'open') {
       const category = await getCategoryIfActive(ctx.tenant.id, decoded.value.arg);
       if (!category) {
-        await ctx.port.editMessageText(chatId, messageId, ru.catalog.categoriesEmpty, {
+        await ctx.port.editMessageTextOrSend(chatId, messageId, ru.catalog.categoriesEmpty, {
           keyboard: { inline_keyboard: [[{ text: ru.catalog.back, callback_data: 'cat:list' }]] },
           parseMode: 'HTML',
         });
@@ -55,7 +55,7 @@ export function registerCatalogHandlers(bot: Bot<BotContextWithSession>): void {
           : ru.catalog.productsEmpty;
       const rows = prods.map((p) => [{ text: p.title, callback_data: `prd:open:${p.id}` }]);
       rows.push([{ text: ru.catalog.back, callback_data: 'cat:list' }]);
-      await ctx.port.editMessageText(chatId, messageId, text, {
+      await ctx.port.editMessageTextOrSend(chatId, messageId, text, {
         keyboard: { inline_keyboard: rows },
         parseMode: 'HTML',
       });
@@ -75,7 +75,7 @@ export function registerCatalogHandlers(bot: Bot<BotContextWithSession>): void {
 
     const product = await getProductIfOwned(ctx.tenant.id, decoded.value.arg);
     if (!product) {
-      await ctx.port.editMessageText(chatId, messageId, ru.product.notFound, {
+      await ctx.port.editMessageTextOrSend(chatId, messageId, ru.product.notFound, {
         keyboard: { inline_keyboard: [[{ text: 'В меню', callback_data: 'nav:menu' }]] },
         parseMode: 'HTML',
       });

@@ -78,7 +78,7 @@ export async function renderProductCard(
   rows.push([{ text: 'Перейти в корзину', callback_data: 'cart:show' }]);
   rows.push([{ text: ru.catalog.back, callback_data: `cat:open:${product.categoryId}` }]);
 
-  await ctx.port.editMessageText(chatId, messageId, lines.join('\n'), {
+  await ctx.port.editMessageTextOrSend(chatId, messageId, lines.join('\n'), {
     keyboard: { inline_keyboard: rows },
     parseMode: 'HTML',
   });

@@ -259,7 +259,7 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
       .limit(50);
 
     if (rows.length === 0) {
-      await ctx.port.editMessageText(chatId, messageId, 'Заказов пока нет.', {
+      await ctx.port.editMessageTextOrSend(chatId, messageId, 'Заказов пока нет.', {
         keyboard: { inline_keyboard: [[{ text: ru.common.back, callback_data: 'adm:menu' }]] },
       });
       return;
@@ -300,7 +300,7 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
     }
     keyboardRows.push([{ text: ru.common.back, callback_data: 'adm:menu' }]);
 
-    await ctx.port.editMessageText(chatId, messageId, lines.join('\n'), {
+    await ctx.port.editMessageTextOrSend(chatId, messageId, lines.join('\n'), {
       keyboard: { inline_keyboard: keyboardRows },
       parseMode: 'HTML',
     });
@@ -322,13 +322,13 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
 
     const card = await buildOrderCardText(m[1]!, ctx.tenant.id, ctx.tenant.currency);
     if (!card) {
-      await ctx.port.editMessageText(chatId, messageId, ru.my.notFound, {});
+      await ctx.port.editMessageTextOrSend(chatId, messageId, ru.my.notFound, {});
       return;
     }
 
     const rows = await getDb().select().from(orders).where(eq(orders.id, m[1]!)).limit(1);
     const status = rows[0]?.status ?? 'new';
-    await ctx.port.editMessageText(chatId, messageId, card, {
+    await ctx.port.editMessageTextOrSend(chatId, messageId, card, {
       keyboard: await orderCardKeyboard(m[1]!, status),
       parseMode: 'HTML',
     });
@@ -350,7 +350,7 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
     const chatId = ctx.callbackQuery.message?.chat.id;
     const messageId = ctx.callbackQuery.message?.message_id;
     if (chatId && messageId) {
-      await ctx.port.editMessageText(chatId, messageId, 'Напишите сообщение клиенту.', {
+      await ctx.port.editMessageTextOrSend(chatId, messageId, 'Напишите сообщение клиенту.', {
         keyboard: { inline_keyboard: [[{ text: 'Отмена', callback_data: 'adm:ord:list' }]] },
       });
     }
@@ -374,7 +374,7 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
     const rows = await db.select().from(orders).where(eq(orders.id, m[1]!)).limit(1);
     const order = rows[0];
     if (!order || order.tenantId !== ctx.tenant.id) {
-      await ctx.port.editMessageText(chatId, messageId, ru.my.notFound, {});
+      await ctx.port.editMessageTextOrSend(chatId, messageId, ru.my.notFound, {});
       return;
     }
 
@@ -384,12 +384,12 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
       .where(and(eq(orderAttachments.orderId, order.id), eq(orderAttachments.kind, 'reference')));
 
     if (refs.length === 0) {
-      await ctx.port.editMessageText(chatId, messageId, 'Референсов нет.', {});
+      await ctx.port.editMessageTextOrSend(chatId, messageId, 'Референсов нет.', {});
       return;
     }
 
     const sentIds: number[] = [];
-    await ctx.port.editMessageText(
+    await ctx.port.editMessageTextOrSend(
       chatId,
       messageId,
       `Референсы заказа №${order.number} (${refs.length} шт.)`,
@@ -431,7 +431,7 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
       if (['accept', 'rr', 'paid', 'badpay', 'ready', 'done', 'cancel'].includes(action)) {
         const targetId = rest.split(':')[0]!;
         if (!(await loadOwnedOrder(ctx.tenant.id, targetId))) {
-          await ctx.port.editMessageText(chatId, messageId, ru.my.notFound, {});
+          await ctx.port.editMessageTextOrSend(chatId, messageId, ru.my.notFound, {});
           return;
         }
       }
@@ -441,7 +441,7 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
         if (!result.ok) return;
         const card = await buildOrderCardText(rest, ctx.tenant.id, ctx.tenant.currency);
         if (card) {
-          await ctx.port.editMessageText(chatId, messageId, card, {
+          await ctx.port.editMessageTextOrSend(chatId, messageId, card, {
             keyboard: await orderCardKeyboard(rest, result.value.status),
             parseMode: 'HTML',
           });
@@ -461,7 +461,7 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
         );
         const card = await buildOrderCardText(rest, ctx.tenant.id, ctx.tenant.currency);
         if (card) {
-          await ctx.port.editMessageText(chatId, messageId, `${card}\n\nПричина отказа?`, {
+          await ctx.port.editMessageTextOrSend(chatId, messageId, `${card}\n\nПричина отказа?`, {
             keyboard: { inline_keyboard: rows },
             parseMode: 'HTML',
           });
@@ -474,7 +474,7 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
         if (!result.ok) return;
         const card = await buildOrderCardText(rest, ctx.tenant.id, ctx.tenant.currency);
         if (card) {
-          await ctx.port.editMessageText(chatId, messageId, card, {
+          await ctx.port.editMessageTextOrSend(chatId, messageId, card, {
             keyboard: await orderCardKeyboard(rest, result.value.status),
             parseMode: 'HTML',
           });
@@ -488,7 +488,7 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
         if (!result.ok) return;
         const card = await buildOrderCardText(rest, ctx.tenant.id, ctx.tenant.currency);
         if (card) {
-          await ctx.port.editMessageText(chatId, messageId, card, {
+          await ctx.port.editMessageTextOrSend(chatId, messageId, card, {
             keyboard: await orderCardKeyboard(rest, result.value.status),
             parseMode: 'HTML',
           });
@@ -507,7 +507,7 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
         if (!result.ok) return;
         const card = await buildOrderCardText(rest, ctx.tenant.id, ctx.tenant.currency);
         if (card) {
-          await ctx.port.editMessageText(chatId, messageId, card, {
+          await ctx.port.editMessageTextOrSend(chatId, messageId, card, {
             keyboard: await orderCardKeyboard(rest, result.value.status),
             parseMode: 'HTML',
           });
@@ -521,7 +521,7 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
         if (!result.ok) return;
         const card = await buildOrderCardText(rest, ctx.tenant.id, ctx.tenant.currency);
         if (card) {
-          await ctx.port.editMessageText(chatId, messageId, card, {
+          await ctx.port.editMessageTextOrSend(chatId, messageId, card, {
             keyboard: await orderCardKeyboard(rest, result.value.status),
             parseMode: 'HTML',
           });
@@ -535,7 +535,7 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
         if (!result.ok) return;
         const card = await buildOrderCardText(rest, ctx.tenant.id, ctx.tenant.currency);
         if (card) {
-          await ctx.port.editMessageText(chatId, messageId, card, {
+          await ctx.port.editMessageTextOrSend(chatId, messageId, card, {
             keyboard: await orderCardKeyboard(rest, result.value.status),
             parseMode: 'HTML',
           });
@@ -576,7 +576,7 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
           Number(ym.slice(5, 7)),
           orderId
         );
-        await ctx.port.editMessageText(
+        await ctx.port.editMessageTextOrSend(
           chatId,
           messageId,
           `Предложите новую дату для заказа №${order.number}:`,
@@ -617,7 +617,7 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
           Number(monthStart.slice(5, 7)),
           orderId
         );
-        await ctx.port.editMessageText(
+        await ctx.port.editMessageTextOrSend(
           chatId,
           messageId,
           `Предложите новую дату для заказа №${order.number}:`,
@@ -681,7 +681,7 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
 
         const card = await buildOrderCardText(orderId, ctx.tenant.id, ctx.tenant.currency);
         if (card) {
-          await ctx.port.editMessageText(chatId, messageId, card, { parseMode: 'HTML' });
+          await ctx.port.editMessageTextOrSend(chatId, messageId, card, { parseMode: 'HTML' });
         }
         return;
       }
@@ -700,7 +700,7 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
           .where(and(eq(orders.id, orderId), eq(orders.status, 'rejected')));
         const card = await buildOrderCardText(orderId, ctx.tenant.id, ctx.tenant.currency);
         if (card) {
-          await ctx.port.editMessageText(chatId, messageId, card, {
+          await ctx.port.editMessageTextOrSend(chatId, messageId, card, {
             keyboard: await orderCardKeyboard(orderId, result.value.status),
             parseMode: 'HTML',
           });

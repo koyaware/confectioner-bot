@@ -51,7 +51,7 @@ describe('faq', () => {
       },
     } as never);
 
-    let edits = port.getCallsForMethod('editMessageText');
+    let edits = port.getCallsForMethod('editMessageTextOrSend');
     expect(edits).toHaveLength(1);
     let buttons = JSON.stringify(edits[0]!.args[3]);
     expect(buttons).toContain('faq:view:');
@@ -67,7 +67,7 @@ describe('faq', () => {
       },
     } as never);
 
-    edits = port.getCallsForMethod('editMessageText');
+    edits = port.getCallsForMethod('editMessageTextOrSend');
     expect(edits).toHaveLength(2);
     buttons = JSON.stringify(edits[1]!.args[3]);
     expect(buttons).toContain('faq:list');

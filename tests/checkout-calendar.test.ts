@@ -49,13 +49,13 @@ describe('checkout calendar', () => {
 
   async function addOneToCart(bot: ReturnType<typeof createTenantBot>['bot'], port: FakePort) {
     await bot.handleUpdate(cb(101, 'c1', 42, 10, 'cat:list'));
-    let edits = port.getCallsForMethod('editMessageText');
+    let edits = port.getCallsForMethod('editMessageTextOrSend');
     const catBtn = JSON.stringify(edits[0]!.args[3]).match(/cat:open:[A-Za-z0-9_-]+/)![0];
     await bot.handleUpdate(cb(102, 'c2', 42, 10, catBtn));
-    edits = port.getCallsForMethod('editMessageText');
+    edits = port.getCallsForMethod('editMessageTextOrSend');
     const prdBtn = JSON.stringify(edits[1]!.args[3]).match(/prd:open:[A-Za-z0-9_-]+/)![0];
     await bot.handleUpdate(cb(103, 'c3', 42, 10, prdBtn));
-    edits = port.getCallsForMethod('editMessageText');
+    edits = port.getCallsForMethod('editMessageTextOrSend');
     const addBtn = JSON.stringify(edits[2]!.args[3]).match(/prd:add:[A-Za-z0-9_-]+/)![0];
     await bot.handleUpdate(cb(104, 'c4', 42, 10, addBtn));
   }
@@ -79,7 +79,7 @@ describe('checkout calendar', () => {
     await bot.handleUpdate(cb(1, 'c5', 42, 10, 'cart:show'));
     await bot.handleUpdate(cb(2, 'c6', 42, 10, 'chk:start'));
 
-    const edits = port.getCallsForMethod('editMessageText');
+    const edits = port.getCallsForMethod('editMessageTextOrSend');
     const calendarMsg = edits[edits.length - 1]!;
     const kb = JSON.stringify(calendarMsg.args[3]);
     expect(kb).toContain('✕');

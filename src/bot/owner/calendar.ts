@@ -95,7 +95,7 @@ export function registerCalendarHandlers(bot: Bot<BotContextWithSession>): void 
         );
       }
       const kb = calendarGrid(Number(today.slice(0, 4)), Number(today.slice(5, 7)), marks);
-      await ctx.port.editMessageText(chatId, messageId, ru.ownerCalendar.title, {
+      await ctx.port.editMessageTextOrSend(chatId, messageId, ru.ownerCalendar.title, {
         keyboard: kb,
       });
       return;
@@ -121,7 +121,7 @@ export function registerCalendarHandlers(bot: Bot<BotContextWithSession>): void 
         );
       }
       const kb = calendarGrid(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)), marks);
-      await ctx.port.editMessageText(chatId, messageId, ru.ownerCalendar.title, {
+      await ctx.port.editMessageTextOrSend(chatId, messageId, ru.ownerCalendar.title, {
         keyboard: kb,
       });
       return;
@@ -148,7 +148,7 @@ export function registerCalendarHandlers(bot: Bot<BotContextWithSession>): void 
     if (setcapMatch) {
       const date = setcapMatch[1]!;
       beginOwnerDraft(ctx, { kind: 'cal_capacity', targetId: date });
-      await ctx.port.editMessageText(chatId, messageId, ru.ownerCalendar.promptCapacity, {
+      await ctx.port.editMessageTextOrSend(chatId, messageId, ru.ownerCalendar.promptCapacity, {
         keyboard: { inline_keyboard: [[{ text: 'Назад', callback_data: `adm:cal:day:${date}` }]] },
       });
       return;
@@ -194,7 +194,7 @@ export async function showDateScreen(
     }
   }
   rows.push([{ text: ru.catalog.back, callback_data: 'adm:cal:list' }]);
-  await ctx.port.editMessageText(chatId, messageId, lines.join('\n'), {
+  await ctx.port.editMessageTextOrSend(chatId, messageId, lines.join('\n'), {
     keyboard: { inline_keyboard: rows },
   });
 }

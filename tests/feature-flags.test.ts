@@ -102,7 +102,7 @@ describe('feature flags', () => {
     const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
 
     await bot.handleUpdate(cb(1, 555, 'adm:set:edit:features'));
-    const edits = port.getCallsForMethod('editMessageText');
+    const edits = port.getCallsForMethod('editMessageTextOrSend');
     expect(JSON.stringify(edits[0]!.args[3])).toContain('adm:set:feat:daily_digest');
 
     await bot.handleUpdate(cb(2, 555, 'adm:set:feat:daily_digest'));

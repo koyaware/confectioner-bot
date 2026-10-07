@@ -27,7 +27,7 @@ export function registerLinksHandlers(bot: Bot<BotContextWithSession>): void {
       ]);
       rows.push([{ text: ru.ownerLinks.add, callback_data: 'adm:src:add' }]);
       rows.push([{ text: 'Назад', callback_data: 'adm:menu' }]);
-      await ctx.port.editMessageText(
+      await ctx.port.editMessageTextOrSend(
         chatId,
         messageId,
         items.length > 0 ? ru.ownerLinks.title : ru.ownerLinks.empty,
@@ -38,7 +38,7 @@ export function registerLinksHandlers(bot: Bot<BotContextWithSession>): void {
 
     if (data === 'adm:src:add') {
       beginOwnerDraft(ctx, { kind: 'src_add_label' });
-      await ctx.port.editMessageText(chatId, messageId, ru.ownerLinks.promptLabel, {
+      await ctx.port.editMessageTextOrSend(chatId, messageId, ru.ownerLinks.promptLabel, {
         keyboard: { inline_keyboard: [[{ text: 'Назад', callback_data: 'adm:menu' }]] },
       });
       return;
@@ -74,7 +74,7 @@ export function registerLinksHandlers(bot: Bot<BotContextWithSession>): void {
       ]);
       rows.push([{ text: ru.ownerLinks.add, callback_data: 'adm:src:add' }]);
       rows.push([{ text: 'Назад', callback_data: 'adm:menu' }]);
-      await ctx.port.editMessageText(chatId, messageId, ru.ownerLinks.title, {
+      await ctx.port.editMessageTextOrSend(chatId, messageId, ru.ownerLinks.title, {
         keyboard: { inline_keyboard: rows },
       });
       return;

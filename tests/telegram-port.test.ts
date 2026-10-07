@@ -89,6 +89,15 @@ describe('TelegramPort', () => {
       expect(calls[0]?.args[2]).toBe('Updated text');
     });
 
+    it('records editMessageTextOrSend calls', async () => {
+      const result = await fakePort.editMessageTextOrSend(123, 456, 'Updated text');
+      const calls = fakePort.getCalls();
+      expect(calls).toHaveLength(1);
+      expect(calls[0]?.method).toBe('editMessageTextOrSend');
+      expect(calls[0]?.args[2]).toBe('Updated text');
+      expect(result.messageId).toBeGreaterThan(0);
+    });
+
     it('records answerCallback calls', async () => {
       await fakePort.answerCallback('callback-id', 'Answer');
       const calls = fakePort.getCalls();

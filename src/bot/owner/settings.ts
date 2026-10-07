@@ -64,7 +64,7 @@ export function registerSettingsHandlers(bot: Bot<BotContextWithSession>): void 
         },
       ]);
       rows.push([{ text: ru.common.back, callback_data: 'adm:menu' }]);
-      await ctx.port.editMessageText(chatId, messageId, ru.ownerSettings.title, {
+      await ctx.port.editMessageTextOrSend(chatId, messageId, ru.ownerSettings.title, {
         keyboard: { inline_keyboard: rows },
       });
       return;
@@ -92,7 +92,7 @@ export function registerSettingsHandlers(bot: Bot<BotContextWithSession>): void 
           .where(eq(tenants.id, ctx.tenant.id))
           .limit(1);
         const nowAccept = list[0]?.acceptOrders ?? true;
-        await ctx.port.editMessageText(
+        await ctx.port.editMessageTextOrSend(
           chatIdR,
           messageIdR,
           nowAccept ? 'Приём заказов включён.' : 'Приём заказов выключен (режим «перегруз»).',
@@ -119,7 +119,7 @@ export function registerSettingsHandlers(bot: Bot<BotContextWithSession>): void 
       }
       rows.push([{ text: ru.ownerSettings.featureAdd, callback_data: 'adm:set:featadd' }]);
       rows.push([{ text: ru.common.back, callback_data: 'adm:set:list' }]);
-      await ctx.port.editMessageText(chatId, messageId, ru.ownerSettings.title, {
+      await ctx.port.editMessageTextOrSend(chatId, messageId, ru.ownerSettings.title, {
         keyboard: { inline_keyboard: rows },
       });
       return;
@@ -127,7 +127,7 @@ export function registerSettingsHandlers(bot: Bot<BotContextWithSession>): void 
 
     if (action === 'featadd') {
       beginOwnerDraft(ctx, { kind: 'feature_add_name' });
-      await ctx.port.editMessageText(chatId, messageId, ru.ownerSettings.featureNamePrompt, {
+      await ctx.port.editMessageTextOrSend(chatId, messageId, ru.ownerSettings.featureNamePrompt, {
         keyboard: {
           inline_keyboard: [[{ text: ru.common.back, callback_data: 'adm:set:edit:features' }]],
         },
@@ -156,7 +156,7 @@ export function registerSettingsHandlers(bot: Bot<BotContextWithSession>): void 
         ]);
       }
       flagRowsKb.push([{ text: ru.common.back, callback_data: 'adm:set:edit:features' }]);
-      await ctx.port.editMessageText(chatId, messageId, ru.ownerSettings.title, {
+      await ctx.port.editMessageTextOrSend(chatId, messageId, ru.ownerSettings.title, {
         keyboard: { inline_keyboard: flagRowsKb },
       });
       return;
@@ -179,7 +179,7 @@ export function registerSettingsHandlers(bot: Bot<BotContextWithSession>): void 
       } else {
         currentText = current === null || current === undefined ? '—' : String(current);
       }
-      await ctx.port.editMessageText(
+      await ctx.port.editMessageTextOrSend(
         chatId,
         messageId,
         `${ru.ownerSettings.prompt}: ${FIELD_LABELS[arg]}\nТекущее значение: ${escapeHtml(currentText)}\n\n${ru.ownerSettings.hint}`,

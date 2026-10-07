@@ -75,14 +75,14 @@ export function registerMenuHandler(bot: Bot<BotContextWithSession>): void {
     if (!chatId || !messageId) return;
 
     if (canAccessOwner(ctx)) {
-      await ctx.port.editMessageText(chatId, messageId, ru.menu.ownerTitle, {
+      await ctx.port.editMessageTextOrSend(chatId, messageId, ru.menu.ownerTitle, {
         keyboard: ownerMenuKeyboard(),
         parseMode: 'HTML',
       });
       return;
     }
 
-    await ctx.port.editMessageText(chatId, messageId, ru.menu.customerTitle, {
+    await ctx.port.editMessageTextOrSend(chatId, messageId, ru.menu.customerTitle, {
       keyboard: customerMenuKeyboard(),
       parseMode: 'HTML',
     });
@@ -111,7 +111,7 @@ export function registerMenuHandler(bot: Bot<BotContextWithSession>): void {
     const chatId = ctx.callbackQuery.message?.chat.id;
     const messageId = ctx.callbackQuery.message?.message_id;
     if (chatId && messageId) {
-      await ctx.port.editMessageText(chatId, messageId, `Клиент видит это:\n\n${greeting}`, {
+      await ctx.port.editMessageTextOrSend(chatId, messageId, `Клиент видит это:\n\n${greeting}`, {
         keyboard,
         parseMode: 'HTML',
       });
@@ -129,7 +129,7 @@ export function registerMenuHandler(bot: Bot<BotContextWithSession>): void {
     const messageId = ctx.callbackQuery.message?.message_id;
     if (!chatId || !messageId) return;
 
-    await ctx.port.editMessageText(chatId, messageId, ru.menu.ownerTitle, {
+    await ctx.port.editMessageTextOrSend(chatId, messageId, ru.menu.ownerTitle, {
       keyboard: ownerMenuKeyboard(),
       parseMode: 'HTML',
     });

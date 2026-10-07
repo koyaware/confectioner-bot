@@ -54,13 +54,13 @@ describe('cart', () => {
 
     // open catalog, first category, first product
     await bot.handleUpdate(cb(1, 'c1', 42, 10, 'cat:list'));
-    let edits = port.getCallsForMethod('editMessageText');
+    let edits = port.getCallsForMethod('editMessageTextOrSend');
     const catBtn = JSON.stringify(edits[0]!.args[3]).match(/cat:open:[A-Za-z0-9_-]+/)![0];
     await bot.handleUpdate(cb(2, 'c2', 42, 10, catBtn));
-    edits = port.getCallsForMethod('editMessageText');
+    edits = port.getCallsForMethod('editMessageTextOrSend');
     const prdBtn = JSON.stringify(edits[1]!.args[3]).match(/prd:open:[A-Za-z0-9_-]+/)![0];
     await bot.handleUpdate(cb(3, 'c3', 42, 10, prdBtn));
-    edits = port.getCallsForMethod('editMessageText');
+    edits = port.getCallsForMethod('editMessageTextOrSend');
     // product card now has prd:add button
     expect(JSON.stringify(edits[2]!.args[3])).toContain('prd:add:');
     const addBtn = JSON.stringify(edits[2]!.args[3]).match(/prd:add:[A-Za-z0-9_-]+/)![0];
@@ -81,7 +81,7 @@ describe('cart', () => {
     };
     expect(data.cart.lines).toHaveLength(1);
     await bot.handleUpdate(cb(5, 'c5', 42, 10, 'cart:show'));
-    edits = port.getCallsForMethod('editMessageText');
+    edits = port.getCallsForMethod('editMessageTextOrSend');
     expect(edits[edits.length - 1]!.args[2] as string).toContain('Итого');
 
     // inc then dec back, then dec removes line
@@ -110,18 +110,18 @@ describe('cart', () => {
     const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
 
     await bot.handleUpdate(cb(1, 'c1', 42, 10, 'cat:list'));
-    let edits = port.getCallsForMethod('editMessageText');
+    let edits = port.getCallsForMethod('editMessageTextOrSend');
     const catBtn = JSON.stringify(edits[0]!.args[3]).match(/cat:open:[A-Za-z0-9_-]+/)![0];
     await bot.handleUpdate(cb(2, 'c2', 42, 10, catBtn));
-    edits = port.getCallsForMethod('editMessageText');
+    edits = port.getCallsForMethod('editMessageTextOrSend');
     const prdBtn = JSON.stringify(edits[1]!.args[3]).match(/prd:open:[A-Za-z0-9_-]+/)![0];
     await bot.handleUpdate(cb(3, 'c3', 42, 10, prdBtn));
-    edits = port.getCallsForMethod('editMessageText');
+    edits = port.getCallsForMethod('editMessageTextOrSend');
     const addBtn = JSON.stringify(edits[2]!.args[3]).match(/prd:add:[A-Za-z0-9_-]+/)![0];
     await bot.handleUpdate(cb(4, 'c4', 42, 10, addBtn));
 
     await bot.handleUpdate(cb(5, 'c5', 42, 10, 'cart:show'));
-    edits = port.getCallsForMethod('editMessageText');
+    edits = port.getCallsForMethod('editMessageTextOrSend');
     await bot.handleUpdate(cb(6, 'c6', 42, 10, 'chk:start'));
 
     const rows = await getDb().select().from(sessions);
@@ -138,13 +138,13 @@ describe('cart', () => {
     const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
 
     await bot.handleUpdate(cb(1, 'c1', 42, 10, 'cat:list'));
-    let edits = port.getCallsForMethod('editMessageText');
+    let edits = port.getCallsForMethod('editMessageTextOrSend');
     const catBtn = JSON.stringify(edits[0]!.args[3]).match(/cat:open:[A-Za-z0-9_-]+/)![0];
     await bot.handleUpdate(cb(2, 'c2', 42, 10, catBtn));
-    edits = port.getCallsForMethod('editMessageText');
+    edits = port.getCallsForMethod('editMessageTextOrSend');
     const prdBtn = JSON.stringify(edits[1]!.args[3]).match(/prd:open:[A-Za-z0-9_-]+/)![0];
     await bot.handleUpdate(cb(3, 'c3', 42, 10, prdBtn));
-    edits = port.getCallsForMethod('editMessageText');
+    edits = port.getCallsForMethod('editMessageTextOrSend');
     const addBtn = JSON.stringify(edits[2]!.args[3]).match(/prd:add:[A-Za-z0-9_-]+/)![0];
     await bot.handleUpdate(cb(4, 'c4', 42, 10, addBtn));
     await bot.handleUpdate(cb(5, 'c5', 42, 10, addBtn));

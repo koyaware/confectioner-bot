@@ -152,7 +152,7 @@ describe('stats', () => {
     const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
 
     await bot.handleUpdate(cb(1, 'c1', 555, 10, 'adm:stats'));
-    const edits = port.getCallsForMethod('editMessageText');
+    const edits = port.getCallsForMethod('editMessageTextOrSend');
     expect(edits.length).toBeGreaterThan(0);
     expect(edits[0]!.args[2]).toContain('Статистика за 7 дней');
     expect(edits[0]!.args[2]).toContain('Каталог');
@@ -160,7 +160,7 @@ describe('stats', () => {
     expect(edits[0]!.args[2]).not.toContain('catalog_view');
 
     await bot.handleUpdate(cb(2, 'c2', 555, 10, 'adm:stats:30'));
-    const edits2 = port.getCallsForMethod('editMessageText');
+    const edits2 = port.getCallsForMethod('editMessageTextOrSend');
     expect(edits2[edits2.length - 1]!.args[2]).toContain('Статистика за 30 дней');
   });
 });

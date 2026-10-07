@@ -83,7 +83,7 @@ export function registerStatsHandlers(bot: Bot<BotContextWithSession>): void {
         [{ text: 'Назад', callback_data: 'adm:menu' }],
       ],
     };
-    await ctx.port.editMessageText(chatId, messageId, lines.join('\n'), {
+    await ctx.port.editMessageTextOrSend(chatId, messageId, lines.join('\n'), {
       keyboard: kb,
       parseMode: 'HTML',
     });

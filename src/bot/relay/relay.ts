@@ -169,7 +169,7 @@ export function registerRelayHandlers(bot: Bot<BotContextWithSession>): void {
     const chatId = ctx.callbackQuery.message?.chat.id;
     const messageId = ctx.callbackQuery.message?.message_id;
     if (chatId && messageId) {
-      await ctx.port.editMessageText(chatId, messageId, ru.relay.clientBlocked, {});
+      await ctx.port.editMessageTextOrSend(chatId, messageId, ru.relay.clientBlocked, {});
     }
   });
 

@@ -112,6 +112,25 @@ export class FakePort implements TelegramPort {
     });
   }
 
+  editMessageTextOrSend(
+    chatId: number,
+    _messageId: number,
+    text: string,
+    opts?: SendOpts
+  ): Promise<SendMessageResult> {
+    return Promise.resolve().then(() => {
+      const call = this.recordCall('editMessageTextOrSend', [chatId, _messageId, text, opts]);
+      this.checkErrorRules(call);
+
+      if (text.length > 4096) {
+        throw new TelegramError('OTHER', 'Text too long (max 4096 chars)');
+      }
+
+      const messageId = ++this.messageCounter;
+      return { messageId };
+    });
+  }
+
   sendDocument(
     chatId: number,
     document: string | Buffer,

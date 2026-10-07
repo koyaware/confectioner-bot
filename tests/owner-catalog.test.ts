@@ -163,7 +163,7 @@ describe('owner catalog editor', () => {
       },
     } as never);
 
-    const catAddPrompts = port.getCallsForMethod('editMessageText');
+    const catAddPrompts = port.getCallsForMethod('editMessageTextOrSend');
     expect(catAddPrompts).toHaveLength(1);
 
     // owner types the title

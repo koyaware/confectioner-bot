@@ -91,7 +91,7 @@ describe('owner orders callbacks', () => {
 
     await bot.handleUpdate(cb(1, 555, 'adm:ord:list'));
 
-    const edits = port.getCallsForMethod('editMessageText');
+    const edits = port.getCallsForMethod('editMessageTextOrSend');
     expect(edits).toHaveLength(1);
     expect(edits[0]!.args[2]).toContain('Заказы:');
     expect(edits[0]!.args[2]).toContain('<b>Новые</b>');
@@ -107,7 +107,7 @@ describe('owner orders callbacks', () => {
 
     await bot.handleUpdate(cb(1, 555, 'adm:ord:view:o1'));
 
-    const edits = port.getCallsForMethod('editMessageText');
+    const edits = port.getCallsForMethod('editMessageTextOrSend');
     expect(edits).toHaveLength(1);
     expect(edits[0]!.args[2]).toContain('Заказ №1');
     const keyboard = JSON.stringify(edits[0]!.args[3]);
@@ -121,7 +121,7 @@ describe('owner orders callbacks', () => {
 
     await bot.handleUpdate(cb(1, 555, 'adm:ord:msg:o1'));
 
-    const edits = port.getCallsForMethod('editMessageText');
+    const edits = port.getCallsForMethod('editMessageTextOrSend');
     expect(edits[0]!.args[2]).toBe('Напишите сообщение клиенту.');
 
     const rows = await getDb().select().from(sessions);
@@ -151,7 +151,7 @@ describe('owner orders callbacks', () => {
     const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
 
     await bot.handleUpdate(cb(1, 555, 'adm:ord:view:o1'));
-    const edits = port.getCallsForMethod('editMessageText');
+    const edits = port.getCallsForMethod('editMessageTextOrSend');
     expect(edits[0]!.args[2]).toContain('Референсы: 1 шт.');
     expect(JSON.stringify(edits[0]!.args[3])).toContain('adm:ord:refs:o1');
 
@@ -192,7 +192,7 @@ describe('owner orders callbacks', () => {
 
     const rows = await getDb().select().from(orders);
     expect(rows.find((o) => o.id === 'o1')!.status).toBe('new');
-    const edits = port.getCallsForMethod('editMessageText');
+    const edits = port.getCallsForMethod('editMessageTextOrSend');
     expect(edits[0]!.args[2]).toBe('Заказ не найден.');
   });
 });

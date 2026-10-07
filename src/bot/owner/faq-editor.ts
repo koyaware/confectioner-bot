@@ -31,7 +31,7 @@ export function registerOwnerFaqHandlers(bot: Bot<BotContextWithSession>): void 
       ]);
       rows.push([{ text: ru.ownerFaq.add, callback_data: 'adm:faq:add' }]);
       rows.push([{ text: 'Назад', callback_data: 'adm:menu' }]);
-      await ctx.port.editMessageText(chatId, messageId, ru.ownerFaq.title, {
+      await ctx.port.editMessageTextOrSend(chatId, messageId, ru.ownerFaq.title, {
         keyboard: { inline_keyboard: rows },
       });
       return;
@@ -39,7 +39,7 @@ export function registerOwnerFaqHandlers(bot: Bot<BotContextWithSession>): void 
 
     if (action === 'add') {
       beginOwnerDraft(ctx, { kind: 'faq_add_question' });
-      await ctx.port.editMessageText(chatId, messageId, ru.ownerFaq.promptQuestion);
+      await ctx.port.editMessageTextOrSend(chatId, messageId, ru.ownerFaq.promptQuestion);
       return;
     }
 
@@ -52,7 +52,7 @@ export function registerOwnerFaqHandlers(bot: Bot<BotContextWithSession>): void 
         [{ text: ru.ownerFaq.delete, callback_data: `adm:faq:del:${arg}` }],
         [{ text: ru.catalog.back, callback_data: 'adm:faq:list' }],
       ];
-      await ctx.port.editMessageText(
+      await ctx.port.editMessageTextOrSend(
         chatId,
         messageId,
         `<b>${escapeHtml(item.question)}</b>\n\n${escapeHtml(item.answer)}`,
@@ -63,13 +63,13 @@ export function registerOwnerFaqHandlers(bot: Bot<BotContextWithSession>): void 
 
     if (action === 'q' && arg) {
       beginOwnerDraft(ctx, { kind: 'faq_edit_q', targetId: arg });
-      await ctx.port.editMessageText(chatId, messageId, ru.ownerFaq.promptQuestion);
+      await ctx.port.editMessageTextOrSend(chatId, messageId, ru.ownerFaq.promptQuestion);
       return;
     }
 
     if (action === 'a' && arg) {
       beginOwnerDraft(ctx, { kind: 'faq_edit_a', targetId: arg });
-      await ctx.port.editMessageText(chatId, messageId, ru.ownerFaq.promptAnswer);
+      await ctx.port.editMessageTextOrSend(chatId, messageId, ru.ownerFaq.promptAnswer);
       return;
     }
 
@@ -81,7 +81,7 @@ export function registerOwnerFaqHandlers(bot: Bot<BotContextWithSession>): void 
       ]);
       rows.push([{ text: ru.ownerFaq.add, callback_data: 'adm:faq:add' }]);
       rows.push([{ text: 'Назад', callback_data: 'adm:menu' }]);
-      await ctx.port.editMessageText(chatId, messageId, ru.ownerFaq.title, {
+      await ctx.port.editMessageTextOrSend(chatId, messageId, ru.ownerFaq.title, {
         keyboard: { inline_keyboard: rows },
       });
       return;

@@ -96,17 +96,17 @@ describe('my orders', () => {
     const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
 
     await bot.handleUpdate(cb(1, 'c1', 42, 10, 'my:list'));
-    const edits = port.getCallsForMethod('editMessageText');
+    const edits = port.getCallsForMethod('editMessageTextOrSend');
     expect(JSON.stringify(edits[0]!.args[3])).toContain('my:view:');
 
     // user 43 does not own anything
     await bot.handleUpdate(cb(2, 'c2', 43, 10, 'my:list'));
-    const edits2 = port.getCallsForMethod('editMessageText');
+    const edits2 = port.getCallsForMethod('editMessageTextOrSend');
     expect(edits2[1]!.args[2]).toBe('У вас пока нет заказов.');
 
     // user 43 cannot view order directly
     await bot.handleUpdate(cb(3, 'c3', 43, 10, `my:view:${order.id}`));
-    const edits3 = port.getCallsForMethod('editMessageText');
+    const edits3 = port.getCallsForMethod('editMessageTextOrSend');
     expect(edits3[2]!.args[2]).toBe('Заказ не найден.');
   });
 
@@ -116,7 +116,7 @@ describe('my orders', () => {
     const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
 
     await bot.handleUpdate(cb(1, 'c1', 42, 10, `my:cancel:${order.id}`));
-    let edits = port.getCallsForMethod('editMessageText');
+    let edits = port.getCallsForMethod('editMessageTextOrSend');
     const reasonBtn = JSON.stringify(edits[edits.length - 1]!.args[3]).match(
       /my:cancelreason:[A-Za-z0-9_-]+:[a-z]+/
     );
@@ -137,14 +137,14 @@ describe('my orders', () => {
     const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
 
     await bot.handleUpdate(cb(1, 'c1', 42, 10, `my:cancel:${order.id}`));
-    let edits = port.getCallsForMethod('editMessageText');
+    let edits = port.getCallsForMethod('editMessageTextOrSend');
     const skipBtn = JSON.stringify(edits[edits.length - 1]!.args[3]).match(
       /my:cancelskip:[A-Za-z0-9_-]+/
     );
     await bot.handleUpdate(cb(2, 'c2', 42, 10, skipBtn![0]));
     await bot.handleUpdate(cb(3, 'c3', 42, 10, 'my:list'));
 
-    const listEdits = port.getCallsForMethod('editMessageText');
+    const listEdits = port.getCallsForMethod('editMessageTextOrSend');
     expect(listEdits[listEdits.length - 1]!.args[2]).toBe('У вас пока нет заказов.');
   });
 
@@ -162,7 +162,7 @@ describe('my orders', () => {
     const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
 
     await bot.handleUpdate(cb(1, 'c1', 42, 10, `my:view:${order.id}`));
-    const edits = port.getCallsForMethod('editMessageText');
+    const edits = port.getCallsForMethod('editMessageTextOrSend');
     expect(edits[0]!.args[2]).toContain('Референсы: 1 шт.');
     expect(JSON.stringify(edits[0]!.args[3])).toContain(`my:refs:${order.id}`);
 
@@ -198,7 +198,7 @@ describe('my orders', () => {
     const { bot } = createTenantBot('456:y', created.value.id, 'other', port);
 
     await bot.handleUpdate(cb(1, 'c1', 42, 10, `my:view:${order.id}`));
-    const edits = port.getCallsForMethod('editMessageText');
+    const edits = port.getCallsForMethod('editMessageTextOrSend');
     expect(edits[0]!.args[2]).toBe('Заказ не найден.');
     expect(tenantId).toBeTruthy();
   });

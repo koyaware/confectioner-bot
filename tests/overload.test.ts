@@ -57,13 +57,13 @@ describe('overload mode', () => {
     const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
 
     await bot.handleUpdate(cb(1, 'c1', 42, 10, 'cat:list'));
-    let edits = port.getCallsForMethod('editMessageText');
+    let edits = port.getCallsForMethod('editMessageTextOrSend');
     const catBtn = JSON.stringify(edits[0]!.args[3]).match(/cat:open:[A-Za-z0-9_-]+/)![0];
     await bot.handleUpdate(cb(2, 'c2', 42, 10, catBtn));
-    edits = port.getCallsForMethod('editMessageText');
+    edits = port.getCallsForMethod('editMessageTextOrSend');
     const prdBtn = JSON.stringify(edits[1]!.args[3]).match(/prd:open:[A-Za-z0-9_-]+/)![0];
     await bot.handleUpdate(cb(3, 'c3', 42, 10, prdBtn));
-    edits = port.getCallsForMethod('editMessageText');
+    edits = port.getCallsForMethod('editMessageTextOrSend');
     const addBtn = JSON.stringify(edits[2]!.args[3]).match(/prd:add:[A-Za-z0-9_-]+/)![0];
     await bot.handleUpdate(cb(4, 'c4', 42, 10, addBtn));
     await bot.handleUpdate(cb(5, 'c5', 42, 10, 'cart:show'));
@@ -91,7 +91,7 @@ describe('overload mode', () => {
     const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
 
     await bot.handleUpdate(cb(0, 'c0', 555, 10, 'adm:set:list'));
-    const listEdits = port.getCallsForMethod('editMessageText');
+    const listEdits = port.getCallsForMethod('editMessageTextOrSend');
     expect(JSON.stringify(listEdits[0]!.args[3])).toContain('adm:set:edit:toggle_accept');
 
     await bot.handleUpdate(cb(1, 'c1', 555, 10, 'adm:set:edit:toggle_accept'));

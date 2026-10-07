@@ -82,7 +82,7 @@ describe('catalog flow', () => {
     await bot.handleUpdate(callbackUpdate('cat:list'));
     let answers = port.getCallsForMethod('answerCallback');
     expect(answers).toHaveLength(1);
-    const edits = port.getCallsForMethod('editMessageText');
+    const edits = port.getCallsForMethod('editMessageTextOrSend');
     expect(edits).toHaveLength(1);
     const buttons = JSON.stringify(edits[0]!.args[3]);
     expect(buttons).toContain('Торты');
@@ -93,7 +93,7 @@ describe('catalog flow', () => {
     const firstCat = cats[0]!;
 
     await bot.handleUpdate(callbackUpdate(`cat:open:${firstCat.id}`));
-    const edits2 = port.getCallsForMethod('editMessageText');
+    const edits2 = port.getCallsForMethod('editMessageTextOrSend');
     expect(edits2).toHaveLength(2);
     expect(JSON.stringify(edits2[1]!.args[3])).toContain('prd:open:');
 
@@ -106,7 +106,7 @@ describe('catalog flow', () => {
     await bot.handleUpdate(callbackUpdate(`prd:open:${productId}`));
     answers = port.getCallsForMethod('answerCallback');
     expect(answers).toHaveLength(3);
-    const edits3 = port.getCallsForMethod('editMessageText');
+    const edits3 = port.getCallsForMethod('editMessageTextOrSend');
     expect(edits3).toHaveLength(3);
     const cardText = edits3[2]!.args[2] as string;
     expect(cardText).toContain('Цена:');

@@ -95,7 +95,7 @@ export function registerPaymentHandlers(bot: Bot<BotContextWithSession>): void {
     const chatId = ctx.callbackQuery.message?.chat.id;
     const messageId = ctx.callbackQuery.message?.message_id;
     if (chatId && messageId) {
-      await ctx.port.editMessageText(chatId, messageId, ru.payment.promptReceipt, {});
+      await ctx.port.editMessageTextOrSend(chatId, messageId, ru.payment.promptReceipt, {});
     }
   });
 
@@ -107,7 +107,7 @@ export function registerPaymentHandlers(bot: Bot<BotContextWithSession>): void {
     await deleteUserMessage(ctx);
     const screen = receiptScreen(ctx);
     if (screen) {
-      await ctx.port.editMessageText(
+      await ctx.port.editMessageTextOrSend(
         screen.chatId,
         screen.messageId,
         ru.payment.invalidReceipt,
@@ -172,7 +172,7 @@ async function handleReceipt(
     await deleteUserMessage(ctx);
     const failedScreen = receiptScreen(ctx);
     if (failedScreen) {
-      await ctx.port.editMessageText(
+      await ctx.port.editMessageTextOrSend(
         failedScreen.chatId,
         failedScreen.messageId,
         ru.payment.failed,
@@ -196,7 +196,7 @@ async function handleReceipt(
   const screen = receiptScreen(ctx);
   ctx.session.paymentScreenId = undefined;
   if (screen) {
-    await ctx.port.editMessageText(screen.chatId, screen.messageId, ru.payment.receiptSent, {
+    await ctx.port.editMessageTextOrSend(screen.chatId, screen.messageId, ru.payment.receiptSent, {
       keyboard: { inline_keyboard: [[{ text: ru.menu.customerTitle, callback_data: 'nav:menu' }]] },
     });
   }

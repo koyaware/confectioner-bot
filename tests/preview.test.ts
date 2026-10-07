@@ -56,7 +56,7 @@ describe('preview', () => {
 
     await bot.handleUpdate(cb(1, 555, 'adm:preview'));
 
-    const edits = port.getCallsForMethod('editMessageText');
+    const edits = port.getCallsForMethod('editMessageTextOrSend');
     expect(edits).toHaveLength(1);
     expect(edits[0]!.args[2]).toContain('Клиент видит это:');
     const serialized = JSON.stringify(edits[0]!.args[3]);

@@ -135,7 +135,7 @@ async function showCalendar(ctx: BotContextWithSession, edit: boolean): Promise<
   const text = `${ru.checkout.dateTitle}\n${ru.checkout.dateLegend}`;
 
   if (edit && chatId && messageId) {
-    await ctx.port.editMessageText(chatId, messageId, text, {
+    await ctx.port.editMessageTextOrSend(chatId, messageId, text, {
       keyboard: calendarKeyboard(availability, year, month),
     });
   } else if (chatId) {
@@ -166,7 +166,7 @@ async function showScreen(
   }
   if (screenId) {
     try {
-      await ctx.port.editMessageText(chatId, screenId, text, { keyboard, parseMode });
+      await ctx.port.editMessageTextOrSend(chatId, screenId, text, { keyboard, parseMode });
       if (draft) draft.screenMessageId = screenId;
       return;
     } catch {
@@ -335,7 +335,7 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
     const chatId = ctx.callbackQuery.message?.chat.id;
     const messageId = ctx.callbackQuery.message?.message_id;
     if (!chatId || !messageId) return;
-    await ctx.port.editMessageText(
+    await ctx.port.editMessageTextOrSend(
       chatId,
       messageId,
       `${ru.checkout.dateTitle}\n${ru.checkout.dateLegend}`,
@@ -363,7 +363,7 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
     );
     const entry = avail[iso];
     if (!entry || !entry.available) {
-      await ctx.port.editMessageText(
+      await ctx.port.editMessageTextOrSend(
         chatId,
         messageId,
         `${ru.checkout.dateUnavailable}\n${ru.checkout.dateLegend}`,
@@ -377,7 +377,7 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
     ctx.session.checkout = ctx.session.checkout ?? { checkoutId: nanoid(10), referenceFileIds: [] };
     ctx.session.checkout.dueDate = iso;
     ctx.sessionState = 'checkout.time';
-    await ctx.port.editMessageText(chatId, messageId, `${ru.checkout.dateSelected}: ${iso}`);
+    await ctx.port.editMessageTextOrSend(chatId, messageId, `${ru.checkout.dateSelected}: ${iso}`);
     await showCurrentStep(ctx);
   });
 
@@ -414,7 +414,7 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
     const chatId = ctx.callbackQuery.message?.chat.id;
     const messageId = ctx.callbackQuery.message?.message_id;
     if (chatId && messageId) {
-      await ctx.port.editMessageText(chatId, messageId, ru.checkout.cancelled, {
+      await ctx.port.editMessageTextOrSend(chatId, messageId, ru.checkout.cancelled, {
         keyboard: customerMenuKeyboard(),
       });
     }
@@ -437,7 +437,7 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
 
     const draft = ctx.session.checkout;
     if (!draft || draft.checkoutId !== checkoutId) {
-      await ctx.port.editMessageText(chatId, messageId, ru.checkout.staleSubmit, {});
+      await ctx.port.editMessageTextOrSend(chatId, messageId, ru.checkout.staleSubmit, {});
       return;
     }
     if (
@@ -447,7 +447,7 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
       !draft.contactPhone ||
       (draft.fulfillment === 'delivery' && !draft.address?.trim())
     ) {
-      await ctx.port.editMessageText(chatId, messageId, ru.checkout.incomplete, {});
+      await ctx.port.editMessageTextOrSend(chatId, messageId, ru.checkout.incomplete, {});
       return;
     }
 
@@ -478,7 +478,7 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
           result.error === 'CAPACITY_EXCEEDED'
             ? ru.checkout.capacityExceeded
             : ru.checkout.dateTaken;
-        await ctx.port.editMessageText(chatId, messageId, msg, {
+        await ctx.port.editMessageTextOrSend(chatId, messageId, msg, {
           keyboard: calendarKeyboard(avail, Number(today.slice(0, 4)), Number(today.slice(5, 7))),
         });
         return;
@@ -495,7 +495,7 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
                 : result.error === 'CUSTOMER_BLOCKED'
                   ? ru.cart.blocked
                   : ru.checkout.emptyCart;
-      await ctx.port.editMessageText(chatId, messageId, text, {});
+      await ctx.port.editMessageTextOrSend(chatId, messageId, text, {});
       return;
     }
 
@@ -504,7 +504,7 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
     ctx.session.checkout = undefined;
     ctx.sessionState = 'idle';
 
-    await ctx.port.editMessageText(
+    await ctx.port.editMessageTextOrSend(
       chatId,
       messageId,
       `${ru.checkout.orderSent((await getCustomerOrderNumber(order.id)) ?? order.number)} ${ctx.tenant.replySlaText}`,

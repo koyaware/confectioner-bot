@@ -51,7 +51,7 @@ export function registerMyOrdersHandlers(bot: Bot<BotContextWithSession>): void 
     const chatId = ctx.callbackQuery.message?.chat.id;
     const messageId = ctx.callbackQuery.message?.message_id;
     if (chatId && messageId) {
-      await ctx.port.editMessageText(chatId, messageId, text, {
+      await ctx.port.editMessageTextOrSend(chatId, messageId, text, {
         keyboard: { inline_keyboard: rows },
       });
     }
@@ -84,7 +84,7 @@ export function registerMyOrdersHandlers(bot: Bot<BotContextWithSession>): void 
     if (!chatId || !messageId) return;
 
     if (!found || found.order.status === 'cancelled') {
-      await ctx.port.editMessageText(chatId, messageId, ru.my.notFound, {
+      await ctx.port.editMessageTextOrSend(chatId, messageId, ru.my.notFound, {
         keyboard: { inline_keyboard: [[{ text: ru.catalog.back, callback_data: 'my:list' }]] },
       });
       return;
@@ -127,7 +127,7 @@ export function registerMyOrdersHandlers(bot: Bot<BotContextWithSession>): void 
     }
     kbRows.push([{ text: ru.catalog.back, callback_data: 'my:list' }]);
 
-    await ctx.port.editMessageText(chatId, messageId, lines.join('\n'), {
+    await ctx.port.editMessageTextOrSend(chatId, messageId, lines.join('\n'), {
       keyboard: { inline_keyboard: kbRows },
       parseMode: 'HTML',
     });
@@ -168,12 +168,12 @@ export function registerMyOrdersHandlers(bot: Bot<BotContextWithSession>): void 
       );
 
     if (refs.length === 0) {
-      await ctx.port.editMessageText(chatId, messageId, 'Референсов нет.', {});
+      await ctx.port.editMessageTextOrSend(chatId, messageId, 'Референсов нет.', {});
       return;
     }
 
     const sentIds: number[] = [];
-await ctx.port.editMessageText(
+await ctx.port.editMessageTextOrSend(
       chatId,
       messageId,
       `Референсы заказа №${(await getCustomerOrderNumber(found.order.id)) ?? found.order.number} (${refs.length} шт.)`,
@@ -216,7 +216,7 @@ await ctx.port.editMessageText(
     const found = rows[0];
 
     if (!found) {
-      await ctx.port.editMessageText(chatId, messageId, ru.my.notFound, {
+      await ctx.port.editMessageTextOrSend(chatId, messageId, ru.my.notFound, {
         keyboard: { inline_keyboard: [[{ text: ru.catalog.back, callback_data: 'my:list' }]] },
       });
       return;
@@ -224,14 +224,14 @@ await ctx.port.editMessageText(
 
     const result = await applyOrderEvent(found.order.id, 'customer_cancel', 'customer', new Date());
     if (!result.ok) {
-      await ctx.port.editMessageText(chatId, messageId, ru.my.cancelFailed, {});
+      await ctx.port.editMessageTextOrSend(chatId, messageId, ru.my.cancelFailed, {});
       return;
     }
     if (reason) {
       await db.update(orders).set({ cancelReason: reason }).where(eq(orders.id, found.order.id));
     }
 
-    await ctx.port.editMessageText(
+    await ctx.port.editMessageTextOrSend(
       chatId,
       messageId,
       `Заказ №${(await getCustomerOrderNumber(found.order.id)) ?? found.order.number} отменён.`,
@@ -263,7 +263,7 @@ await ctx.port.editMessageText(
     );
     reasonRows.push([{ text: ru.my.cancelSkip, callback_data: `my:cancelskip:${orderId}` }]);
     reasonRows.push([{ text: ru.catalog.back, callback_data: `my:view:${orderId}` }]);
-    await ctx.port.editMessageText(chatId, messageId, ru.my.cancelTitle, {
+    await ctx.port.editMessageTextOrSend(chatId, messageId, ru.my.cancelTitle, {
       keyboard: { inline_keyboard: reasonRows },
     });
   });
@@ -326,7 +326,7 @@ await ctx.port.editMessageText(
       found.order.status !== 'new' ||
       !found.order.proposedDate
     ) {
-      await ctx.port.editMessageText(chatId, messageId, ru.my.notFound, {
+      await ctx.port.editMessageTextOrSend(chatId, messageId, ru.my.notFound, {
         keyboard: { inline_keyboard: [[{ text: ru.catalog.back, callback_data: 'my:list' }]] },
       });
       return;
@@ -335,7 +335,7 @@ await ctx.port.editMessageText(
     const action = m[1]!;
     if (action === 'no') {
       await db.update(orders).set({ proposedDate: null }).where(eq(orders.id, found.order.id));
-      await ctx.port.editMessageText(
+      await ctx.port.editMessageTextOrSend(
         chatId,
         messageId,
         'Хорошо, ждём нового предложения от мастера.',
@@ -359,7 +359,7 @@ await ctx.port.editMessageText(
       new Date()
     );
     if (!accepted.ok) {
-      await ctx.port.editMessageText(
+      await ctx.port.editMessageTextOrSend(
         chatId,
         messageId,
         accepted.error === 'DATE_UNAVAILABLE'
@@ -379,7 +379,7 @@ await ctx.port.editMessageText(
       );
     }
 
-    await ctx.port.editMessageText(
+    await ctx.port.editMessageTextOrSend(
       chatId,
       messageId,
       `Заказ №${(await getCustomerOrderNumber(found.order.id)) ?? found.order.number} перенесён на ${accepted.value.dueDate}.`,

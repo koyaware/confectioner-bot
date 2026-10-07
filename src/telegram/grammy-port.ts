@@ -171,6 +171,52 @@ export class GrammyPort implements TelegramPort {
     }
   }
 
+  async editMessageTextOrSend(
+    chatId: number,
+    messageId: number,
+    text: string,
+    opts?: SendOpts
+  ): Promise<SendMessageResult> {
+    try {
+      const keyboard = toGrammyKeyboard(opts?.keyboard);
+      const options: {
+        chat_id: number;
+        message_id: number;
+        reply_markup?: InlineKeyboard;
+        parse_mode?: 'HTML';
+      } = {
+        chat_id: chatId,
+        message_id: messageId,
+      };
+      if (keyboard) {
+        options.reply_markup = keyboard;
+      }
+      if (opts?.parseMode) {
+        options.parse_mode = opts.parseMode;
+      }
+
+      await this.bot.api.editMessageText(chatId, messageId, text, options);
+      return { messageId };
+    } catch (error) {
+      const err = error as { description?: string; error_code?: number };
+      const description = err?.description || '';
+      // If message has no text (photo/document), delete and send new
+      if (err?.error_code === 400 && description.includes('no text in the message')) {
+        try {
+          await this.bot.api.deleteMessage(chatId, messageId);
+        } catch {
+          // ignore
+        }
+        const sent = await this.bot.api.sendMessage(chatId, text, {
+          reply_markup: opts?.keyboard ? toGrammyKeyboard(opts.keyboard) : undefined,
+          parse_mode: opts?.parseMode,
+        });
+        return { messageId: sent.message_id };
+      }
+      throw new TelegramError(fromGrammyError(error), 'Failed to edit message', error);
+    }
+  }
+
   async answerCallback(callbackQueryId: string, text?: string): Promise<void> {
     try {
       await this.bot.api.answerCallbackQuery(callbackQueryId, { text });

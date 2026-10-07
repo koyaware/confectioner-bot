@@ -106,7 +106,7 @@ export function registerCartHandlers(bot: Bot<BotContextWithSession>): void {
 
     if (data === 'cart:show') {
       const { text, rows } = await cartKeyboard(ctx);
-      await ctx.port.editMessageText(chatId, messageId, text, {
+      await ctx.port.editMessageTextOrSend(chatId, messageId, text, {
         keyboard: { inline_keyboard: rows },
         parseMode: 'HTML',
       });
@@ -121,7 +121,7 @@ export function registerCartHandlers(bot: Bot<BotContextWithSession>): void {
         line.qty = Math.min(line.qty + 1, product?.maxQty ?? 50);
       }
       const { text, rows } = await cartKeyboard(ctx);
-      await ctx.port.editMessageText(chatId, messageId, text, {
+      await ctx.port.editMessageTextOrSend(chatId, messageId, text, {
         keyboard: { inline_keyboard: rows },
         parseMode: 'HTML',
       });
@@ -140,7 +140,7 @@ export function registerCartHandlers(bot: Bot<BotContextWithSession>): void {
         }
       }
       const { text, rows } = await cartKeyboard(ctx);
-      await ctx.port.editMessageText(chatId, messageId, text, {
+      await ctx.port.editMessageTextOrSend(chatId, messageId, text, {
         keyboard: { inline_keyboard: rows },
         parseMode: 'HTML',
       });
@@ -150,7 +150,7 @@ export function registerCartHandlers(bot: Bot<BotContextWithSession>): void {
     if (data === 'cart:clear') {
       ctx.session.cart.lines = [];
       const { text, rows } = await cartKeyboard(ctx);
-      await ctx.port.editMessageText(chatId, messageId, text, {
+      await ctx.port.editMessageTextOrSend(chatId, messageId, text, {
         keyboard: { inline_keyboard: rows },
         parseMode: 'HTML',
       });
@@ -258,7 +258,7 @@ export function registerCartHandlers(bot: Bot<BotContextWithSession>): void {
       const chatId = ctx.callbackQuery.message?.chat.id;
       const messageId = ctx.callbackQuery.message?.message_id;
       if (chatId && messageId) {
-        await ctx.port.editMessageText(chatId, messageId, ru.cart.blocked, {});
+        await ctx.port.editMessageTextOrSend(chatId, messageId, ru.cart.blocked, {});
       }
       return;
     }
@@ -267,7 +267,7 @@ export function registerCartHandlers(bot: Bot<BotContextWithSession>): void {
       const chatId = ctx.callbackQuery.message?.chat.id;
       const messageId = ctx.callbackQuery.message?.message_id;
       if (chatId && messageId) {
-        await ctx.port.editMessageText(chatId, messageId, ru.cart.empty, {
+        await ctx.port.editMessageTextOrSend(chatId, messageId, ru.cart.empty, {
           keyboard: { inline_keyboard: [[{ text: 'В меню', callback_data: 'nav:menu' }]] },
         });
       }
@@ -304,7 +304,7 @@ export function registerCartHandlers(bot: Bot<BotContextWithSession>): void {
       ctx.session.cart,
       new Date()
     );
-    await ctx.port.editMessageText(
+    await ctx.port.editMessageTextOrSend(
       chatId,
       messageId,
       `${ru.checkout.dateTitle}\n${ru.checkout.dateLegend}`,

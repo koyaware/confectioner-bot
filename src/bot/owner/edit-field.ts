@@ -59,7 +59,7 @@ async function editScreenOrSend(
   const screenId = draftScreen(ctx);
   if (screenId) {
     try {
-      await ctx.port.editMessageText(ctx.chat.id, screenId, text, {
+      await ctx.port.editMessageTextOrSend(ctx.chat.id, screenId, text, {
         keyboard: keyboard ? { inline_keyboard: keyboard } : undefined,
       });
       return screenId;

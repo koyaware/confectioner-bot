@@ -71,6 +71,16 @@ export interface TelegramPort {
   deleteMessage(chatId: number, messageId: number): Promise<void>;
 
   /**
+   * Edit message text, or send new if original was photo/document (no text to edit)
+   */
+  editMessageTextOrSend(
+    chatId: number,
+    messageId: number,
+    text: string,
+    opts?: SendOpts
+  ): Promise<SendMessageResult>;
+
+  /**
    * Send a document
    */
   sendDocument(

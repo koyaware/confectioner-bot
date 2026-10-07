@@ -67,13 +67,13 @@ describe('checkout steps', () => {
     bot: ReturnType<typeof createTenantBot>['bot']
   ) {
     await bot.handleUpdate(cb(1, 'c1', 42, 10, 'cat:list'));
-    let edits = port.getCallsForMethod('editMessageText');
+    let edits = port.getCallsForMethod('editMessageTextOrSend');
     const catBtn = JSON.stringify(edits[0]!.args[3]).match(/cat:open:[A-Za-z0-9_-]+/)![0];
     await bot.handleUpdate(cb(2, 'c2', 42, 10, catBtn));
-    edits = port.getCallsForMethod('editMessageText');
+    edits = port.getCallsForMethod('editMessageTextOrSend');
     const prdBtn = JSON.stringify(edits[1]!.args[3]).match(/prd:open:[A-Za-z0-9_-]+/)![0];
     await bot.handleUpdate(cb(3, 'c3', 42, 10, prdBtn));
-    edits = port.getCallsForMethod('editMessageText');
+    edits = port.getCallsForMethod('editMessageTextOrSend');
     const addBtn = JSON.stringify(edits[2]!.args[3]).match(/prd:add:[A-Za-z0-9_-]+/)![0];
     await bot.handleUpdate(cb(4, 'c4', 42, 10, addBtn));
     await bot.handleUpdate(cb(5, 'c5', 42, 10, 'cart:show'));
@@ -124,7 +124,7 @@ describe('checkout steps', () => {
     expect(data.checkout.comment).toBe('С днём рождения!');
 
     // confirm screen shows summary and submit button with checkoutId
-    const confirmEdits = port.getCallsForMethod('editMessageText');
+    const confirmEdits = port.getCallsForMethod('editMessageTextOrSend');
     const confirmMsg = confirmEdits[confirmEdits.length - 1]!;
     expect(confirmMsg.args[2] as string).toContain('Ваш заказ');
     expect(JSON.stringify(confirmMsg.args[3])).toContain('chk:submit:');
@@ -158,7 +158,7 @@ describe('checkout steps', () => {
     await bot.handleUpdate(cb(21, 'c8', 42, 10, 'chk:ful:pickup'));
 
     // contact prompt next, not address
-    const contactEdits = port.getCallsForMethod('editMessageText');
+    const contactEdits = port.getCallsForMethod('editMessageTextOrSend');
     expect(contactEdits[contactEdits.length - 1]!.args[2] as string).toContain('Контакт');
   });
 
@@ -205,7 +205,7 @@ describe('checkout steps', () => {
     expect(ownerMsg.args[1] as string).toContain('Заказ №');
     expect(JSON.stringify(ownerMsg.args[2])).toContain('adm:ord:accept:');
 
-    const edits = port.getCallsForMethod('editMessageText');
+    const edits = port.getCallsForMethod('editMessageTextOrSend');
     const editTexts = edits.map((c) => c.args[2] as string);
     expect(editTexts.some((t) => t.includes('Заказ №'))).toBe(true);
 
@@ -232,7 +232,7 @@ describe('checkout steps', () => {
     await bot.handleUpdate(msg(20, 42, 'к 15:00'));
     await bot.handleUpdate(cb(21, 'c8', 42, 10, 'chk:ful:pickup'));
 
-    const currencyEdits = port.getCallsForMethod('editMessageText');
+    const currencyEdits = port.getCallsForMethod('editMessageTextOrSend');
     expect(currencyEdits[currencyEdits.length - 1]!.args[2] as string).toContain('+998901234567');
   });
 
@@ -247,7 +247,7 @@ describe('checkout steps', () => {
     await bot.handleUpdate(cb(21, 'c8', 42, 10, 'chk:ful:pickup'));
     await bot.handleUpdate(msg(22, 42, '+79991234567'));
 
-    const nameEdits = port.getCallsForMethod('editMessageText');
+    const nameEdits = port.getCallsForMethod('editMessageTextOrSend');
     expect(nameEdits[nameEdits.length - 1]!.args[2] as string).toContain('Теперь напишите имя');
 
     const rows = await getDb().select().from(sessions);
@@ -297,7 +297,7 @@ describe('checkout steps', () => {
     // no new bot messages: user photos deleted, screen edited in place
     expect(port.getCallsForMethod('sendMessage')).toHaveLength(sendsBefore);
     expect(port.getCallsForMethod('deleteMessage')).toHaveLength(3);
-    const edits = port.getCallsForMethod('editMessageText');
+    const edits = port.getCallsForMethod('editMessageTextOrSend');
     expect(edits[edits.length - 1]!.args[2] as string).toContain('3/5');
   });
 
@@ -313,7 +313,7 @@ describe('checkout steps', () => {
     await bot.handleUpdate(msg(22, 42, 'Иван, +79991234567'));
     await bot.handleUpdate(msg(23, 42, 'x'.repeat(501)));
 
-    const nameEdits = port.getCallsForMethod('editMessageText');
+    const nameEdits = port.getCallsForMethod('editMessageTextOrSend');
     expect(nameEdits[nameEdits.length - 1]!.args[2] as string).toContain('максимум 500');
     const rows = await getDb().select().from(sessions);
     expect(rows[0]!.state).toBe('checkout.comment');

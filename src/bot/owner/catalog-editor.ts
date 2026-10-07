@@ -28,7 +28,7 @@ async function showCategoryList(ctx: BotContextWithSession, edit = true) {
   const chatId = ctx.callbackQuery?.message?.chat.id ?? ctx.chat?.id;
   const messageId = ctx.callbackQuery?.message?.message_id;
   if (edit && chatId && messageId) {
-    await ctx.port.editMessageText(chatId, messageId, text, {
+    await ctx.port.editMessageTextOrSend(chatId, messageId, text, {
       keyboard: { inline_keyboard: rows },
     });
   } else if (chatId) {
@@ -58,7 +58,7 @@ async function showCategoryEdit(ctx: BotContextWithSession, categoryId: string) 
   const chatId = ctx.callbackQuery?.message?.chat.id ?? ctx.chat?.id;
   const messageId = ctx.callbackQuery?.message?.message_id;
   if (chatId && messageId) {
-    await ctx.port.editMessageText(chatId, messageId, text, {
+    await ctx.port.editMessageTextOrSend(chatId, messageId, text, {
       keyboard: { inline_keyboard: rows },
     });
   }
@@ -81,7 +81,7 @@ async function showProductList(ctx: BotContextWithSession, categoryId: string) {
   const messageId = ctx.callbackQuery?.message?.message_id;
   const text = `${ru.ownerCatalog.productsTitle}: ${escapeHtml(category.title)}`;
   if (chatId && messageId) {
-    await ctx.port.editMessageText(chatId, messageId, text, {
+    await ctx.port.editMessageTextOrSend(chatId, messageId, text, {
       keyboard: { inline_keyboard: rows },
     });
   }
@@ -136,7 +136,7 @@ async function showProductEdit(ctx: BotContextWithSession, productId: string) {
   const chatId = ctx.callbackQuery?.message?.chat.id ?? ctx.chat?.id;
   const messageId = ctx.callbackQuery?.message?.message_id;
   if (chatId && messageId) {
-    await ctx.port.editMessageText(chatId, messageId, text, {
+    await ctx.port.editMessageTextOrSend(chatId, messageId, text, {
       keyboard: { inline_keyboard: rows },
     });
   }
@@ -148,7 +148,7 @@ async function showOptionList(ctx: BotContextWithSession, productId: string) {
     const chatId = ctx.callbackQuery?.message?.chat.id ?? ctx.chat?.id;
     const messageId = ctx.callbackQuery?.message?.message_id;
     if (chatId && messageId) {
-      await ctx.port.editMessageText(chatId, messageId, ru.product.notFound, {});
+      await ctx.port.editMessageTextOrSend(chatId, messageId, ru.product.notFound, {});
     }
     return;
   }
@@ -169,7 +169,7 @@ async function showOptionList(ctx: BotContextWithSession, productId: string) {
   const chatId = ctx.callbackQuery?.message?.chat.id ?? ctx.chat?.id;
   const messageId = ctx.callbackQuery?.message?.message_id;
   if (chatId && messageId) {
-    await ctx.port.editMessageText(chatId, messageId, ru.ownerCatalog.optionsTitle, {
+    await ctx.port.editMessageTextOrSend(chatId, messageId, ru.ownerCatalog.optionsTitle, {
       keyboard: { inline_keyboard: rows },
     });
   }
@@ -201,7 +201,7 @@ export function registerOwnerCatalogHandlers(bot: Bot<BotContextWithSession>): v
       if (action === 'list') return showCategoryList(ctx);
       if (action === 'add') {
         beginOwnerDraft(ctx, { kind: 'cat_add' });
-        await ctx.port.editMessageText(
+        await ctx.port.editMessageTextOrSend(
           ctx.callbackQuery.message!.chat.id,
           ctx.callbackQuery.message!.message_id,
           ru.ownerCatalog.promptCategoryTitle
@@ -210,7 +210,7 @@ export function registerOwnerCatalogHandlers(bot: Bot<BotContextWithSession>): v
       }
       if (action === 'rename' && arg) {
         beginOwnerDraft(ctx, { kind: 'cat_rename', targetId: arg });
-        await ctx.port.editMessageText(
+        await ctx.port.editMessageTextOrSend(
           ctx.callbackQuery.message!.chat.id,
           ctx.callbackQuery.message!.message_id,
           ru.ownerCatalog.promptCategoryTitle
@@ -246,7 +246,7 @@ export function registerOwnerCatalogHandlers(bot: Bot<BotContextWithSession>): v
     if (action === 'list' && arg) return showProductList(ctx, arg);
     if (action === 'add' && arg) {
       beginOwnerDraft(ctx, { kind: 'prd_add_title', targetId: arg });
-      await ctx.port.editMessageText(
+      await ctx.port.editMessageTextOrSend(
         ctx.callbackQuery.message!.chat.id,
         ctx.callbackQuery.message!.message_id,
         ru.ownerCatalog.promptProductTitle
@@ -275,7 +275,7 @@ export function registerOwnerCatalogHandlers(bot: Bot<BotContextWithSession>): v
     if (action === 'field' && arg && arg2) {
       beginOwnerDraft(ctx, { kind: 'prd_field', targetId: arg, extra: { field: arg2 } });
       const label = PRODUCT_FIELD_LABELS[arg2] ?? arg2;
-      await ctx.port.editMessageText(
+      await ctx.port.editMessageTextOrSend(
         ctx.callbackQuery.message!.chat.id,
         ctx.callbackQuery.message!.message_id,
         `${ru.ownerCatalog.promptField}: ${label}`
@@ -285,7 +285,7 @@ export function registerOwnerCatalogHandlers(bot: Bot<BotContextWithSession>): v
     if (action === 'opt' && arg) return showOptionList(ctx, arg);
     if (action === 'optadd' && arg) {
       beginOwnerDraft(ctx, { kind: 'opt_add_group', targetId: arg });
-      await ctx.port.editMessageText(
+      await ctx.port.editMessageTextOrSend(
         ctx.callbackQuery.message!.chat.id,
         ctx.callbackQuery.message!.message_id,
         ru.ownerCatalog.promptOptionGroup

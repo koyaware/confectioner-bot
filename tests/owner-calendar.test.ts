@@ -64,7 +64,7 @@ describe('owner calendar', () => {
     expect(rows[0]!.isClosed).toBe(true);
     expect(rows[0]!.capacity).toBe(5); // default preserved
 
-    const edits = port.getCallsForMethod('editMessageText');
+    const edits = port.getCallsForMethod('editMessageTextOrSend');
     expect(edits[edits.length - 1]!.args[2] as string).toContain('Закрыт');
   });
 
@@ -131,7 +131,7 @@ describe('owner calendar', () => {
     const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
 
     await bot.handleUpdate(cb(1, 'c1', 555, 10, `adm:cal:day:${target}`));
-    const edits = port.getCallsForMethod('editMessageText');
+    const edits = port.getCallsForMethod('editMessageTextOrSend');
     const last = edits[edits.length - 1]!;
     expect(last.args[2] as string).toContain('Заказы:');
     expect(JSON.stringify(last.args[3])).toContain('adm:ord:view:o1');
