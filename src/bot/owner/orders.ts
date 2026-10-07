@@ -21,12 +21,7 @@ import { and, asc, eq, inArray } from 'drizzle-orm';
 import { addDays } from '../../lib/time.js';
 import { getDateAvailability } from '../../services/dates.js';
 
-export const REJECT_REASONS: Record<string, string> = {
-  full: 'Нет мест на эту дату',
-  busy: 'Много текущих заказов',
-  date: 'Не подходит дата',
-  other: 'Другая причина',
-};
+export const REJECT_REASONS: Record<string, string> = ru.ownerOrders.rejectReasons;
 
 export async function buildOrderCardText(
   orderId: string,
@@ -144,36 +139,38 @@ export async function loadOwnedOrder(
 export async function orderCardKeyboard(orderId: string, status: string): Promise<InlineKeyboard> {
   const rows: InlineKeyboard['inline_keyboard'] = [];
   if (status === 'new') {
-    rows.push([{ text: 'Принять', callback_data: `adm:ord:accept:${orderId}` }]);
-    rows.push([{ text: 'Отклонить', callback_data: `adm:ord:reject:${orderId}` }]);
-    rows.push([{ text: 'Другая дата', callback_data: `adm:ord:date:${orderId}` }]);
+    rows.push([{ text: ru.ownerOrders.accept, callback_data: `adm:ord:accept:${orderId}` }]);
+    rows.push([{ text: ru.ownerOrders.reject, callback_data: `adm:ord:reject:${orderId}` }]);
+    rows.push([{ text: ru.ownerOrders.newDate, callback_data: `adm:ord:date:${orderId}` }]);
   }
   if (status === 'confirmed') {
-    rows.push([{ text: 'Готов', callback_data: `adm:ord:ready:${orderId}` }]);
-    rows.push([{ text: 'Отменить', callback_data: `adm:ord:cancel:${orderId}` }]);
+    rows.push([{ text: ru.ownerOrders.ready, callback_data: `adm:ord:ready:${orderId}` }]);
+    rows.push([{ text: ru.ownerOrders.cancel, callback_data: `adm:ord:cancel:${orderId}` }]);
   }
   if (status === 'ready') {
-    rows.push([{ text: 'Завершён', callback_data: `adm:ord:done:${orderId}` }]);
-    rows.push([{ text: 'Отменить', callback_data: `adm:ord:cancel:${orderId}` }]);
+    rows.push([{ text: ru.ownerOrders.done, callback_data: `adm:ord:done:${orderId}` }]);
+    rows.push([{ text: ru.ownerOrders.cancel, callback_data: `adm:ord:cancel:${orderId}` }]);
   }
   if (status === 'payment_review') {
     rows.push([{ text: ru.ownerOrders.paid, callback_data: `adm:ord:paid:${orderId}` }]);
     rows.push([{ text: ru.ownerOrders.badpay, callback_data: `adm:ord:badpay:${orderId}` }]);
   }
   if (status === 'payment_review' || status === 'awaiting_payment') {
-    rows.push([{ text: 'Отменить', callback_data: `adm:ord:cancel:${orderId}` }]);
+    rows.push([{ text: ru.ownerOrders.cancel, callback_data: `adm:ord:cancel:${orderId}` }]);
   }
   if (['new', 'awaiting_payment', 'payment_review', 'confirmed', 'ready'].includes(status)) {
-    rows.push([{ text: 'Написать клиенту', callback_data: `adm:ord:msg:${orderId}` }]);
+    rows.push([{ text: ru.ownerOrders.msg, callback_data: `adm:ord:msg:${orderId}` }]);
   }
   const refs = await getDb()
     .select()
     .from(orderAttachments)
     .where(and(eq(orderAttachments.orderId, orderId), eq(orderAttachments.kind, 'reference')));
   if (refs.length > 0) {
-    rows.push([{ text: `Референсы (${refs.length})`, callback_data: `adm:ord:refs:${orderId}` }]);
+    rows.push([
+      { text: `${ru.ownerOrders.refs} (${refs.length})`, callback_data: `adm:ord:refs:${orderId}` },
+    ]);
   }
-  rows.push([{ text: 'Назад', callback_data: 'adm:ord:list' }]);
+  rows.push([{ text: ru.common.back, callback_data: 'adm:ord:list' }]);
   return { inline_keyboard: rows };
 }
 
@@ -234,7 +231,7 @@ function orderDateKeyboard(
       callback_data: `adm:ord:datepage:${orderId}:${addDays(firstDay, 33).slice(0, 7)}`,
     },
   ]);
-  rows.push([{ text: 'Назад', callback_data: 'adm:ord:list' }]);
+  rows.push([{ text: ru.common.back, callback_data: 'adm:ord:list' }]);
   return { inline_keyboard: rows };
 }
 

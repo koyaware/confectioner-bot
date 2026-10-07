@@ -41,8 +41,12 @@ export async function createJob(input: CreateJobInput): Promise<{ id: string; cr
 
     return { id, created: true };
   } catch (error) {
-    // Check if it's a unique constraint violation on dedupeKey
-    if (error instanceof Error && error.message.includes('UNIQUE constraint failed')) {
+    // Check if it's a unique constraint violation on dedupeKey.
+    // better-sqlite3 exposes code SQLITE_CONSTRAINT_UNIQUE; fall back to
+    // message matching for other drivers.
+    const code = (error as { code?: string })?.code;
+    const message = error instanceof Error ? error.message : '';
+    if (code === 'SQLITE_CONSTRAINT_UNIQUE' || message.includes('UNIQUE constraint failed')) {
       // Job already exists, return existing job id
       const existing = await db
         .select()

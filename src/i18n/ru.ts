@@ -37,6 +37,15 @@ export const ru = {
   common: {
     error: 'Произошла ошибка. Попробуйте позже.',
     badText: 'Текст пустой или слишком длинный.',
+    back: 'Назад',
+  },
+  relay: {
+    composePrompt: 'Напишите ваш вопрос, передам мастеру.',
+    willAnswerSoon: 'Мастер скоро ответит.',
+    sentToClient: 'Отправлено клиенту.',
+    clientBlocked: 'Клиент заблокирован.',
+    forwarded: (replySlaText: string) =>
+      `Передал мастеру, ответ придет сюда, обычно ${replySlaText}.`,
   },
   cart: {
     empty: 'Корзина пуста.',
@@ -155,6 +164,20 @@ export const ru = {
   ownerOrders: {
     paid: 'Оплата верна',
     badpay: 'Оплата не пришла',
+    accept: 'Принять',
+    reject: 'Отклонить',
+    newDate: 'Другая дата',
+    ready: 'Готов',
+    done: 'Завершён',
+    cancel: 'Отменить',
+    msg: 'Написать клиенту',
+    refs: 'Референсы',
+    rejectReasons: {
+      full: 'Нет мест на эту дату',
+      busy: 'Много текущих заказов',
+      date: 'Не подходит дата',
+      other: 'Другая причина',
+    } as Record<string, string>,
   },
   ownerCatalog: {
     categoriesTitle: 'Категории',

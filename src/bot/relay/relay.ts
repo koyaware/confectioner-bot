@@ -1,6 +1,7 @@
 import { Bot } from 'grammy';
 import { canAccessOwner } from '../permissions.js';
 import { BotContextWithSession } from '../context.js';
+import { ru } from '../../i18n/ru.js';
 import { getDb } from '../../db/client.js';
 import { customers, orders, relayMessages } from '../../db/schema.js';
 import { and, desc, eq, notInArray } from 'drizzle-orm';
@@ -103,7 +104,7 @@ async function relayToOwner(ctx: BotContextWithSession): Promise<void> {
   if (wasCompose) {
     ctx.sessionState = 'idle';
     try {
-      await ctx.port.sendMessage(customerChatId, 'Мастер скоро ответит.');
+      await ctx.port.sendMessage(customerChatId, ru.relay.willAnswerSoon);
     } catch (e) {
       if (e instanceof TelegramError && e.code === 'BLOCKED') {
         await db.update(customers).set({ botBlocked: true }).where(eq(customers.id, customer.id));
@@ -122,18 +123,14 @@ async function relayToOwner(ctx: BotContextWithSession): Promise<void> {
     ctx.session.lastAutoReplyAt = nowS;
     await db.update(customers).set({ lastSeenAt: new Date() }).where(eq(customers.id, customer.id));
     try {
-      await ctx.port.sendMessage(
-        customerChatId,
-        `Передал мастеру, ответ придет сюда, обычно ${ctx.tenant.replySlaText}.`,
-        {
-          keyboard: {
-            inline_keyboard: [
-              [{ text: 'Каталог', callback_data: 'cat:list' }],
-              [{ text: 'Мои заказы', callback_data: 'my:list' }],
-            ],
-          },
-        }
-      );
+      await ctx.port.sendMessage(customerChatId, ru.relay.forwarded(ctx.tenant.replySlaText), {
+        keyboard: {
+          inline_keyboard: [
+            [{ text: 'Каталог', callback_data: 'cat:list' }],
+            [{ text: 'Мои заказы', callback_data: 'my:list' }],
+          ],
+        },
+      });
     } catch (e) {
       if (e instanceof TelegramError && e.code === 'BLOCKED') {
         await db.update(customers).set({ botBlocked: true }).where(eq(customers.id, customer.id));
@@ -162,7 +159,7 @@ export function registerRelayHandlers(bot: Bot<BotContextWithSession>): void {
     const chatId = ctx.callbackQuery.message?.chat.id;
     const messageId = ctx.callbackQuery.message?.message_id;
     if (chatId && messageId) {
-      await ctx.port.editMessageText(chatId, messageId, 'Клиент заблокирован.', {});
+      await ctx.port.editMessageText(chatId, messageId, ru.relay.clientBlocked, {});
     }
   });
 
@@ -171,7 +168,7 @@ export function registerRelayHandlers(bot: Bot<BotContextWithSession>): void {
     ctx.sessionState = 'relay.compose';
     const chatId = ctx.callbackQuery.message?.chat.id;
     if (chatId) {
-      await ctx.port.sendMessage(chatId, 'Напишите ваш вопрос, передам мастеру.');
+      await ctx.port.sendMessage(chatId, ru.relay.composePrompt);
     }
   });
 
@@ -294,7 +291,7 @@ async function handleOwnerReply(ctx: BotContextWithSession): Promise<void> {
       await ctx.port.copyMessage(customer.telegramId, ctx.chat!.id, msg!.message_id);
     }
 
-    await ctx.port.sendMessage(ctx.chat!.id, 'Отправлено клиенту.', {
+    await ctx.port.sendMessage(ctx.chat!.id, ru.relay.sentToClient, {
       keyboard: {
         inline_keyboard: [[{ text: 'Написать снова', callback_data: `adm:ord:msg:${orderId}` }]],
       },
