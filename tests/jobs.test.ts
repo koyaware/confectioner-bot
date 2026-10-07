@@ -108,6 +108,29 @@ describe('job scheduler', () => {
   });
 
   describe('scheduler', () => {
+    it('fails jobs with invalid payload without running a handler', async () => {
+      let called = false;
+      scheduler.registerHandler('order.payment_reminder', async () => {
+        called = true;
+        return { success: true };
+      });
+
+      const db = getDb();
+      const { id } = await createJob({
+        type: 'backup.db',
+        payload: {},
+        runAt: new Date(Date.now() - 1000),
+        dedupeKey: 'test:invalid-exec',
+      });
+      await db.update(jobs).set({ type: 'order.payment_reminder' }).where(eq(jobs.id, id));
+
+      scheduler.start();
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      expect(called).toBe(false);
+      const job = await db.select().from(jobs).where(eq(jobs.id, id)).limit(1);
+      expect(job[0]?.status).toBe('failed');
+    });
     it('executes due jobs', async () => {
       const executed: string[] = [];
 

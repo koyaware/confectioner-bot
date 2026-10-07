@@ -1,7 +1,7 @@
 import { getDb } from '../db/client.js';
 import { jobs } from '../db/schema.js';
-import { eq, and, lte } from 'drizzle-orm';
-import { JobHandler, JobResult, Job } from './types.js';
+import { eq, and, lte, asc } from 'drizzle-orm';
+import { JobHandler, JobResult, Job, validateJobPayload } from './types.js';
 import { ensureDailyDigestJobs } from '../services/digest.js';
 import { ensureDailyBackupJob } from '../services/backup.js';
 
@@ -15,6 +15,7 @@ export class JobScheduler {
   private handlers: Map<string, JobHandler> = new Map();
   private intervalId: NodeJS.Timeout | null = null;
   private isRunning = false;
+  private isPolling = false;
 
   /**
    * Optional callback to notify when a job permanently fails
@@ -70,6 +71,10 @@ export class JobScheduler {
    * Poll for pending jobs and execute them
    */
   private async poll(): Promise<void> {
+    if (this.isPolling) {
+      return;
+    }
+    this.isPolling = true;
     const db = getDb();
     const now = new Date();
 
@@ -77,11 +82,12 @@ export class JobScheduler {
       await ensureDailyDigestJobs(now);
       await ensureDailyBackupJob(now);
 
-      // Find pending jobs that are due
+      // Find pending jobs that are due, oldest first
       const pendingJobs = await db
         .select()
         .from(jobs)
         .where(and(eq(jobs.status, 'pending'), lte(jobs.runAt, now)))
+        .orderBy(asc(jobs.runAt))
         .limit(10);
 
       for (const job of pendingJobs) {
@@ -89,6 +95,8 @@ export class JobScheduler {
       }
     } catch (error) {
       console.error('Error polling jobs:', error);
+    } finally {
+      this.isPolling = false;
     }
   }
 
@@ -97,6 +105,19 @@ export class JobScheduler {
    */
   private async executeJob(job: Job): Promise<void> {
     const db = getDb();
+
+    if (!validateJobPayload(job.type, job.payload)) {
+      const error = `Invalid payload for job type: ${job.type}`;
+      await db
+        .update(jobs)
+        .set({ status: 'failed', attempts: job.attempts + 1, lastError: error })
+        .where(eq(jobs.id, job.id));
+      if (this.onJobFailed) {
+        void this.onJobFailed({ ...job, status: 'failed' }, error);
+      }
+      return;
+    }
+
     const handler = this.handlers.get(job.type);
 
     if (!handler) {
