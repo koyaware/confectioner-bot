@@ -77,6 +77,19 @@ export async function buildOrderCardText(
   return lines.join('\n');
 }
 
+export async function loadOwnedOrder(
+  tenantId: string,
+  orderId: string
+): Promise<typeof orders.$inferSelect | null> {
+  const db = getDb();
+  const rows = await db
+    .select()
+    .from(orders)
+    .where(and(eq(orders.id, orderId), eq(orders.tenantId, tenantId)))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
 export async function orderCardKeyboard(orderId: string, status: string): Promise<InlineKeyboard> {
   const rows: InlineKeyboard['inline_keyboard'] = [];
   if (status === 'new') {
@@ -317,6 +330,14 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
       const chatId = ctx.callbackQuery.message?.chat.id;
       const messageId = ctx.callbackQuery.message?.message_id;
       if (!chatId || !messageId) return;
+
+      if (['accept', 'rr', 'paid', 'badpay', 'ready', 'done', 'cancel'].includes(action)) {
+        const targetId = rest.split(':')[0]!;
+        if (!(await loadOwnedOrder(ctx.tenant.id, targetId))) {
+          await ctx.port.editMessageText(chatId, messageId, ru.my.notFound, {});
+          return;
+        }
+      }
 
       if (action === 'accept') {
         const result = await applyOrderEvent(rest, 'owner_accept', 'owner', new Date());

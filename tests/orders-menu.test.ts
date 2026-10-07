@@ -160,4 +160,33 @@ describe('owner orders callbacks', () => {
     expect(photos[0]!.args[0]).toBe(555);
     expect(photos[0]!.args[1]).toBe('file-1');
   });
+
+  it('rejects cross-tenant order mutation', async () => {
+    await seedTenantAndCustomer();
+    const { createTenant } = await import('../src/services/tenants.js');
+    const created = await createTenant({
+      slug: 'other',
+      shopName: 'Other',
+      botToken: '456:y',
+      botId: 888,
+      botUsername: 'other_bot',
+      appSecret,
+      now,
+    });
+    if (!created.ok) throw new Error(created.error);
+    await getDb()
+      .update(tenants)
+      .set({ ownerTelegramId: 777 })
+      .where(eq(tenants.id, created.value.id));
+
+    const port = new FakePort();
+    const { bot } = createTenantBot('456:y', created.value.id, 'other', port);
+
+    await bot.handleUpdate(cb(1, 777, 'adm:ord:accept:o1'));
+
+    const rows = await getDb().select().from(orders);
+    expect(rows.find((o) => o.id === 'o1')!.status).toBe('new');
+    const edits = port.getCallsForMethod('editMessageText');
+    expect(edits[0]!.args[2]).toBe('Заказ не найден.');
+  });
 });
