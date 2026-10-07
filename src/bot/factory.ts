@@ -23,8 +23,10 @@ import { registerOrderHandlers } from './owner/orders.js';
 import { registerCalendarHandlers } from './owner/calendar.js';
 import { registerLinksHandlers } from './owner/links.js';
 import { registerStatsHandlers } from './owner/stats.js';
+import { registerSuperadminCommands } from './superadmin.js';
 import { registerPaymentHandlers } from './customer/payment.js';
 import { registerMyOrdersHandlers } from './customer/my-orders.js';
+import { registerDeleteMeHandler } from './customer/deleteme.js';
 import { registerRelayHandlers } from './relay/relay.js';
 
 export interface TenantBot {
@@ -41,7 +43,8 @@ export function createTenantBot(
   botToken: string,
   tenantId: string,
   tenantSlug: string,
-  portOverride?: TelegramPort
+  portOverride?: TelegramPort,
+  runner?: import('./runner.js').BotRunner
 ): TenantBot {
   const bot = new Bot<BotContextWithSession>(botToken, {
     botInfo: {
@@ -127,6 +130,8 @@ export function createTenantBot(
   registerPaymentHandlers(bot);
   registerMyOrdersHandlers(bot);
   registerRelayHandlers(bot);
+  registerDeleteMeHandler(bot);
+  registerSuperadminCommands(bot, runner);
 
   return {
     tenantId,
