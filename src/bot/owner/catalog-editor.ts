@@ -2,6 +2,7 @@ import { Bot } from 'grammy';
 import { canAccessOwner } from '../permissions.js';
 import { BotContextWithSession } from '../context.js';
 import { decodeCallback } from '../callbacks.js';
+import { beginOwnerDraft } from './edit-field.js';
 import { ru } from '../../i18n/ru.js';
 import { escapeHtml } from '../../domain/escape.js';
 import { formatMinor } from '../../lib/money.js';
@@ -199,8 +200,7 @@ export function registerOwnerCatalogHandlers(bot: Bot<BotContextWithSession>): v
     if (area === 'cat') {
       if (action === 'list') return showCategoryList(ctx);
       if (action === 'add') {
-        ctx.sessionState = 'owner.edit_field';
-        ctx.session.ownerDraft = { kind: 'cat_add' };
+        beginOwnerDraft(ctx, { kind: 'cat_add' });
         await ctx.port.editMessageText(
           ctx.callbackQuery.message!.chat.id,
           ctx.callbackQuery.message!.message_id,
@@ -209,8 +209,7 @@ export function registerOwnerCatalogHandlers(bot: Bot<BotContextWithSession>): v
         return;
       }
       if (action === 'rename' && arg) {
-        ctx.sessionState = 'owner.edit_field';
-        ctx.session.ownerDraft = { kind: 'cat_rename', targetId: arg };
+        beginOwnerDraft(ctx, { kind: 'cat_rename', targetId: arg });
         await ctx.port.editMessageText(
           ctx.callbackQuery.message!.chat.id,
           ctx.callbackQuery.message!.message_id,
@@ -246,8 +245,7 @@ export function registerOwnerCatalogHandlers(bot: Bot<BotContextWithSession>): v
     // prd area
     if (action === 'list' && arg) return showProductList(ctx, arg);
     if (action === 'add' && arg) {
-      ctx.sessionState = 'owner.edit_field';
-      ctx.session.ownerDraft = { kind: 'prd_add_title', targetId: arg };
+      beginOwnerDraft(ctx, { kind: 'prd_add_title', targetId: arg });
       await ctx.port.editMessageText(
         ctx.callbackQuery.message!.chat.id,
         ctx.callbackQuery.message!.message_id,
@@ -275,8 +273,7 @@ export function registerOwnerCatalogHandlers(bot: Bot<BotContextWithSession>): v
       return showProductList(ctx, product?.categoryId ?? '');
     }
     if (action === 'field' && arg && arg2) {
-      ctx.sessionState = 'owner.edit_field';
-      ctx.session.ownerDraft = { kind: 'prd_field', targetId: arg, extra: { field: arg2 } };
+      beginOwnerDraft(ctx, { kind: 'prd_field', targetId: arg, extra: { field: arg2 } });
       const label = PRODUCT_FIELD_LABELS[arg2] ?? arg2;
       await ctx.port.editMessageText(
         ctx.callbackQuery.message!.chat.id,
@@ -287,8 +284,7 @@ export function registerOwnerCatalogHandlers(bot: Bot<BotContextWithSession>): v
     }
     if (action === 'opt' && arg) return showOptionList(ctx, arg);
     if (action === 'optadd' && arg) {
-      ctx.sessionState = 'owner.edit_field';
-      ctx.session.ownerDraft = { kind: 'opt_add_group', targetId: arg };
+      beginOwnerDraft(ctx, { kind: 'opt_add_group', targetId: arg });
       await ctx.port.editMessageText(
         ctx.callbackQuery.message!.chat.id,
         ctx.callbackQuery.message!.message_id,

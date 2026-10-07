@@ -9,6 +9,7 @@ import { getDateAvailability } from '../../services/dates.js';
 import { getDb } from '../../db/client.js';
 import { orders } from '../../db/schema.js';
 import { and, desc, eq } from 'drizzle-orm';
+import { beginOwnerDraft } from './edit-field.js';
 
 const MONTH_NAMES = [
   'Январь',
@@ -146,8 +147,7 @@ export function registerCalendarHandlers(bot: Bot<BotContextWithSession>): void 
     const setcapMatch = /^adm:cal:setcap:(\d{4}-\d{2}-\d{2})$/.exec(data);
     if (setcapMatch) {
       const date = setcapMatch[1]!;
-      ctx.sessionState = 'owner.edit_field';
-      ctx.session.ownerDraft = { kind: 'cal_capacity', targetId: date };
+      beginOwnerDraft(ctx, { kind: 'cal_capacity', targetId: date });
       await ctx.port.editMessageText(chatId, messageId, ru.ownerCalendar.promptCapacity, {
         keyboard: { inline_keyboard: [[{ text: 'Назад', callback_data: `adm:cal:day:${date}` }]] },
       });

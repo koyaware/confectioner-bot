@@ -6,6 +6,7 @@ import { ru } from '../../i18n/ru.js';
 import { escapeHtml } from '../../domain/escape.js';
 import { listFaq, getFaq, deleteFaq } from '../../services/faq.js';
 import { InlineKeyboard } from '../../telegram/port.js';
+import { beginOwnerDraft } from './edit-field.js';
 
 export function registerOwnerFaqHandlers(bot: Bot<BotContextWithSession>): void {
   bot.callbackQuery(/^adm:faq:/, async (ctx) => {
@@ -37,8 +38,7 @@ export function registerOwnerFaqHandlers(bot: Bot<BotContextWithSession>): void 
     }
 
     if (action === 'add') {
-      ctx.sessionState = 'owner.edit_field';
-      ctx.session.ownerDraft = { kind: 'faq_add_question' };
+      beginOwnerDraft(ctx, { kind: 'faq_add_question' });
       await ctx.port.editMessageText(chatId, messageId, ru.ownerFaq.promptQuestion);
       return;
     }
@@ -62,15 +62,13 @@ export function registerOwnerFaqHandlers(bot: Bot<BotContextWithSession>): void 
     }
 
     if (action === 'q' && arg) {
-      ctx.sessionState = 'owner.edit_field';
-      ctx.session.ownerDraft = { kind: 'faq_edit_q', targetId: arg };
+      beginOwnerDraft(ctx, { kind: 'faq_edit_q', targetId: arg });
       await ctx.port.editMessageText(chatId, messageId, ru.ownerFaq.promptQuestion);
       return;
     }
 
     if (action === 'a' && arg) {
-      ctx.sessionState = 'owner.edit_field';
-      ctx.session.ownerDraft = { kind: 'faq_edit_a', targetId: arg };
+      beginOwnerDraft(ctx, { kind: 'faq_edit_a', targetId: arg });
       await ctx.port.editMessageText(chatId, messageId, ru.ownerFaq.promptAnswer);
       return;
     }

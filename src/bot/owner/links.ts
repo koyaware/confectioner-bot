@@ -5,6 +5,7 @@ import { ru } from '../../i18n/ru.js';
 import { InlineKeyboard } from '../../telegram/port.js';
 import { listSources, deleteSource } from '../../services/sources.js';
 import QRCode from 'qrcode';
+import { beginOwnerDraft } from './edit-field.js';
 
 export function registerLinksHandlers(bot: Bot<BotContextWithSession>): void {
   bot.callbackQuery(/^adm:src:/, async (ctx) => {
@@ -36,8 +37,7 @@ export function registerLinksHandlers(bot: Bot<BotContextWithSession>): void {
     }
 
     if (data === 'adm:src:add') {
-      ctx.sessionState = 'owner.edit_field';
-      ctx.session.ownerDraft = { kind: 'src_add_label' };
+      beginOwnerDraft(ctx, { kind: 'src_add_label' });
       await ctx.port.editMessageText(chatId, messageId, ru.ownerLinks.promptLabel, {
         keyboard: { inline_keyboard: [[{ text: 'Назад', callback_data: 'adm:menu' }]] },
       });

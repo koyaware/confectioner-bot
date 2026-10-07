@@ -10,6 +10,7 @@ import { tenants, featureFlags } from '../../db/schema.js';
 import { and, eq } from 'drizzle-orm';
 import { InlineKeyboard } from '../../telegram/port.js';
 import { listFeatureFlags, setFeatureFlag } from '../../services/feature-flags.js';
+import { beginOwnerDraft } from './edit-field.js';
 
 const FIELD_LABELS: Record<SettingsField, string> = {
   greetingText: 'Приветствие',
@@ -125,8 +126,7 @@ export function registerSettingsHandlers(bot: Bot<BotContextWithSession>): void 
     }
 
     if (action === 'featadd') {
-      ctx.sessionState = 'owner.edit_field';
-      ctx.session.ownerDraft = { kind: 'feature_add_name' };
+      beginOwnerDraft(ctx, { kind: 'feature_add_name' });
       await ctx.port.editMessageText(chatId, messageId, ru.ownerSettings.featureNamePrompt, {
         keyboard: {
           inline_keyboard: [[{ text: ru.common.back, callback_data: 'adm:set:edit:features' }]],
@@ -163,8 +163,7 @@ export function registerSettingsHandlers(bot: Bot<BotContextWithSession>): void 
     }
 
     if (action === 'edit' && arg && isSettingsField(arg)) {
-      ctx.sessionState = 'owner.edit_field';
-      ctx.session.ownerDraft = { kind: 'set_field', extra: { field: arg } };
+      beginOwnerDraft(ctx, { kind: 'set_field', extra: { field: arg } });
       const rows = await getDb()
         .select()
         .from(tenants)
