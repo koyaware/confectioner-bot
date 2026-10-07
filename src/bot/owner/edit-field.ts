@@ -85,7 +85,29 @@ async function editScreenOrSend(
   return sent.messageId;
 }
 
-function backTargetForDraft(draft: { kind: string }): string | null {
+function chainDraft(draft: OwnerDraft, kind: string, extra?: Record<string, string>): OwnerDraft {
+  return {
+    kind,
+    targetId: draft.targetId,
+    extra: {
+      ...(extra ?? {}),
+      ...(draft.extra?.screen ? { screen: draft.extra.screen } : {}),
+    },
+  };
+}
+
+function backTargetForDraft(draft: OwnerDraft): string | null {
+  const id = draft.targetId;
+  if (draft.kind === 'cat_rename' && id) return `adm:cat:edit:${id}`;
+  if (draft.kind === 'prd_field' && id) return `adm:prd:edit:${id}`;
+  if ((draft.kind === 'prd_add_title' || draft.kind === 'prd_add_price') && id) {
+    return `adm:cat:edit:${id}`;
+  }
+  if (draft.kind.startsWith('opt_') && id) return `adm:prd:opt:${id}`;
+  if ((draft.kind === 'faq_edit_q' || draft.kind === 'faq_edit_a') && id) {
+    return `adm:faq:edit:${id}`;
+  }
+  if (draft.kind === 'cal_capacity' && id) return `adm:cal:day:${id}`;
   if (
     draft.kind.startsWith('cat_') ||
     draft.kind.startsWith('prd_') ||
@@ -172,11 +194,7 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
           return;
         }
         ctx.sessionState = 'owner.edit_field';
-        ctx.session.ownerDraft = {
-          kind: 'prd_add_price',
-          targetId: draft.targetId,
-          extra: { title: text },
-        };
+        ctx.session.ownerDraft = chainDraft(draft, 'prd_add_price', { title: text });
         await editScreenOrSend(ctx, draft, ctx.t.ownerCatalog.promptProductPrice);
         return;
       }
@@ -267,11 +285,7 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
           return;
         }
         ctx.sessionState = 'owner.edit_field';
-        ctx.session.ownerDraft = {
-          kind: 'opt_add_title',
-          targetId: draft.targetId,
-          extra: { group: text },
-        };
+        ctx.session.ownerDraft = chainDraft(draft, 'opt_add_title', { group: text });
         await editScreenOrSend(ctx, draft, ctx.t.ownerCatalog.promptOptionTitle);
         return;
       }
@@ -283,11 +297,10 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
           return;
         }
         ctx.sessionState = 'owner.edit_field';
-        ctx.session.ownerDraft = {
-          kind: 'opt_add_delta',
-          targetId: draft.targetId,
-          extra: { group: draft.extra!.group!, title: text },
-        };
+        ctx.session.ownerDraft = chainDraft(draft, 'opt_add_delta', {
+          group: draft.extra!.group!,
+          title: text,
+        });
         await editScreenOrSend(ctx, draft, ctx.t.ownerCatalog.promptOptionDelta);
         return;
       }
@@ -323,7 +336,7 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
           return;
         }
         ctx.sessionState = 'owner.edit_field';
-        ctx.session.ownerDraft = { kind: 'faq_add_answer', extra: { question: text } };
+        ctx.session.ownerDraft = chainDraft(draft, 'faq_add_answer', { question: text });
         await editScreenOrSend(ctx, draft, ctx.t.ownerFaq.promptAnswer);
         return;
       }

@@ -292,6 +292,99 @@ describe('owner catalog editor', () => {
     expect((await listCategoriesAll(tenantId))[0]!.title).toBe(cats[0]!.title);
   });
 
+  it('product field save goes back to the product, not catalog root', async () => {
+    const { tenantId } = await seedDemo(appSecret, new Date());
+    await getDb().update(tenants).set({ ownerTelegramId: 555 }).where(eq(tenants.id, tenantId));
+    const catId = (await listCategoriesAll(tenantId))[0]!.id;
+    const productId = (await listProductsAll(tenantId, catId))[0]!.id;
+    const cbq = (update_id: number, id: string, data: string, msgId = 10) =>
+      ({
+        update_id,
+        callback_query: {
+          id,
+          from: { id: 555, is_bot: false, first_name: 'O' },
+          message: { message_id: msgId, date: 1, chat: { id: 555, type: 'private' } },
+          data,
+        },
+      }) as never;
+    const txt = (update_id: number, text: string) =>
+      ({
+        update_id,
+        message: {
+          message_id: update_id + 100,
+          date: 1,
+          chat: { id: 555, type: 'private' },
+          from: { id: 555, is_bot: false, first_name: 'O' },
+          text,
+          entities: [],
+        },
+      }) as never;
+
+    const port = new FakePort();
+    const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
+
+    // open product edit, rename field
+    await bot.handleUpdate(cbq(1, 'c1', `adm:prd:edit:${productId}`));
+    await bot.handleUpdate(cbq(2, 'c2', `adm:prd:field:${productId}:title`));
+    await bot.handleUpdate(txt(3, 'Новый медовик'));
+
+    // saved screen offers Back to the product (not catalog root)
+    const edits = port.getCallsForMethod('editMessageTextOrSend');
+    const last = edits[edits.length - 1]!;
+    expect(String(last.args[2])).toContain('Сохранено');
+    expect(JSON.stringify(last.args[3])).toContain(`adm:prd:edit:${productId}`);
+
+    // follow Back: product edit screen renders, still one screen
+    await bot.handleUpdate(cbq(4, 'c4', `adm:prd:edit:${productId}`));
+    const edits2 = port.getCallsForMethod('editMessageTextOrSend');
+    const last2 = edits2[edits2.length - 1]!;
+    expect(last2.args[1]).toBe(10);
+    expect(JSON.stringify(last2.args[3])).toContain('adm:prd:field:');
+  });
+
+  it('option add chain stays on one screen', async () => {
+    const { tenantId } = await seedDemo(appSecret, new Date());
+    await getDb().update(tenants).set({ ownerTelegramId: 555 }).where(eq(tenants.id, tenantId));
+    const catId = (await listCategoriesAll(tenantId))[0]!.id;
+    const productId = (await listProductsAll(tenantId, catId))[0]!.id;
+    const cbq = (update_id: number, id: string, data: string) =>
+      ({
+        update_id,
+        callback_query: {
+          id,
+          from: { id: 555, is_bot: false, first_name: 'O' },
+          message: { message_id: 10, date: 1, chat: { id: 555, type: 'private' } },
+          data,
+        },
+      }) as never;
+    const txt = (update_id: number, text: string) =>
+      ({
+        update_id,
+        message: {
+          message_id: 100 + update_id,
+          date: 1,
+          chat: { id: 555, type: 'private' },
+          from: { id: 555, is_bot: false, first_name: 'O' },
+          text,
+          entities: [],
+        },
+      }) as never;
+
+    const port = new FakePort();
+    const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
+
+    await bot.handleUpdate(cbq(1, 'c1', `adm:prd:optadd:${productId}`));
+    await bot.handleUpdate(txt(2, 'Начинка'));
+    await bot.handleUpdate(txt(3, 'Шоколад'));
+    await bot.handleUpdate(txt(4, '0'));
+
+    // every prompt and the final save edited screen 10, nothing new sent
+    const edits = port.getCallsForMethod('editMessageTextOrSend');
+    expect(edits.length).toBeGreaterThanOrEqual(4);
+    for (const c of edits) expect(c.args[1]).toBe(10);
+    expect(port.getCallsForMethod('sendMessage')).toHaveLength(0);
+  });
+
   it('hidden option stays listed and can be re-enabled', async () => {
     const { tenantId } = await seedDemo(appSecret, new Date());
     await getDb().update(tenants).set({ ownerTelegramId: 555 }).where(eq(tenants.id, tenantId));
