@@ -23,17 +23,15 @@ export function createBackupHandler(ports: {
     const activeTenants = await db
       .select({ id: tenants.id })
       .from(tenants)
-      .where(eq(tenants.status, 'active'))
-      .limit(1);
+      .where(eq(tenants.status, 'active'));
 
-    const tenant = activeTenants[0];
-    if (!tenant) {
-      return { success: false, error: 'no active tenants to send backup through' };
+    let port: TelegramPort | undefined;
+    for (const tenant of activeTenants) {
+      port = ports.getPort(tenant.id);
+      if (port) break;
     }
-
-    const port = ports.getPort(tenant.id);
     if (!port) {
-      return { success: false, error: `no bot for tenant ${tenant.id}` };
+      return { success: false, error: 'no running bot to send backup through' };
     }
 
     const buffer = await readFile(filePath);

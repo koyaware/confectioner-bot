@@ -50,7 +50,9 @@ describe('backup', () => {
     const backupJobs = all.filter((j) => j.type === 'backup.db');
     expect(backupJobs).toHaveLength(1);
     expect(backupJobs[0]!.dedupeKey).toBe(`backup:${now.toISOString().slice(0, 10)}`);
-    expect(backupJobs[0]!.runAt.toISOString()).toBe(`${now.toISOString().slice(0, 10)}T03:00:00.000Z`);
+    expect(backupJobs[0]!.runAt.toISOString()).toBe(
+      `${now.toISOString().slice(0, 10)}T03:00:00.000Z`
+    );
   });
 
   it('backup file passes integrity check', async () => {
@@ -75,5 +77,19 @@ describe('backup', () => {
     expect(docs).toHaveLength(1);
     expect(docs[0]!.args[0]).toBe(1);
     expect(Buffer.isBuffer(docs[0]!.args[1])).toBe(true);
+  });
+
+  it('prunes old backups, keeping the newest 7', async () => {
+    await seedDemo(appSecret, now);
+    const { mkdirSync, writeFileSync, utimesSync, readdirSync } = await import('fs');
+    mkdirSync('./backups', { recursive: true });
+    for (let i = 0; i < 8; i++) {
+      const name = `./backups/backup-2026-09-${String(i + 1).padStart(2, '0')}.db`;
+      writeFileSync(name, 'x');
+      const t = new Date(Date.now() - (10 - i) * 86400_000);
+      utimesSync(name, t, t);
+    }
+    await createBackupFile(now);
+    expect(readdirSync('./backups')).toHaveLength(7);
   });
 });
