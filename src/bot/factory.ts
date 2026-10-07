@@ -19,6 +19,7 @@ import { registerCheckoutHandlers } from './customer/checkout.js';
 import { registerOwnerFaqHandlers } from './owner/faq-editor.js';
 import { registerEditFieldHandlers } from './owner/edit-field.js';
 import { registerSettingsHandlers } from './owner/settings.js';
+import { registerOrderHandlers } from './owner/orders.js';
 
 export interface TenantBot {
   tenantId: string;
@@ -113,6 +114,7 @@ export function createTenantBot(
   registerOwnerFaqHandlers(bot);
   registerEditFieldHandlers(bot);
   registerSettingsHandlers(bot);
+  registerOrderHandlers(bot);
 
   return {
     tenantId,

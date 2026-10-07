@@ -3,8 +3,9 @@ import { BotContextWithSession } from '../context.js';
 import { ru } from '../../i18n/ru.js';
 import { getDateAvailability, DateAvailability } from '../../services/dates.js';
 import { createOrder, CreateOrderInput } from '../../services/orders.js';
+import { buildOrderCardText, orderCardKeyboard } from '../owner/orders.js';
 import { getDb } from '../../db/client.js';
-import { customers, orders } from '../../db/schema.js';
+import { customers } from '../../db/schema.js';
 import { eq, and } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { addDays } from '../../domain/dates.js';
@@ -72,18 +73,12 @@ async function findOrCreateCustomer(ctx: BotContextWithSession): Promise<string>
 async function notifyOwnerOfOrder(ctx: BotContextWithSession, orderId: string): Promise<void> {
   const ownerId = ctx.tenant.ownerTelegramId;
   if (!ownerId) return;
-  const db = getDb();
-  const rows = await db.select().from(orders).where(eq(orders.id, orderId)).limit(1);
-  const order = rows[0];
-  if (!order) return;
-  const text =
-    `Новый заказ №${order.number}\n` +
-    `Статус: новый\n` +
-    `Дата: ${order.dueDate}\n` +
-    `Получение: ${order.fulfillment === 'delivery' ? 'доставка' : 'самовывоз'}\n` +
-    `Сумма: ${formatMinor(order.totalMinor, ctx.tenant.currency)}, предоплата ${formatMinor(order.prepaymentMinor, ctx.tenant.currency)}\n` +
-    `Контакт: ${order.contactName}, ${order.contactPhone}`;
-  await ctx.port.sendMessage(ownerId, text, { parseMode: 'HTML' });
+  const text = await buildOrderCardText(orderId, ctx.tenant.id, ctx.tenant.currency);
+  if (!text) return;
+  await ctx.port.sendMessage(ownerId, text, {
+    keyboard: orderCardKeyboard(orderId, 'new'),
+    parseMode: 'HTML',
+  });
 }
 
 export function calendarKeyboard(

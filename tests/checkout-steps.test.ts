@@ -194,8 +194,9 @@ describe('checkout steps', () => {
     expect(rows[0]!.state).toBe('idle');
 
     const sent = port.getCallsForMethod('sendMessage');
-    const ownerTexts = sent.map((c) => c.args[1] as string);
-    expect(ownerTexts.some((t) => t.includes('Новый заказ'))).toBe(true);
+    const ownerMsg = sent[sent.length - 1]!;
+    expect(ownerMsg.args[1] as string).toContain('Заказ №');
+    expect(JSON.stringify(ownerMsg.args[2])).toContain('adm:ord:accept:');
 
     const edits = port.getCallsForMethod('editMessageText');
     const editTexts = edits.map((c) => c.args[2] as string);

@@ -66,6 +66,10 @@ export const ru = {
     notFound: 'Вопрос не найден.',
     button: 'Вопросы и ответы',
   },
+  orderStatus: {
+    awaitingPayment: 'Ожидаем предоплату.',
+    confirmed: 'Ваш заказ подтверждён.',
+  },
   ownerSettings: {
     title: 'Настройки магазина',
     prompt: 'Введите новое значение',

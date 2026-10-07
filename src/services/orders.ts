@@ -14,6 +14,8 @@ import { and, eq, inArray, max } from 'drizzle-orm';
 import { Cart, CheckoutDraft, Result } from '../types.js';
 import { priceLine, requiredLeadDays } from '../domain/pricing.js';
 import { effectiveCapacity, OCCUPYING_STATUSES, usedUnits } from '../domain/capacity.js';
+import { transition } from '../domain/order-machine.js';
+import { OrderEvent } from '../types.js';
 import { addDays, compareIso, toIsoDate } from '../domain/dates.js';
 import { nanoid } from 'nanoid';
 
@@ -274,4 +276,60 @@ export async function createOrder(
     }
     throw error;
   }
+}
+
+export async function applyOrderEvent(
+  orderId: string,
+  event: OrderEvent,
+  actor: 'customer' | 'owner' | 'system',
+  now: Date
+): Promise<Result<typeof orders.$inferSelect, 'NOT_FOUND' | 'ILLEGAL_TRANSITION'>> {
+  const db = getDb();
+  const rows = await db.select().from(orders).where(eq(orders.id, orderId)).limit(1);
+  const order = rows[0];
+  if (!order) {
+    return { ok: false, error: 'NOT_FOUND' };
+  }
+
+  const result = transition(
+    { status: order.status, prepaymentMinor: order.prepaymentMinor },
+    event
+  );
+  if (!result.ok) {
+    return { ok: false, error: 'ILLEGAL_TRANSITION' };
+  }
+
+  const decidedEvents = [
+    'owner_accept',
+    'owner_reject',
+    'customer_cancel',
+    'payment_timeout',
+    'payment_confirmed',
+    'payment_rejected',
+    'owner_cancel',
+  ];
+
+  db.transaction((tx) => {
+    tx.update(orders)
+      .set({
+        status: result.value.status,
+        decidedAt: decidedEvents.includes(event) ? now : order.decidedAt,
+        updatedAt: now,
+      })
+      .where(eq(orders.id, orderId))
+      .run();
+
+    tx.insert(orderEvents)
+      .values({
+        id: nanoid(),
+        orderId,
+        type: event,
+        actor,
+        createdAt: now,
+      })
+      .run();
+  });
+
+  const updated = await db.select().from(orders).where(eq(orders.id, orderId)).limit(1);
+  return { ok: true, value: updated[0]! };
 }
