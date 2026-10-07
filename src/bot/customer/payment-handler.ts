@@ -196,7 +196,7 @@ async function handleReceipt(
     orderId,
     kind: 'receipt',
     fileId,
-    fileType,
+    fileType: ctx.message?.photo ? 'photo' : 'document',
     createdAt: new Date(),
   });
 
@@ -209,7 +209,7 @@ async function handleReceipt(
     });
   }
 
-  // Send receipt to owner by editing the original order card message
+  // Send receipt to owner
   const ownerId = ctx.tenant.ownerTelegramId;
   if (!ownerId) return;
 
@@ -229,32 +229,36 @@ async function handleReceipt(
 
   // Get the original order card message ID
   const ownerCardMessageId = order.ownerCardMessageId;
+
+  const receiptPhoto = ctx.message?.photo?.[ctx.message.photo.length - 1];
+  const receiptDoc = !receiptPhoto ? ctx.message?.document : undefined;
+
   if (!ownerCardMessageId) {
     // Fallback: send new message if no stored message ID
-    if (fileType === 'photo') {
+    if (receiptPhoto) {
       await ctx.port.sendPhoto(
         ownerId,
-        fileId,
+        receiptPhoto.file_id,
         ru.payment.receiptToOwner(clientLabel, order.number, 'фото'),
         {
           keyboard: {
             inline_keyboard: [
-              [{ text: ru.ownerOrders.paid, callback_data: `adm:ord:paid:${orderId}` }],
-              [{ text: ru.ownerOrders.badpay, callback_data: `adm:ord:badpay:${orderId}` }],
+              [{ text: ru.ownerOrders.paid, callback_data: `adm:ord:paid:${order.id}` }],
+              [{ text: ru.ownerOrders.badpay, callback_data: `adm:ord:badpay:${order.id}` }],
             ],
           },
         }
       );
-    } else {
+    } else if (receiptDoc) {
       await ctx.port.sendDocument(
         ownerId,
-        fileId,
+        receiptDoc.file_id,
         ru.payment.receiptToOwner(clientLabel, order.number, 'файл'),
         {
           keyboard: {
             inline_keyboard: [
-              [{ text: ru.ownerOrders.paid, callback_data: `adm:ord:paid:${orderId}` }],
-              [{ text: ru.ownerOrders.badpay, callback_data: `adm:ord:badpay:${orderId}` }],
+              [{ text: ru.ownerOrders.paid, callback_data: `adm:ord:paid:${order.id}` }],
+              [{ text: ru.ownerOrders.badpay, callback_data: `adm:ord:badpay:${order.id}` }],
             ],
           },
         }
@@ -263,21 +267,44 @@ async function handleReceipt(
     return;
   }
 
-  // Build updated order card text with receipt info
+  // Send the receipt photo/document to the owner with receipt info and paid/badpay buttons
+  const receiptCaption = `📎 Чек получен (${fileType === 'photo' ? 'фото' : 'файл'})\n\n${await buildOrderCardText(orderId, ctx.tenant.id, ctx.tenant.currency)}`;
+
+  if (receiptPhoto) {
+    await ctx.port.sendPhoto(ownerId, receiptPhoto.file_id, receiptCaption, {
+      keyboard: {
+        inline_keyboard: [
+          [{ text: '✅ Оплата верна', callback_data: `adm:ord:paid:${order.id}` }],
+          [{ text: '❌ Оплата не пришла', callback_data: `adm:ord:badpay:${order.id}` }],
+        ],
+      },
+      parseMode: 'HTML',
+    });
+  } else if (receiptDoc) {
+    await ctx.port.sendDocument(ownerId, receiptDoc.file_id, receiptCaption, {
+      keyboard: {
+        inline_keyboard: [
+          [{ text: '✅ Оплата верна', callback_data: `adm:ord:paid:${order.id}` }],
+          [{ text: '❌ Оплата не пришла', callback_data: `adm:ord:badpay:${order.id}` }],
+        ],
+      },
+      parseMode: 'HTML',
+    });
+  }
+
+  // Also update the original order card message to show receipt status
   const card = await buildOrderCardText(orderId, ctx.tenant.id, ctx.tenant.currency);
-  if (!card) return;
-
-  const receiptInfo = `📎 Чек получен (${fileType === 'photo' ? 'фото' : 'файл'})`;
-  const updatedText = `${card}\n\n${receiptInfo}`;
-
-  // Edit the original order card message to show receipt + paid/badpay buttons
-  await ctx.port.editMessageTextOrSend(ownerId, ownerCardMessageId, updatedText, {
-    keyboard: {
-      inline_keyboard: [
-        [{ text: ru.ownerOrders.paid, callback_data: `adm:ord:paid:${orderId}` }],
-        [{ text: ru.ownerOrders.badpay, callback_data: `adm:ord:badpay:${orderId}` }],
-      ],
-    },
-    parseMode: 'HTML',
-  });
+  if (card) {
+    const receiptInfo = `📎 Чек получен (${fileType === 'photo' ? 'фото' : 'файл'})`;
+    const updatedText = `${card}\n\n${receiptInfo}`;
+    await ctx.port.editMessageTextOrSend(ownerId, ownerCardMessageId, updatedText, {
+      keyboard: {
+        inline_keyboard: [
+          [{ text: '✅ Оплата верна', callback_data: `adm:ord:paid:${order.id}` }],
+          [{ text: '❌ Оплата не пришла', callback_data: `adm:ord:badpay:${order.id}` }],
+        ],
+      },
+      parseMode: 'HTML',
+    });
+  }
 }

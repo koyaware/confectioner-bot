@@ -14,8 +14,6 @@ import {
 import { getCapacityForDate, setCapacityForDate } from '../../services/calendar.js';
 import { showDateScreen } from './calendar.js';
 import { addSource } from '../../services/sources.js';
-import { setFeatureFlag } from '../../services/feature-flags.js';
-
 const tenantFieldCheck: Record<string, true> = Object.fromEntries(
   SETTINGS_FIELDS.map((f) => [f, true])
 );
@@ -92,9 +90,7 @@ function backTargetForDraft(draft: { kind: string }): string | null {
   if (draft.kind === 'set_field') {
     return 'adm:set:list';
   }
-  if (draft.kind === 'feature_add_name') {
-    return 'adm:set:edit:features';
-  }
+  
   return null;
 }
 
@@ -401,19 +397,6 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
           }
           await updateTenantSetting(ctx.tenant.id, field as SettingsField, result.value);
         }
-        await sendSaved(ctx, draft, ru.ownerSettings.saved);
-        return;
-      }
-      case 'feature_add_name': {
-        if (!/^[a-z0-9_-]{1,32}$/.test(text)) {
-          ctx.sessionState = 'owner.edit_field';
-          ctx.session.ownerDraft = draft;
-          await editScreenOrSend(ctx, ru.ownerSettings.badFeatureName);
-          return;
-        }
-        await setFeatureFlag(ctx.tenant.id, text, false);
-        ctx.sessionState = 'idle';
-        ctx.session.ownerDraft = undefined;
         await sendSaved(ctx, draft, ru.ownerSettings.saved);
         return;
       }

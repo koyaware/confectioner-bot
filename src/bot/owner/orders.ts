@@ -5,7 +5,7 @@ import { ru } from '../../i18n/ru.js';
 import { escapeHtml } from '../../domain/escape.js';
 import { formatMinor } from '../../lib/money.js';
 import { applyOrderEvent, getCustomerOrderNumber } from '../../services/orders.js';
-import { sendPaymentCard } from '../customer/payment.js';
+import { sendPaymentCard } from '../customer/payment-handler.js';
 import { InlineKeyboard, TelegramPort } from '../../telegram/port.js';
 import { getDb } from '../../db/client.js';
 import {

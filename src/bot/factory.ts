@@ -27,7 +27,7 @@ import { registerCalendarHandlers } from './owner/calendar.js';
 import { registerLinksHandlers } from './owner/links.js';
 import { registerStatsHandlers } from './owner/stats.js';
 import { registerSuperadminCommands } from './superadmin.js';
-import { registerPaymentHandlers } from './customer/payment.js';
+import { registerPaymentHandlers } from './customer/payment-handler.js';
 import { registerMyOrdersHandlers } from './customer/my-orders.js';
 import { registerDeleteMeHandler } from './customer/deleteme.js';
 import { registerRelayHandlers } from './relay/relay.js';

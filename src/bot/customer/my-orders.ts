@@ -13,7 +13,7 @@ import {
   getCustomerOrderNumber,
   acceptProposedDate,
 } from '../../services/orders.js';
-import { sendPaymentCard } from './payment.js';
+import { sendPaymentCard } from './payment-handler.js';
 import { customerMenuKeyboard } from '../owner/menu.js';
 
 const STATUS_LABELS: Record<string, string> = {
