@@ -56,6 +56,30 @@ describe('createOrder', () => {
     return { cart: { lines: [{ lineId: 'l1', productId, qty, optionIds }] } };
   }
 
+  it('rejects orders from blocked customers', async () => {
+    const { tenantId, products, customerId } = await setup();
+    const db = getDb();
+    const { customers: cTable } = await import('../src/db/schema.js');
+    await db.update(cTable).set({ isBlocked: true }).where(eq(cTable.id, customerId));
+
+    const result = await createOrder({
+      tenantId,
+      customerId,
+      cart: cartWith(products[0]!.id, 1, await firstActiveOptionIds(products[0]!.id)).cart,
+      checkout: {
+        checkoutId: 'chk-blocked',
+        dueDate: addDays(toIsoDate(now, 'Europe/Moscow'), 5),
+        fulfillment: 'pickup',
+        contactName: 'Иван',
+        contactPhone: '+7999',
+        referenceFileIds: [],
+      },
+      now,
+    });
+
+    expect(result).toEqual({ ok: false, error: 'CUSTOMER_BLOCKED' });
+  });
+
   it('rejects empty option selection on optioned products', async () => {
     const { tenantId, products, customerId } = await setup();
     const product = products[0]!;

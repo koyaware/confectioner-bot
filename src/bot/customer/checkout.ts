@@ -461,7 +461,9 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
               ? ru.checkout.badQty
               : result.error === 'BAD_ADDRESS' || result.error === 'BAD_OPTIONS'
                 ? ru.checkout.incomplete
-                : ru.checkout.emptyCart;
+                : result.error === 'CUSTOMER_BLOCKED'
+                  ? ru.cart.blocked
+                  : ru.checkout.emptyCart;
       await ctx.port.editMessageText(chatId, messageId, text, {});
       return;
     }

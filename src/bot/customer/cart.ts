@@ -14,6 +14,19 @@ import { resolveSelections, renderProductCard } from './product-card.js';
 import { getDateAvailability } from '../../services/dates.js';
 import { calendarKeyboard } from './checkout.js';
 import { addDays, toIsoDate } from '../../lib/time.js';
+import { getDb } from '../../db/client.js';
+import { customers } from '../../db/schema.js';
+import { and, eq } from 'drizzle-orm';
+
+async function isCustomerBlocked(ctx: BotContextWithSession): Promise<boolean> {
+  if (!ctx.from) return false;
+  const rows = await getDb()
+    .select({ isBlocked: customers.isBlocked })
+    .from(customers)
+    .where(and(eq(customers.tenantId, ctx.tenant.id), eq(customers.telegramId, ctx.from.id)))
+    .limit(1);
+  return rows[0]?.isBlocked ?? false;
+}
 
 async function cartKeyboard(
   ctx: BotContextWithSession
@@ -230,6 +243,15 @@ export function registerCartHandlers(bot: Bot<BotContextWithSession>): void {
 
   bot.callbackQuery(/^chk:start$/, async (ctx) => {
     await ctx.port.answerCallback(ctx.callbackQuery.id);
+
+    if (await isCustomerBlocked(ctx)) {
+      const chatId = ctx.callbackQuery.message?.chat.id;
+      const messageId = ctx.callbackQuery.message?.message_id;
+      if (chatId && messageId) {
+        await ctx.port.editMessageText(chatId, messageId, ru.cart.blocked, {});
+      }
+      return;
+    }
 
     if (ctx.session.cart.lines.length === 0) {
       const chatId = ctx.callbackQuery.message?.chat.id;

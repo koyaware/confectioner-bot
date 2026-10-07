@@ -40,7 +40,8 @@ export type CreateOrderError =
   | 'TENANT_BUSY'
   | 'BAD_QTY'
   | 'BAD_ADDRESS'
-  | 'BAD_OPTIONS';
+  | 'BAD_OPTIONS'
+  | 'CUSTOMER_BLOCKED';
 
 export async function getCustomerOrderNumber(orderId: string): Promise<number | null> {
   const db = getDb();
@@ -95,6 +96,12 @@ export async function createOrder(
           .limit(1)
           .all();
         const customer = customerRows[0];
+        if (!customer) {
+          return { error: 'DATE_UNAVAILABLE' as const };
+        }
+        if (customer.isBlocked) {
+          return { error: 'CUSTOMER_BLOCKED' as const };
+        }
 
         // Idempotent replay: same checkoutId returns the existing order
         const existing = tx
