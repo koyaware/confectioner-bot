@@ -153,4 +153,30 @@ describe('relay', () => {
     const copies = port.getCallsForMethod('copyMessage');
     expect(copies.some((c) => c.args[0] === 555)).toBe(true);
   });
+  it('rel:start compose flow acks the customer reply', async () => {
+    const { tenantId } = await seedDemo(appSecret, new Date());
+    await getDb().update(tenants).set({ ownerTelegramId: 555 }).where(eq(tenants.id, tenantId));
+
+    const port = new FakePort();
+    const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
+
+    await bot.handleUpdate({
+      update_id: 1,
+      callback_query: {
+        id: 'c1',
+        from: { id: 42, is_bot: false, first_name: 'C' },
+        message: { message_id: 10, date: 1, chat: { id: 42, type: 'private' } },
+        data: 'rel:start',
+      },
+    } as never);
+    await bot.handleUpdate(msg(2, 42, 'Когда будет готово?'));
+
+    const sent = port.getCallsForMethod('sendMessage').map((c) => c.args[1] as string);
+    expect(sent.some((t) => t.includes('Мастер скоро ответит'))).toBe(true);
+
+    const { sessions } = await import('../src/db/schema.js');
+    const rows = await getDb().select().from(sessions);
+    expect(rows[0]!.state).toBe('idle');
+    expect(tenantId).toBeTruthy();
+  });
 });

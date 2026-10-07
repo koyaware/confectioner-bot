@@ -20,6 +20,7 @@ async function relayToOwner(ctx: BotContextWithSession): Promise<void> {
   if (ctx.sessionState === 'owner.edit_field' || ctx.sessionState === 'owner.reply_to_customer')
     return;
 
+  const wasCompose = ctx.sessionState === 'relay.compose';
   const db = getDb();
   let customerRows = await db
     .select()
@@ -98,6 +99,18 @@ async function relayToOwner(ctx: BotContextWithSession): Promise<void> {
   }
 
   await trackFunnelEvent(ctx, 'free_text');
+
+  if (wasCompose) {
+    ctx.sessionState = 'idle';
+    try {
+      await ctx.port.sendMessage(customerChatId, 'Мастер скоро ответит.');
+    } catch (e) {
+      if (e instanceof TelegramError && e.code === 'BLOCKED') {
+        await db.update(customers).set({ botBlocked: true }).where(eq(customers.id, customer.id));
+      }
+    }
+    return;
+  }
 
   // Auto-reply once per 6 hours
   const nowS = Math.floor(Date.now() / 1000);
@@ -311,4 +324,5 @@ async function handleOwnerReply(ctx: BotContextWithSession): Promise<void> {
   if (!relay) return;
 
   await ctx.port.copyMessage(relay.customerChatId, ctx.chat!.id, ctx.message.message_id);
+  await ctx.port.sendMessage(ctx.chat!.id, 'Отправлено клиенту.');
 }
