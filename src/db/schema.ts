@@ -183,6 +183,7 @@ export const orders = sqliteTable(
     paymentDueAt: ts('payment_due_at'),
     rejectReason: text('reject_reason'),
     cancelReason: text('cancel_reason'),
+    ownerCardMessageId: integer('owner_card_message_id'),
     createdAt: ts('created_at').notNull(),
     decidedAt: ts('decided_at'),
     updatedAt: ts('updated_at').notNull(),
@@ -192,6 +193,7 @@ export const orders = sqliteTable(
     idemUq: uniqueIndex('orders_idem_uq').on(t.tenantId, t.idempotencyKey),
     tenantStatusIdx: index('orders_tenant_status_idx').on(t.tenantId, t.status),
     tenantDueIdx: index('orders_tenant_due_idx').on(t.tenantId, t.dueDate),
+    ownerCardMessageIdx: index('orders_owner_card_message_idx').on(t.tenantId, t.ownerCardMessageId),
   })
 );
 

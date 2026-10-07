@@ -6,7 +6,7 @@ import { createOrder, CreateOrderInput, getCustomerOrderNumber } from '../../ser
 import { buildOrderCardText, orderCardKeyboard } from '../owner/orders.js';
 import { customerMenuKeyboard } from '../owner/menu.js';
 import { getDb } from '../../db/client.js';
-import { customers } from '../../db/schema.js';
+import { customers, orders } from '../../db/schema.js';
 import { eq, and } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { addDays, monthEndOf, toIsoDate } from '../../lib/time.js';
@@ -62,10 +62,13 @@ async function notifyOwnerOfOrder(ctx: BotContextWithSession, orderId: string): 
   if (!ownerId) return;
   const text = await buildOrderCardText(orderId, ctx.tenant.id, ctx.tenant.currency);
   if (!text) return;
-  await ctx.port.sendMessage(ownerId, text, {
+  const sent = await ctx.port.sendMessage(ownerId, text, {
     keyboard: await orderCardKeyboard(orderId, 'new'),
     parseMode: 'HTML',
   });
+  // Store the owner's order card message ID for later updates
+  const db = getDb();
+  await db.update(orders).set({ ownerCardMessageId: sent.messageId }).where(eq(orders.id, orderId));
 }
 
 export function calendarKeyboard(
