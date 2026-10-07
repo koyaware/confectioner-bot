@@ -2,6 +2,11 @@ import { Bot } from 'grammy';
 import { BotContextWithSession } from '../context.js';
 import { ru } from '../../i18n/ru.js';
 import { getDateAvailability, DateAvailability } from '../../services/dates.js';
+import { createOrder, CreateOrderInput } from '../../services/orders.js';
+import { getDb } from '../../db/client.js';
+import { customers, orders } from '../../db/schema.js';
+import { eq, and } from 'drizzle-orm';
+import { nanoid } from 'nanoid';
 import { addDays } from '../../domain/dates.js';
 import { InlineKeyboard } from '../../telegram/port.js';
 import { getProductById, listProductOptions } from '../../services/catalog.js';
@@ -29,6 +34,56 @@ const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 
 function monthEndOf(monthStart: string): string {
   return addDays(addDays(monthStart, 32).slice(0, 8) + '01', -1);
+}
+
+function toIsoDateInTenant(date: Date, timezone: string): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  return `${parts.find((p) => p.type === 'year')!.value}-${parts.find((p) => p.type === 'month')!.value}-${parts.find((p) => p.type === 'day')!.value}`;
+}
+
+async function findOrCreateCustomer(ctx: BotContextWithSession): Promise<string> {
+  const db = getDb();
+  const rows = await db
+    .select()
+    .from(customers)
+    .where(and(eq(customers.tenantId, ctx.tenant.id), eq(customers.telegramId, ctx.from!.id)));
+  const found = rows[0];
+  if (found) return found.id;
+  const id = nanoid();
+  const now = new Date();
+  await db.insert(customers).values({
+    id,
+    tenantId: ctx.tenant.id,
+    telegramId: ctx.from!.id,
+    username: ctx.from?.username ?? null,
+    firstName: ctx.from?.first_name ?? null,
+    source: null,
+    firstSeenAt: now,
+    lastSeenAt: now,
+  });
+  return id;
+}
+
+async function notifyOwnerOfOrder(ctx: BotContextWithSession, orderId: string): Promise<void> {
+  const ownerId = ctx.tenant.ownerTelegramId;
+  if (!ownerId) return;
+  const db = getDb();
+  const rows = await db.select().from(orders).where(eq(orders.id, orderId)).limit(1);
+  const order = rows[0];
+  if (!order) return;
+  const text =
+    `Новый заказ №${order.number}\n` +
+    `Статус: новый\n` +
+    `Дата: ${order.dueDate}\n` +
+    `Получение: ${order.fulfillment === 'delivery' ? 'доставка' : 'самовывоз'}\n` +
+    `Сумма: ${formatMinor(order.totalMinor, ctx.tenant.currency)}, предоплата ${formatMinor(order.prepaymentMinor, ctx.tenant.currency)}\n` +
+    `Контакт: ${order.contactName}, ${order.contactPhone}`;
+  await ctx.port.sendMessage(ownerId, text, { parseMode: 'HTML' });
 }
 
 export function calendarKeyboard(
@@ -353,6 +408,84 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
     await ctx.port.answerCallback(ctx.callbackQuery.id);
     ctx.sessionState = 'checkout.confirm';
     await showCurrentStep(ctx);
+  });
+
+  bot.callbackQuery(/^chk:submit:(.+)$/, async (ctx) => {
+    await ctx.port.answerCallback(ctx.callbackQuery.id);
+
+    const m = /^chk:submit:(.+)$/.exec(ctx.callbackQuery.data);
+    const chatId = ctx.callbackQuery.message?.chat.id;
+    const messageId = ctx.callbackQuery.message?.message_id;
+    if (!m || !chatId || !messageId) return;
+    const checkoutId = m[1]!;
+
+    const draft = ctx.session.checkout;
+    if (!draft || draft.checkoutId !== checkoutId) {
+      await ctx.port.editMessageText(chatId, messageId, ru.checkout.staleSubmit, {});
+      return;
+    }
+    if (!draft.dueDate || !draft.fulfillment || !draft.contactName || !draft.contactPhone) {
+      await ctx.port.editMessageText(chatId, messageId, ru.checkout.incomplete, {});
+      return;
+    }
+
+    const customerId = await findOrCreateCustomer(ctx);
+    const result = await createOrder({
+      tenantId: ctx.tenant.id,
+      customerId,
+      cart: ctx.session.cart,
+      checkout: draft as CreateOrderInput['checkout'],
+      now: new Date(),
+    });
+
+    if (!result.ok) {
+      if (result.error === 'CAPACITY_EXCEEDED' || result.error === 'DATE_UNAVAILABLE') {
+        ctx.sessionState = 'checkout.date';
+        draft.dueDate = undefined;
+        const today = toIsoDateInTenant(new Date(), ctx.tenant.timezone);
+        const monthStart = `${today.slice(0, 7)}-01`;
+        const monthEnd = monthEndOf(monthStart);
+        const avail = await getDateAvailability(
+          ctx.tenant.id,
+          monthStart,
+          monthEnd,
+          ctx.session.cart,
+          new Date()
+        );
+        const msg =
+          result.error === 'CAPACITY_EXCEEDED'
+            ? ru.checkout.capacityExceeded
+            : ru.checkout.dateTaken;
+        await ctx.port.editMessageText(chatId, messageId, msg, {
+          keyboard: calendarKeyboard(avail, Number(today.slice(0, 4)), Number(today.slice(5, 7))),
+        });
+        return;
+      }
+      const text =
+        result.error === 'PRODUCT_INACTIVE'
+          ? ru.checkout.productInactive
+          : result.error === 'TENANT_BUSY'
+            ? (ctx.tenant.busyText ?? ru.checkout.busy)
+            : result.error === 'BAD_QTY'
+              ? ru.checkout.badQty
+              : ru.checkout.emptyCart;
+      await ctx.port.editMessageText(chatId, messageId, text, {});
+      return;
+    }
+
+    const order = result.value;
+    ctx.session.cart.lines = [];
+    ctx.session.checkout = undefined;
+    ctx.sessionState = 'idle';
+
+    await ctx.port.editMessageText(
+      chatId,
+      messageId,
+      `${ru.checkout.orderSent(order.number)} ${ctx.tenant.replySlaText}`,
+      {}
+    );
+
+    await notifyOwnerOfOrder(ctx, order.id);
   });
 
   bot.on('message:text', async (ctx, next) => {

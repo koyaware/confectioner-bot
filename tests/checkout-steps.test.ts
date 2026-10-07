@@ -158,4 +158,52 @@ describe('checkout steps', () => {
     const sent = port.getCallsForMethod('sendMessage');
     expect(sent[sent.length - 1]!.args[1] as string).toContain('Контакт');
   });
+
+  it('chk:submit creates order, clears cart and informs owner', async () => {
+    const now = new Date();
+    const { tenantId } = await seedDemo(appSecret, now);
+    const port = new FakePort();
+    const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
+    // claim ownership first so owner gets the card
+    const dbAdmin = getDb();
+    await dbAdmin
+      .update((await import('../src/db/schema.js')).tenants)
+      .set({ ownerTelegramId: 555 });
+
+    await setupCartAndCheckout(port, bot);
+    await bot.handleUpdate(msg(20, 42, 'к 15:00'));
+    await bot.handleUpdate(cb(21, 'c8', 42, 10, 'chk:ful:pickup'));
+    await bot.handleUpdate(msg(23, 42, 'Иван, +79991234567'));
+    await bot.handleUpdate(msg(24, 42, 'Комментарий'));
+    await bot.handleUpdate(cb(25, 'c9', 42, 10, 'chk:skip'));
+
+    // now on confirm: call chk:submit with the checkoutId from session
+    let rows = await getDb().select().from(sessions);
+    const data = JSON.parse(rows[0]!.data as string) as {
+      checkout: { checkoutId: string };
+    };
+    await bot.handleUpdate(cb(30, 'c13', 42, 10, `chk:submit:${data.checkout.checkoutId}`));
+
+    rows = await getDb().select().from(sessions);
+    const after = JSON.parse(rows[0]!.data as string) as {
+      cart: { lines: unknown[] };
+      checkout?: unknown;
+    };
+    expect(after.cart.lines).toHaveLength(0);
+    expect(after.checkout).toBeUndefined();
+    expect(rows[0]!.state).toBe('idle');
+
+    const sent = port.getCallsForMethod('sendMessage');
+    const ownerTexts = sent.map((c) => c.args[1] as string);
+    expect(ownerTexts.some((t) => t.includes('Новый заказ'))).toBe(true);
+
+    const edits = port.getCallsForMethod('editMessageText');
+    const editTexts = edits.map((c) => c.args[2] as string);
+    expect(editTexts.some((t) => t.includes('Заказ №'))).toBe(true);
+
+    // second submit with same id = noop (stale draft)
+    await bot.handleUpdate(cb(31, 'c14', 42, 10, `chk:submit:${data.checkout.checkoutId}`));
+    const { orders } = await import('../src/db/schema.js');
+    expect(await getDb().select().from(orders)).toHaveLength(1);
+  });
 });
