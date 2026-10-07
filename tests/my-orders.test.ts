@@ -150,4 +150,34 @@ describe('my orders', () => {
     expect(photos[0]!.args[0]).toBe(42);
     expect(photos[0]!.args[1]).toBe('file-1');
   });
+
+  it('customer cannot view same-telegram-id orders from another tenant', async () => {
+    const { tenantId, order } = await setup();
+    const { createTenant } = await import('../src/services/tenants.js');
+    const created = await createTenant({
+      slug: 'other',
+      shopName: 'Other',
+      botToken: '456:y',
+      botId: 888,
+      botUsername: 'other_bot',
+      appSecret,
+      now,
+    });
+    if (!created.ok) throw new Error(created.error);
+    await getDb().insert(customers).values({
+      id: 'cust-other',
+      tenantId: created.value.id,
+      telegramId: 42,
+      firstSeenAt: now,
+      lastSeenAt: now,
+    });
+
+    const port = new FakePort();
+    const { bot } = createTenantBot('456:y', created.value.id, 'other', port);
+
+    await bot.handleUpdate(cb(1, 'c1', 42, 10, `my:view:${order.id}`));
+    const edits = port.getCallsForMethod('editMessageText');
+    expect(edits[0]!.args[2]).toBe('Заказ не найден.');
+    expect(tenantId).toBeTruthy();
+  });
 });

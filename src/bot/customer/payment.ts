@@ -51,7 +51,11 @@ export function registerPaymentHandlers(bot: Bot<BotContextWithSession>): void {
     if (!m) return;
 
     const db = getDb();
-    const rows = await db.select().from(orders).where(eq(orders.id, m[1]!)).limit(1);
+    const rows = await db
+      .select()
+      .from(orders)
+      .where(and(eq(orders.id, m[1]!), eq(orders.tenantId, ctx.tenant.id)))
+      .limit(1);
     const order = rows[0];
     if (!order || order.status !== 'awaiting_payment') return;
 

@@ -57,7 +57,14 @@ export function registerMyOrdersHandlers(bot: Bot<BotContextWithSession>): void 
       .select({ order: orders, customer: customers })
       .from(orders)
       .innerJoin(customers, eq(orders.customerId, customers.id))
-      .where(and(eq(orders.id, m[1]!), eq(customers.telegramId, ctx.from.id)))
+      .where(
+        and(
+          eq(orders.id, m[1]!),
+          eq(orders.tenantId, ctx.tenant.id),
+          eq(customers.telegramId, ctx.from.id),
+          eq(customers.tenantId, ctx.tenant.id)
+        )
+      )
       .limit(1);
     const found = rows[0];
 
@@ -129,7 +136,14 @@ export function registerMyOrdersHandlers(bot: Bot<BotContextWithSession>): void 
       .select({ order: orders, customer: customers })
       .from(orders)
       .innerJoin(customers, eq(orders.customerId, customers.id))
-      .where(and(eq(orders.id, m[1]!), eq(customers.telegramId, ctx.from.id)))
+      .where(
+        and(
+          eq(orders.id, m[1]!),
+          eq(orders.tenantId, ctx.tenant.id),
+          eq(customers.telegramId, ctx.from.id),
+          eq(customers.tenantId, ctx.tenant.id)
+        )
+      )
       .limit(1);
     const found = rows[0];
     if (!found) return;
@@ -166,7 +180,14 @@ export function registerMyOrdersHandlers(bot: Bot<BotContextWithSession>): void 
       .select({ order: orders, customer: customers })
       .from(orders)
       .innerJoin(customers, eq(orders.customerId, customers.id))
-      .where(and(eq(orders.id, m[1]!), eq(customers.telegramId, ctx.from.id)))
+      .where(
+        and(
+          eq(orders.id, m[1]!),
+          eq(orders.tenantId, ctx.tenant.id),
+          eq(customers.telegramId, ctx.from.id),
+          eq(customers.tenantId, ctx.tenant.id)
+        )
+      )
       .limit(1);
     const found = rows[0];
 
@@ -215,7 +236,14 @@ export function registerMyOrdersHandlers(bot: Bot<BotContextWithSession>): void 
       .select({ order: orders, customer: customers })
       .from(orders)
       .innerJoin(customers, eq(orders.customerId, customers.id))
-      .where(and(eq(orders.id, m[2]!), eq(customers.telegramId, ctx.from.id)))
+      .where(
+        and(
+          eq(orders.id, m[2]!),
+          eq(orders.tenantId, ctx.tenant.id),
+          eq(customers.telegramId, ctx.from.id),
+          eq(customers.tenantId, ctx.tenant.id)
+        )
+      )
       .limit(1);
     const found = rows[0];
     if (
