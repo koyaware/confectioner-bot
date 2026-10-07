@@ -1,6 +1,6 @@
 # ТЗ: Telegram-бот приема заказов для кондитеров
 
-**Версия ядра: v1.29**
+**Версия ядра: v1.30**
 
 Changelog:
 
@@ -34,6 +34,7 @@ Changelog:
 - v1.27: кнопки языка и валюты в настройках владельца: `adm:set:lang` / `adm:set:lang:<ru|uz>`, `adm:set:cur` / `adm:set:cur:<rub|kzt|uzs>` (→ `₽`/`₸`/`UZS`). Выбор пишет `tenants.language` / `tenants.currency`; список настроек перерисовывается уже на новом языке (свежие строки, не stale `ctx.t`). Язык и валюта независимы. Невалидные коды отклоняются кодеком (`BAD_CALLBACK`, без эффекта).
 - v1.28: код догнал контракт (§9.2, §9.4, §9.5): карточка товара показывает фото (`photoFileId`: текстовый экран заменяется фото с подписью); чеки-документы принимаются (`message:document` ведёт в `handleReceipt`); шаг контактов присылает reply-клавиатуру с кнопкой контакта; уведомление `badpay` идёт с кнопкой «Я оплатил». Новое в контракте: `SendOpts.replyKeyboard/removeKeyboard` (+ тип `ReplyKeyboardButton` в §7.1), транзитное поле `SessionData.contactKbMsgId`.
 - v1.29: чат с мастером УБРАН из бота (решение владельца продукта: связь только по телефону/ЛС): удалены callback `rel:start` и `adm:relay:block:<customerId>`, состояние `relay.compose`, модуль `bot/relay/`, таблица `relay_messages` (миграция 0006); колонка `customers.isBlocked`, событие воронки `free_text` и поле `tenants.replySlaText` оставлены как резерв без UI. Вместо чата — экран «📞 Контакты» (`cnt:show`: `contactsText` владельца + fallback): кнопка в главном меню и на экране перегруза; свободный текст вне сценариев получает rate-limited (6 ч, `lastAutoReplyAt`) указатель на контакты. Новое: казахский язык интерфейса (`kk`, `src/i18n/kk.ts` зеркалит `ru`, `adm:set:lang` += `kk`, локаль `kk-KZ`); `Lang` = `ru|uz|kk`. Отдельный бот обратной связи — после MVP.
+- v1.30: чеки только фото (решение владельца продукта): `message:document` в `payment.await_receipt` отклоняется с `invalidReceipt`; промпт — «только фото», файлы не принимаются. Референсы оформления (`checkout.photos`, `orderAttachments kind=reference`) по-прежнему принимают фото и файлы. Закрывает bug 26 как смену контракта.
 
 Правила изменения этого файла: менять только append-only. Любое изменение контракта (схема БД, типы, callback-данные, джобы, статусы заказа) поднимает версию и записывается в changelog до написания кода, который от него зависит.
 
@@ -859,7 +860,7 @@ requiredLeadDays(cartProductLeadDays: (number|null)[], tenantMinLead: number): n
 
 ### 9.5 Оплата
 
-После `owner_accept` с предоплатой клиент получает: сумму предоплаты, `paymentText` (реквизиты), срок (`paymentDeadlineHours`), кнопку «Я оплатил». Нажатие включает `payment.await_receipt`, клиент присылает фото или файл чека, состояние `receipt_uploaded`, владельцу уходит чек с кнопками «Оплата верна» и «Оплата не пришла». Джобы `order.payment_reminder` и `order.expire` создаются при переходе в `awaiting_payment`.
+После `owner_accept` с предоплатой клиент получает: сумму предоплаты, `paymentText` (реквизиты), срок (`paymentDeadlineHours`), кнопку «Я оплатил». Нажатие включает `payment.await_receipt`, клиент присылает фото чека (только фото, файлы отклоняются), состояние `receipt_uploaded`, владельцу уходит чек с кнопками «Оплата верна» и «Оплата не пришла». Джобы `order.payment_reminder` и `order.expire` создаются при переходе в `awaiting_payment`.
 
 ### 9.6 Мои заказы
 
