@@ -66,6 +66,40 @@ describe('dialog', () => {
     const { tenantId } = await seedDemo(appSecret, new Date());
     await getDb().update(tenants).set({ ownerTelegramId: 555 }).where(eq(tenants.id, tenantId));
 
+    // Create a customer and active order for testing
+    const db = getDb();
+    const customerId = 'test-cust-dialog';
+    await db.insert(customers).values({
+      id: customerId,
+      tenantId,
+      telegramId: 42,
+      username: 'cust42',
+      firstName: 'C',
+      firstSeenAt: new Date(),
+      lastSeenAt: new Date(),
+    });
+    const orderId = 'test-order-dialog';
+    await db.insert(orders).values({
+      id: orderId,
+      tenantId,
+      customerId,
+      number: 1,
+      status: 'new',
+      items: [],
+      itemsTotalMinor: 1000,
+      deliveryFeeMinor: 0,
+      totalMinor: 1000,
+      prepaymentMinor: 500,
+      capacityUnits: 1,
+      dueDate: '2026-01-15',
+      fulfillment: 'pickup',
+      contactName: 'Test',
+      contactPhone: '+79990000000',
+      idempotencyKey: 'test-idem-' + orderId,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
     const port = new FakePort();
     const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
 
@@ -75,10 +109,8 @@ describe('dialog', () => {
     // Customer sends a message in dialog
     await bot.handleUpdate(msg(1, 42, 'Подскажите, есть ли доставка?'));
 
-    // Debug: print all sent messages
-    console.log('SENT MESSAGES:', port.getCallsForMethod('sendMessage').map(c => ({chat: c.args[0], text: c.args[1]?.substring(0, 50)})));
-
-    // Owner got a single message with header + text
+    // Owner got a notification message (sendMessage) with header + text + reply button
+    // This is because owner's dialog screen doesn't exist yet
     const sent = port.getCallsForMethod('sendMessage');
     const toOwner = sent.find((c) => c.args[0] === 555);
     expect(toOwner).toBeTruthy();
@@ -147,14 +179,14 @@ describe('dialog', () => {
     // Owner sends reply in dialog
     await bot.handleUpdate(msg(3, 555, 'Да, есть, от 300 ₽'));
 
-    // Customer receives reply in their dialog screen (edited message)
-    const sent = port.getCallsForMethod('sendMessage');
-    const toCustomer = sent.find((c) => c.args[0] === 42 && (c.args[1] as string).includes('Да, есть, от 300 ₽'));
+    // Customer receives reply in their dialog screen (edited message via editMessageTextOrSend)
+    const edits = port.getCallsForMethod('editMessageTextOrSend');
+    const toCustomer = edits.find((c) => c.args[0] === 42 && (c.args[2] as string).includes('Да, есть, от 300 ₽'));
     expect(toCustomer).toBeTruthy();
 
-    // Owner's dialog screen updated
-    const ownerSent = sent.filter((c) => c.args[0] === 555);
-    expect(ownerSent.length).toBeGreaterThanOrEqual(2);
+    // Owner's dialog screen updated (1 edit for the reply)
+    const ownerEdits = edits.filter((c) => c.args[0] === 555);
+    expect(ownerEdits.length).toBeGreaterThanOrEqual(1);
   });
 
   it('owner can block a client from the relay header', async () => {
