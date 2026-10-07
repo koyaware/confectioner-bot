@@ -25,6 +25,8 @@ const callbackSchema = z.union([
   z.object({ ns: z.literal('cat'), action: z.literal('list') }),
   z.object({ ns: z.literal('cat'), action: z.literal('open'), arg: idSchema }),
   z.object({ ns: z.literal('prd'), action: z.literal('open'), arg: idSchema }),
+  z.object({ ns: z.literal('prd'), action: z.literal('add'), arg: idSchema }),
+  z.object({ ns: z.literal('prd'), action: z.literal('opt'), arg: idSchema, arg2: idSchema }),
   z.object({ ns: z.literal('faq'), action: z.literal('list') }),
   z.object({ ns: z.literal('faq'), action: z.literal('view'), arg: idSchema }),
   z.object({
@@ -44,8 +46,11 @@ export function encodeCallback(c: Callback): string {
   switch (c.ns) {
     case 'cat':
       return c.action === 'list' ? 'cat:list' : `cat:open:${c.arg}`;
-    case 'prd':
+    case 'prd': {
+      if (c.action === 'opt') return `prd:opt:${c.arg}:${c.arg2}`;
+      if (c.action === 'add') return `prd:add:${c.arg}`;
       return `prd:open:${c.arg}`;
+    }
     case 'faq':
       return c.action === 'list' ? 'faq:list' : `faq:view:${c.arg}`;
     case 'adm': {
@@ -75,7 +80,7 @@ export function decodeCallback(s: string): Result<Callback, 'BAD_CALLBACK'> {
 
   const action = second;
   const arg = third;
-  const candidate = arg ? { ns, action, arg } : { ns, action };
+  const candidate = { ns, action, arg, arg2: rest[0] };
   const parsed = callbackSchema.safeParse(candidate);
   if (!parsed.success) {
     return { ok: false, error: 'BAD_CALLBACK' };

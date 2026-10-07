@@ -30,6 +30,7 @@ export function registerStartHandler(bot: Bot<BotContextWithSession>): void {
     const keyboard: InlineKeyboard = {
       inline_keyboard: [
         [{ text: ru.start.buttonCatalog, callback_data: 'cat:list' }],
+        [{ text: ru.cart.button, callback_data: 'cart:show' }],
         [{ text: ru.faq.button, callback_data: 'faq:list' }],
       ],
     };

@@ -71,6 +71,7 @@ export type SessionData = {
   paymentOrderId?: string;
   lastAutoReplyAt?: number; // unix seconds
   antispam?: { windowStart: number; count: number };
+  selections?: Record<string, string[]>;
 };
 
 export type TelegramErrorCode = 'BLOCKED' | 'RATE_LIMIT' | 'NOT_FOUND' | 'NETWORK' | 'OTHER';

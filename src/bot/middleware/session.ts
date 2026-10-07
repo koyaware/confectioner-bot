@@ -27,6 +27,7 @@ const sessionDataSchema = z.object({
       count: z.number(),
     })
     .optional(),
+  selections: z.record(z.array(z.string())).optional(),
 });
 
 /**

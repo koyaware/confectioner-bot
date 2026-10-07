@@ -1,9 +1,10 @@
 # ТЗ: Telegram-бот приема заказов для кондитеров
 
-**Версия ядра: v1.0**
+**Версия ядра: v1.1**
 
 Changelog:
 - v1.0: первая редакция.
+- v1.1: `SessionData` дополнен полем `selections?: Record<string, string[]>` (productId -> выбранные optionId по группам) для выбора опций на карточке товара.
 
 Правила изменения этого файла: менять только append-only. Любое изменение контракта (схема БД, типы, callback-данные, джобы, статусы заказа) поднимает версию и записывается в changelog до написания кода, который от него зависит.
 
@@ -466,6 +467,7 @@ export type SessionData = {
   paymentOrderId?: string;
   lastAutoReplyAt?: number;                 // unix seconds
   antispam?: { windowStart: number; count: number };
+  selections?: Record<string, string[]>;    // productId -> выбранные optionIds (по одной опции на группу)
 };
 
 export type TelegramErrorCode = 'BLOCKED' | 'RATE_LIMIT' | 'NOT_FOUND' | 'NETWORK' | 'OTHER';

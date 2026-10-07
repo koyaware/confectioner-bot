@@ -3,7 +3,6 @@ import { BotContextWithSession } from '../context.js';
 import { decodeCallback } from '../callbacks.js';
 import { ru } from '../../i18n/ru.js';
 import { escapeHtml } from '../../domain/escape.js';
-import { formatMinor } from '../../lib/money.js';
 import {
   listActiveCategories,
   getCategoryIfActive,
@@ -13,6 +12,7 @@ import {
 } from '../../services/catalog.js';
 import { InlineKeyboard } from '../../telegram/port.js';
 import { trackFunnelEvent } from '../middleware/funnel.js';
+import { renderProductCard } from './product-card.js';
 
 export function registerCatalogHandlers(bot: Bot<BotContextWithSession>): void {
   bot.callbackQuery(/^cat:/, async (ctx) => {
@@ -78,29 +78,6 @@ export function registerCatalogHandlers(bot: Bot<BotContextWithSession>): void {
     await trackFunnelEvent(ctx, 'product_view');
 
     const options = await listProductOptions(product.id);
-    const lines: string[] = [];
-    lines.push(`<b>${escapeHtml(product.title)}</b>`);
-    if (product.description) {
-      lines.push(escapeHtml(product.description));
-    }
-    lines.push(`Цена: ${formatMinor(product.priceMinor, ctx.tenant.currency)}`);
-    if (options.length > 0) {
-      lines.push('');
-      lines.push(ru.product.options);
-      for (const o of options) {
-        const delta =
-          o.priceDeltaMinor > 0 ? ` (+${formatMinor(o.priceDeltaMinor, ctx.tenant.currency)})` : '';
-        lines.push(`${escapeHtml(o.groupTitle)}: ${escapeHtml(o.title)}${delta}`);
-      }
-    }
-
-    await ctx.port.editMessageText(chatId, messageId, lines.join('\n'), {
-      keyboard: {
-        inline_keyboard: [
-          [{ text: ru.catalog.back, callback_data: `cat:open:${product.categoryId}` }],
-        ],
-      },
-      parseMode: 'HTML',
-    });
+    await renderProductCard(ctx, product, options, chatId, messageId);
   });
 }
