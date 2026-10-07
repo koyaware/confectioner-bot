@@ -11,11 +11,7 @@ export const tenantMiddleware: MiddlewareFn<BotContextWithSession> = async (ctx,
   const tenantId = ctx.tenant.id;
   const db = getDb();
 
-  const results = await db
-    .select()
-    .from(tenants)
-    .where(eq(tenants.id, tenantId))
-    .limit(1);
+  const results = await db.select().from(tenants).where(eq(tenants.id, tenantId)).limit(1);
 
   if (results.length === 0) {
     console.error(`Tenant ${tenantId} not found in database`);

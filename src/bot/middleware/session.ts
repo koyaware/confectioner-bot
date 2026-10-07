@@ -7,21 +7,25 @@ import { z } from 'zod';
 
 const sessionDataSchema = z.object({
   cart: z.object({
-    lines: z.array(z.object({
-      lineId: z.string(),
-      productId: z.string(),
-      qty: z.number(),
-      optionIds: z.array(z.string()),
-    })),
+    lines: z.array(
+      z.object({
+        lineId: z.string(),
+        productId: z.string(),
+        qty: z.number(),
+        optionIds: z.array(z.string()),
+      })
+    ),
   }),
   checkout: z.any().optional(),
   ownerDraft: z.any().optional(),
   paymentOrderId: z.string().optional(),
   lastAutoReplyAt: z.number().optional(),
-  antispam: z.object({
-    windowStart: z.number(),
-    count: z.number(),
-  }).optional(),
+  antispam: z
+    .object({
+      windowStart: z.number(),
+      count: z.number(),
+    })
+    .optional(),
 });
 
 /**

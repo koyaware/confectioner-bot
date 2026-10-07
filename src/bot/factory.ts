@@ -20,11 +20,7 @@ export interface TenantBot {
 /**
  * Creates a bot instance for a specific tenant
  */
-export function createTenantBot(
-  botToken: string,
-  tenantId: string,
-  tenantSlug: string
-): TenantBot {
+export function createTenantBot(botToken: string, tenantId: string, tenantSlug: string): TenantBot {
   const bot = new Bot<BotContextWithSession>(botToken);
 
   // Enable auto-retry for rate limits

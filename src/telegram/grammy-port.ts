@@ -58,11 +58,7 @@ export class GrammyPort implements TelegramPort {
     this.bot = new Bot(token);
   }
 
-  async sendMessage(
-    chatId: number,
-    text: string,
-    opts?: SendOpts
-  ): Promise<SendMessageResult> {
+  async sendMessage(chatId: number, text: string, opts?: SendOpts): Promise<SendMessageResult> {
     try {
       const keyboard = toGrammyKeyboard(opts?.keyboard);
       const options: { reply_markup?: InlineKeyboard; parse_mode?: 'HTML' } = {};

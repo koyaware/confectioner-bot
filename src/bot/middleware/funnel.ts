@@ -19,7 +19,15 @@ export const funnelMiddleware: MiddlewareFn<BotContextWithSession> = async (ctx,
 
 async function trackFunnelEvent(
   ctx: BotContextWithSession,
-  type: 'start' | 'catalog_view' | 'product_view' | 'cart_add' | 'checkout_start' | 'order_submit' | 'faq_view' | 'free_text'
+  type:
+    | 'start'
+    | 'catalog_view'
+    | 'product_view'
+    | 'cart_add'
+    | 'checkout_start'
+    | 'order_submit'
+    | 'faq_view'
+    | 'free_text'
 ): Promise<void> {
   if (!ctx.from) return;
 

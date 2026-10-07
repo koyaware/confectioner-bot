@@ -26,9 +26,7 @@ export function migrate(): void {
     .filter((f) => f.endsWith('.sql'))
     .sort();
 
-  const appliedMigrations = db
-    .prepare('SELECT name FROM __migrations')
-    .all() as { name: string }[];
+  const appliedMigrations = db.prepare('SELECT name FROM __migrations').all() as { name: string }[];
   const appliedNames = new Set(appliedMigrations.map((m) => m.name));
 
   for (const file of migrationFiles) {
@@ -41,10 +39,7 @@ export function migrate(): void {
     // Execute migration in a transaction
     db.transaction(() => {
       db.exec(sql);
-      db.prepare('INSERT INTO __migrations (name, applied_at) VALUES (?, ?)').run(
-        file,
-        Date.now()
-      );
+      db.prepare('INSERT INTO __migrations (name, applied_at) VALUES (?, ?)').run(file, Date.now());
     })();
 
     console.log(`Applied migration: ${file}`);

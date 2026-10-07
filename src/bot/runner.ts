@@ -16,10 +16,7 @@ export class BotRunner {
    */
   async startAll(): Promise<void> {
     const db = getDb();
-    const allTenants = await db
-      .select()
-      .from(tenants)
-      .where(eq(tenants.status, 'active'));
+    const allTenants = await db.select().from(tenants).where(eq(tenants.status, 'active'));
 
     for (const tenant of allTenants) {
       try {
@@ -40,7 +37,7 @@ export class BotRunner {
     }
 
     const botToken = decrypt(encryptedToken, APP_SECRET);
-    const tenantBot = await import('./factory.js').then(m =>
+    const tenantBot = await import('./factory.js').then((m) =>
       m.createTenantBot(botToken, tenantId, tenantSlug)
     );
 

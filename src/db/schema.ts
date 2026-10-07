@@ -1,4 +1,11 @@
-import { sqliteTable, text, integer, index, uniqueIndex, primaryKey } from 'drizzle-orm/sqlite-core';
+import {
+  sqliteTable,
+  text,
+  integer,
+  index,
+  uniqueIndex,
+  primaryKey,
+} from 'drizzle-orm/sqlite-core';
 
 const ts = (n: string) => integer(n, { mode: 'timestamp' });
 
@@ -14,7 +21,9 @@ export const tenants = sqliteTable('tenants', {
   shopName: text('shop_name').notNull(),
   currency: text('currency').notNull().default('₽'),
   timezone: text('timezone').notNull().default('Europe/Moscow'),
-  status: text('status', { enum: ['active', 'paused'] }).notNull().default('active'),
+  status: text('status', { enum: ['active', 'paused'] })
+    .notNull()
+    .default('active'),
   acceptOrders: integer('accept_orders', { mode: 'boolean' }).notNull().default(true),
   greetingText: text('greeting_text'),
   aboutText: text('about_text'),

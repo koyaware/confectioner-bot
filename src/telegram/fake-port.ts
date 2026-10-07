@@ -1,9 +1,4 @@
-import {
-  TelegramPort,
-  SendOpts,
-  SendMessageResult,
-  TelegramError,
-} from './port.js';
+import { TelegramPort, SendOpts, SendMessageResult, TelegramError } from './port.js';
 import { TelegramErrorCode } from '../types.js';
 
 export interface FakePortCall {
@@ -34,11 +29,7 @@ export class FakePort implements TelegramPort {
 
   constructor(private readonly shouldThrowNetworkError?: boolean) {}
 
-  sendMessage(
-    chatId: number,
-    text: string,
-    opts?: SendOpts
-  ): Promise<SendMessageResult> {
+  sendMessage(chatId: number, text: string, opts?: SendOpts): Promise<SendMessageResult> {
     return Promise.resolve().then(() => {
       const call = this.recordCall('sendMessage', [chatId, text, opts]);
       this.checkErrorRules(call);
@@ -85,12 +76,7 @@ export class FakePort implements TelegramPort {
     });
   }
 
-  editMessageText(
-    chatId: number,
-    messageId: number,
-    text: string,
-    opts?: SendOpts
-  ): Promise<void> {
+  editMessageText(chatId: number, messageId: number, text: string, opts?: SendOpts): Promise<void> {
     return Promise.resolve().then(() => {
       const call = this.recordCall('editMessageText', [chatId, messageId, text, opts]);
       this.checkErrorRules(call);
@@ -109,11 +95,7 @@ export class FakePort implements TelegramPort {
     });
   }
 
-  copyMessage(
-    toChatId: number,
-    fromChatId: number,
-    messageId: number
-  ): Promise<SendMessageResult> {
+  copyMessage(toChatId: number, fromChatId: number, messageId: number): Promise<SendMessageResult> {
     return Promise.resolve().then(() => {
       const call = this.recordCall('copyMessage', [toChatId, fromChatId, messageId]);
       this.checkErrorRules(call);
@@ -133,9 +115,7 @@ export class FakePort implements TelegramPort {
     count?: number
   ): void {
     const matcherFn =
-      typeof matcher === 'string'
-        ? (call: FakePortCall) => call.method === matcher
-        : matcher;
+      typeof matcher === 'string' ? (call: FakePortCall) => call.method === matcher : matcher;
 
     this.errorRules.push({
       matcher: matcherFn,
@@ -185,9 +165,7 @@ export class FakePort implements TelegramPort {
    * Add a NETWORK error that always triggers
    */
   addNetworkError(method?: string): void {
-    const matcher = method
-      ? (call: FakePortCall) => call.method === method
-      : () => true;
+    const matcher = method ? (call: FakePortCall) => call.method === method : () => true;
     this.addErrorRule(matcher, 'NETWORK', 'Network error');
   }
 

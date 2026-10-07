@@ -38,11 +38,7 @@ export interface TelegramPort {
   /**
    * Send a text message
    */
-  sendMessage(
-    chatId: number,
-    text: string,
-    opts?: SendOpts
-  ): Promise<SendMessageResult>;
+  sendMessage(chatId: number, text: string, opts?: SendOpts): Promise<SendMessageResult>;
 
   /**
    * Send a photo
@@ -57,12 +53,7 @@ export interface TelegramPort {
   /**
    * Edit message text
    */
-  editMessageText(
-    chatId: number,
-    messageId: number,
-    text: string,
-    opts?: SendOpts
-  ): Promise<void>;
+  editMessageText(chatId: number, messageId: number, text: string, opts?: SendOpts): Promise<void>;
 
   /**
    * Answer a callback query
@@ -72,9 +63,5 @@ export interface TelegramPort {
   /**
    * Copy a message from one chat to another
    */
-  copyMessage(
-    toChatId: number,
-    fromChatId: number,
-    messageId: number
-  ): Promise<SendMessageResult>;
+  copyMessage(toChatId: number, fromChatId: number, messageId: number): Promise<SendMessageResult>;
 }
