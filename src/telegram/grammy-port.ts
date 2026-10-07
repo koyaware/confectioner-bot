@@ -14,17 +14,19 @@ function toGrammyKeyboard(keyboard?: PortInlineKeyboard): InlineKeyboard | undef
   }
 
   const grammy = new InlineKeyboard();
-  for (const row of keyboard.inline_keyboard) {
+  for (const [rowIndex, row] of keyboard.inline_keyboard.entries()) {
     for (const btn of row) {
       if (btn.callback_data) {
         grammy.text(btn.text, btn.callback_data);
       } else if (btn.url) {
         grammy.url(btn.text, btn.url);
       } else {
-        grammy.text(btn.text);
+        grammy.text(btn.text, 'cart:noop');
       }
     }
-    grammy.row();
+    if (rowIndex < keyboard.inline_keyboard.length - 1) {
+      grammy.row();
+    }
   }
 
   return grammy;
@@ -35,6 +37,7 @@ function fromGrammyError(error: unknown): TelegramErrorCode {
   const err = error as { description?: string; error_code?: number };
   const description = err?.description || '';
   const code = err?.error_code;
+  const message = error instanceof Error ? error.message : '';
 
   if (description.includes('blocked') || description.includes('bot was blocked')) {
     return 'BLOCKED';
@@ -46,6 +49,14 @@ function fromGrammyError(error: unknown): TelegramErrorCode {
 
   if (code === 404 || description.includes('not found')) {
     return 'NOT_FOUND';
+  }
+
+  if (
+    /fetch failed|network|ECONN|ETIMEDOUT|EAI_AGAIN|socket hang up|timeout/i.test(
+      `${message} ${description}`
+    )
+  ) {
+    return 'NETWORK';
   }
 
   return 'OTHER';

@@ -55,6 +55,17 @@ describe('TelegramPort', () => {
       ).rejects.toThrow('Callback data too long');
     });
 
+    it('validates callback data length in bytes, not chars', async () => {
+      const cyrillicCallback = 'я'.repeat(33); // 66 bytes in UTF-8
+      await expect(
+        fakePort.sendMessage(123, 'Hello', {
+          keyboard: {
+            inline_keyboard: [[{ text: 'Button', callback_data: cyrillicCallback }]],
+          },
+        })
+      ).rejects.toThrow('Callback data too long');
+    });
+
     it('records sendPhoto calls', async () => {
       await fakePort.sendPhoto(123, 'photo-url', 'Caption');
       const calls = fakePort.getCalls();

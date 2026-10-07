@@ -44,7 +44,7 @@ export class FakePort implements TelegramPort {
       if (opts?.keyboard?.inline_keyboard) {
         for (const row of opts.keyboard.inline_keyboard) {
           for (const btn of row) {
-            if (btn.callback_data && btn.callback_data.length > 64) {
+            if (btn.callback_data && Buffer.byteLength(btn.callback_data, 'utf8') > 64) {
               throw new TelegramError('OTHER', 'Callback data too long (max 64 bytes)');
             }
           }
