@@ -578,6 +578,10 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
         break;
       }
       case 'checkout.comment':
+        if (text.length > 500) {
+          await showScreen(ctx, ru.checkout.commentTooLong, stepKeyboard({ skip: true }));
+          return;
+        }
         ctx.session.checkout!.comment = text || undefined;
         ctx.sessionState = 'checkout.photos';
         await showCurrentStep(ctx);

@@ -55,10 +55,20 @@ export const antispamMiddleware: MiddlewareFn<BotContextWithSession> = async (ct
     return next();
   }
 
+  // Revival commands always work, even under block, and don't consume the limit.
+  const commandText = ctx.message?.text ?? '';
+  if (commandText === '/start' || commandText.startsWith('/start ') || commandText === '/menu') {
+    ctx.session.antispam = undefined;
+    return next();
+  }
+
   const now = Math.floor(Date.now() / 1000);
   const decision = evaluateAntispam(ctx.session.antispam, now);
   ctx.session.antispam = decision.next;
   if (!decision.allowed) {
+    console.warn(
+      `antispam block: tenant=${ctx.tenant?.id} user=${ctx.from?.id} until=${decision.next.windowStart + ANTISPAM_BLOCK_SECONDS}`
+    );
     if (ctx.callbackQuery) {
       await ctx.port.answerCallback(ctx.callbackQuery.id);
     }

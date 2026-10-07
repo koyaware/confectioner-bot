@@ -300,4 +300,23 @@ describe('checkout steps', () => {
     const edits = port.getCallsForMethod('editMessageText');
     expect(edits[edits.length - 1]!.args[2] as string).toContain('3/5');
   });
+
+  it('overlong comment is rejected with guidance', async () => {
+    const now = new Date();
+    const { tenantId } = await seedDemo(appSecret, now);
+    const port = new FakePort();
+    const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
+
+    await setupCartAndCheckout(port, bot);
+    await bot.handleUpdate(msg(20, 42, 'к 15:00'));
+    await bot.handleUpdate(cb(21, 'c8', 42, 10, 'chk:ful:pickup'));
+    await bot.handleUpdate(msg(22, 42, 'Иван, +79991234567'));
+    await bot.handleUpdate(msg(23, 42, 'x'.repeat(501)));
+
+    const nameEdits = port.getCallsForMethod('editMessageText');
+    expect(nameEdits[nameEdits.length - 1]!.args[2] as string).toContain('максимум 500');
+    const rows = await getDb().select().from(sessions);
+    expect(rows[0]!.state).toBe('checkout.comment');
+    expect(tenantId).toBeTruthy();
+  });
 });

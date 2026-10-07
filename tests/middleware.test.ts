@@ -275,4 +275,46 @@ describe('middleware', () => {
       expect(nextCalled).toBe(true);
     });
   });
+
+  describe('antispam revival', () => {
+    it('/start works even under block and resets the limit', async () => {
+      const { seedDemo } = await import('../src/db/seed.js');
+      const { tenants, sessions } = await import('../src/db/schema.js');
+      const { eq } = await import('drizzle-orm');
+      const { createTenantBot } = await import('../src/bot/factory.js');
+      const { FakePort } = await import('../src/telegram/fake-port.js');
+
+      const { tenantId } = await seedDemo('a'.repeat(32), new Date());
+      const db = (await import('../src/db/client.js')).getDb();
+      await db.insert(sessions).values({
+        tenantId,
+        telegramId: 42,
+        state: 'idle',
+        data: {
+          cart: { lines: [] },
+          antispam: { windowStart: Math.floor(Date.now() / 1000), count: 99 },
+        },
+        updatedAt: new Date(),
+      });
+
+      const port = new FakePort();
+      const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
+
+      await bot.handleUpdate({
+        update_id: 1,
+        message: {
+          message_id: 1,
+          date: 1,
+          chat: { id: 42, type: 'private' },
+          from: { id: 42, is_bot: false, first_name: 'C' },
+          text: '/start',
+          entities: [{ type: 'bot_command', offset: 0, length: 6 }],
+        },
+      } as never);
+
+      const sent = port.getCallsForMethod('sendMessage').map((c) => c.args[1] as string);
+      expect(sent.some((t) => t.includes('Привет'))).toBe(true);
+      expect(tenantId).toBeTruthy();
+    });
+  });
 });
