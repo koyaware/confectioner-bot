@@ -6,7 +6,7 @@ import { ensureDailyDigestJobs } from '../services/digest.js';
 import { ensureDailyBackupJob } from '../services/backup.js';
 
 const RETRY_DELAYS = [60_000, 300_000, 1_800_000]; // 60s, 300s, 1800s in milliseconds
-const POLL_INTERVAL = 10_000; // 10 seconds
+const POLL_INTERVAL = 30_000; // 30 seconds, per tech.md
 
 /**
  * Job scheduler - polls database for pending jobs and executes them
