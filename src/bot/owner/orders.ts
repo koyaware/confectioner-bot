@@ -8,8 +8,16 @@ import { applyOrderEvent, getCustomerOrderNumber } from '../../services/orders.j
 import { sendPaymentCard } from '../customer/payment.js';
 import { InlineKeyboard, TelegramPort } from '../../telegram/port.js';
 import { getDb } from '../../db/client.js';
-import { customers, orders, orderItems, orderAttachments } from '../../db/schema.js';
-import { and, asc, eq } from 'drizzle-orm';
+import {
+  customers,
+  orders,
+  orderItems,
+  orderAttachments,
+  tenants,
+  capacityOverrides,
+} from '../../db/schema.js';
+import { effectiveCapacity, OCCUPYING_STATUSES, usedUnits } from '../../domain/capacity.js';
+import { and, asc, eq, inArray } from 'drizzle-orm';
 import { addDays } from '../../domain/dates.js';
 import { getDateAvailability } from '../../services/dates.js';
 
@@ -74,7 +82,50 @@ export async function buildOrderCardText(
     const link = customer.username ? `@${customer.username}` : `id${customer.telegramId}`;
     lines.push(`Клиент: ${escapeHtml(customer.firstName ?? 'клиент')} (${link})`);
   }
+  if (order.rejectReason) lines.push(`Причина отказа: ${escapeHtml(order.rejectReason)}`);
+  if (order.proposedDate) lines.push(`Предложенная дата: ${order.proposedDate}`);
+  const tenantRows = await db.select().from(tenants).where(eq(tenants.id, order.tenantId)).limit(1);
+  const timezone = tenantRows[0]?.timezone ?? 'Europe/Moscow';
+  if (order.paymentDueAt) {
+    lines.push(`Оплатить до: ${formatDue(order.paymentDueAt, timezone)}`);
+  }
+  lines.push(`Загрузка даты: ${await dateLoadLabel(order.tenantId, order.dueDate)}`);
   return lines.join('\n');
+}
+
+function formatDue(due: Date, timezone: string): string {
+  return new Intl.DateTimeFormat('ru-RU', {
+    timeZone: timezone,
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(due));
+}
+
+async function dateLoadLabel(tenantId: string, dueDate: string): Promise<string> {
+  const db = getDb();
+  const tenantRows = await db.select().from(tenants).where(eq(tenants.id, tenantId)).limit(1);
+  const tenant = tenantRows[0];
+  if (!tenant) return '—';
+  const overrideRows = await db
+    .select()
+    .from(capacityOverrides)
+    .where(and(eq(capacityOverrides.tenantId, tenantId), eq(capacityOverrides.date, dueDate)));
+  const eff = effectiveCapacity(tenant.defaultDailyCapacity, overrideRows[0]);
+  if (eff.closed) return 'день закрыт';
+  const dayOrders = await db
+    .select()
+    .from(orders)
+    .where(
+      and(
+        eq(orders.tenantId, tenantId),
+        eq(orders.dueDate, dueDate),
+        inArray(orders.status, [...OCCUPYING_STATUSES])
+      )
+    );
+  return `занято ${usedUnits(dayOrders)} из ${eff.capacity}`;
 }
 
 export async function loadOwnedOrder(
@@ -106,8 +157,8 @@ export async function orderCardKeyboard(orderId: string, status: string): Promis
     rows.push([{ text: 'Отменить', callback_data: `adm:ord:cancel:${orderId}` }]);
   }
   if (status === 'payment_review') {
-    rows.push([{ text: 'Оплата верна', callback_data: `adm:ord:paid:${orderId}` }]);
-    rows.push([{ text: 'Оплата не пришла', callback_data: `adm:ord:badpay:${orderId}` }]);
+    rows.push([{ text: ru.ownerOrders.paid, callback_data: `adm:ord:paid:${orderId}` }]);
+    rows.push([{ text: ru.ownerOrders.badpay, callback_data: `adm:ord:badpay:${orderId}` }]);
   }
   if (status === 'payment_review' || status === 'awaiting_payment') {
     rows.push([{ text: 'Отменить', callback_data: `adm:ord:cancel:${orderId}` }]);
@@ -599,9 +650,12 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
         if (!orderId || !reason) return;
         const result = await applyOrderEvent(orderId, 'owner_reject', 'owner', new Date());
         if (!result.ok) return;
-        // store reason text
+        // store reason text only if the rejection actually landed
         const db = getDb();
-        await db.update(orders).set({ rejectReason: reason }).where(eq(orders.id, orderId));
+        await db
+          .update(orders)
+          .set({ rejectReason: reason })
+          .where(and(eq(orders.id, orderId), eq(orders.status, 'rejected')));
         const card = await buildOrderCardText(orderId, ctx.tenant.id, ctx.tenant.currency);
         if (card) {
           await ctx.port.editMessageText(chatId, messageId, card, {

@@ -30,11 +30,21 @@ export async function sendPaymentCard(
   if (!customer || customer.botBlocked) return;
 
   const customerNumber = (await getCustomerOrderNumber(orderId)) ?? order.number;
+  const deadline = order.paymentDueAt
+    ? new Intl.DateTimeFormat('ru-RU', {
+        timeZone: tenant.timezone,
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      }).format(new Date(order.paymentDueAt))
+    : '—';
   const card =
     `Заказ №${customerNumber} принят.\n\n` +
     `Предоплата: ${formatMinor(order.prepaymentMinor, tenant.currency)}\n\n` +
     `${tenant.paymentText ?? 'Реквизиты уточняйте у мастера'}\n\n` +
-    `Оплатите и нажмите «Я оплатил». Срок: до ${order.paymentDueAt ? new Date(order.paymentDueAt).toLocaleString('ru-RU') : '—'}`;
+    `Оплатите и нажмите «Я оплатил». Срок: до ${deadline}`;
 
   await port.sendMessage(customer.telegramId, card, {
     keyboard: {
@@ -57,7 +67,17 @@ export function registerPaymentHandlers(bot: Bot<BotContextWithSession>): void {
       .where(and(eq(orders.id, m[1]!), eq(orders.tenantId, ctx.tenant.id)))
       .limit(1);
     const order = rows[0];
-    if (!order || order.status !== 'awaiting_payment') return;
+    if (!order) return;
+    if (order.status !== 'awaiting_payment') {
+      const chatId = ctx.callbackQuery.message?.chat.id;
+      if (chatId) {
+        await ctx.port.sendMessage(
+          chatId,
+          order.status === 'payment_review' ? ru.payment.alreadyReview : ru.payment.notAwaiting
+        );
+      }
+      return;
+    }
 
     // Verify customer owns the order
     const customerRows = await db
@@ -145,16 +165,26 @@ async function handleReceipt(
   const order = rows[0];
   if (!order) return;
 
+  const customerRows = await db
+    .select()
+    .from(customers)
+    .where(eq(customers.id, order.customerId))
+    .limit(1);
+  const customer = customerRows[0];
+  const clientLabel = customer
+    ? `${customer.firstName ?? 'клиент'}${customer.username ? ` (@${customer.username})` : ''}`
+    : 'клиент';
+
   if (fileType === 'photo') {
     await ctx.port.sendPhoto(
       ownerId,
       fileId,
-      `Клиент ${order.customerId} прислал подтверждение оплаты чеком/фото, заказ №${order.number}`,
+      ru.payment.receiptToOwner(clientLabel, order.number, 'фото'),
       {
         keyboard: {
           inline_keyboard: [
-            [{ text: 'Оплата верна', callback_data: `adm:ord:paid:${orderId}` }],
-            [{ text: 'Оплата не пришла', callback_data: `adm:ord:badpay:${orderId}` }],
+            [{ text: ru.ownerOrders.paid, callback_data: `adm:ord:paid:${orderId}` }],
+            [{ text: ru.ownerOrders.badpay, callback_data: `adm:ord:badpay:${orderId}` }],
           ],
         },
       }
@@ -163,12 +193,12 @@ async function handleReceipt(
     await ctx.port.sendDocument(
       ownerId,
       fileId,
-      `Клиент ${order.customerId} прислал подтверждение оплаты файлом, заказ №${order.number}`,
+      ru.payment.receiptToOwner(clientLabel, order.number, 'файл'),
       {
         keyboard: {
           inline_keyboard: [
-            [{ text: 'Оплата верна', callback_data: `adm:ord:paid:${orderId}` }],
-            [{ text: 'Оплата не пришла', callback_data: `adm:ord:badpay:${orderId}` }],
+            [{ text: ru.ownerOrders.paid, callback_data: `adm:ord:paid:${orderId}` }],
+            [{ text: ru.ownerOrders.badpay, callback_data: `adm:ord:badpay:${orderId}` }],
           ],
         },
       }

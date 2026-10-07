@@ -38,9 +38,19 @@ export function createPaymentReminderHandler(ports: PortResolver): JobHandler<{ 
       return { success: false, error: `no bot for tenant ${order.tenantId}` };
     }
     try {
+      const deadline = order.paymentDueAt
+        ? new Intl.DateTimeFormat('ru-RU', {
+            timeZone: tenant.timezone,
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          }).format(new Date(order.paymentDueAt))
+        : '—';
       await port.sendMessage(
         customer.telegramId,
-        `Напоминаем: предоплата по заказу №${(await getCustomerOrderNumber(order.id)) ?? order.number} — ${formatMinor(order.prepaymentMinor, tenant.currency)}. Срок до ${order.paymentDueAt ? new Date(order.paymentDueAt).toLocaleString('ru-RU') : '—'}.`
+        `Напоминаем: предоплата по заказу №${(await getCustomerOrderNumber(order.id)) ?? order.number} — ${formatMinor(order.prepaymentMinor, tenant.currency)}. Срок до ${deadline}.`
       );
     } catch (error) {
       if (error instanceof TelegramError && error.code === 'BLOCKED') {

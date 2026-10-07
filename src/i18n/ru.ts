@@ -97,7 +97,11 @@ export const ru = {
   payment: {
     promptReceipt: 'Пришлите фото или файл чека.',
     invalidReceipt: 'Нужно фото или файл чека. Текст, аудио или другой формат не подходят.',
+    receiptToOwner: (client: string, orderNumber: number, kind: string) =>
+      `Клиент ${client} прислал подтверждение оплаты (${kind}), заказ №${orderNumber}`,
     receiptSent: 'Чек отправлен мастеру на проверку.',
+    alreadyReview: 'Чек уже отправлен на проверку.',
+    notAwaiting: 'Этот заказ уже не ждёт оплаты.',
     failed: 'Не удалось принять чек. Попробуйте ещё раз.',
   },
   orderStatus: {
@@ -146,6 +150,10 @@ export const ru = {
     promptQuestion: 'Введите текст вопроса.',
     promptAnswer: 'Введите ответ.',
     deleteConfirm: 'Удалить вопрос?',
+  },
+  ownerOrders: {
+    paid: 'Оплата верна',
+    badpay: 'Оплата не пришла',
   },
   ownerCatalog: {
     categoriesTitle: 'Категории',

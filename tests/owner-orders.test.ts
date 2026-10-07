@@ -133,6 +133,11 @@ describe('owner order handling', () => {
     const sent = port.getCallsForMethod('sendMessage');
     const toClient = sent.find((c) => c.args[0] === 42);
     expect(toClient!.args[1] as string).toContain('отклонён');
+
+    const cardEdits = port.getCallsForMethod('editMessageText');
+    const cardText = cardEdits[cardEdits.length - 1]!.args[2] as string;
+    expect(cardText).toContain('Причина отказа: Нет мест на эту дату');
+    expect(cardText).toContain('Загрузка даты:');
   });
 
   it('non-owner adm callback is rejected without effect', async () => {
