@@ -1,0 +1,52 @@
+{
+  "name": "confectioner-bot",
+  "version": "1.0.0",
+  "description": "Telegram bot storefront and order receiver for confectioners",
+  "main": "dist/main.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/main.ts",
+    "start": "node dist/main.js",
+    "lint": "eslint src --ext .ts",
+    "lint:fix": "eslint src --ext .ts --fix",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\"",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": ["telegram", "bot", "orders", "confectioner", "grammY"],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.0.0 <26.0.0"
+  },
+  "dependencies": {
+    "grammy": "^1.30.0",
+    "@grammyjs/runner": "^2.0.3",
+    "@grammyjs/auto-retry": "^2.0.2",
+    "@grammyjs/transformer-throttler": "^1.2.1",
+    "better-sqlite3": "^11.7.0",
+    "drizzle-orm": "^0.33.0",
+    "nanoid": "^5.0.7",
+    "pino": "^9.4.0",
+    "qrcode": "^1.5.4",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.11",
+    "@types/node": "^22.5.5",
+    "@types/qrcode": "^1.5.5",
+    "@typescript-eslint/eslint-plugin": "^8.6.0",
+    "@typescript-eslint/parser": "^8.6.0",
+    "drizzle-kit": "^0.24.2",
+    "eslint": "^8.57.1",
+    "eslint-config-prettier": "^9.1.0",
+    "fast-check": "^3.22.0",
+    "prettier": "^3.3.3",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.2",
+    "vitest": "^2.1.1"
+  }
+}
