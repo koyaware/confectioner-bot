@@ -6,9 +6,10 @@ import { ru } from '../../i18n/ru.js';
 import { escapeHtml } from '../../domain/escape.js';
 import { SETTINGS_FIELDS, isSettingsField, SettingsField } from '../../services/settings.js';
 import { getDb } from '../../db/client.js';
-import { tenants } from '../../db/schema.js';
-import { eq } from 'drizzle-orm';
+import { tenants, featureFlags } from '../../db/schema.js';
+import { and, eq } from 'drizzle-orm';
 import { InlineKeyboard } from '../../telegram/port.js';
+import { listFeatureFlags, setFeatureFlag } from '../../services/feature-flags.js';
 
 const FIELD_LABELS: Record<SettingsField, string> = {
   greetingText: 'Приветствие',
@@ -36,7 +37,8 @@ export function registerSettingsHandlers(bot: Bot<BotContextWithSession>): void 
     }
     await ctx.port.answerCallback(ctx.callbackQuery.id);
 
-    const decoded = decodeCallback(ctx.callbackQuery.data);
+    const data = ctx.callbackQuery.data;
+    const decoded = decodeCallback(data);
     if (!decoded.ok || decoded.value.ns !== 'adm' || decoded.value.area !== 'set') return;
     const { action, arg } = decoded.value;
 
@@ -54,7 +56,13 @@ export function registerSettingsHandlers(bot: Bot<BotContextWithSession>): void 
           callback_data: 'adm:set:edit:toggle_accept',
         },
       ]);
-      rows.push([{ text: 'Назад', callback_data: 'adm:menu' }]);
+      rows.push([
+        {
+          text: 'Функции',
+          callback_data: 'adm:set:edit:features',
+        },
+      ]);
+      rows.push([{ text: ru.common.back, callback_data: 'adm:menu' }]);
       await ctx.port.editMessageText(chatId, messageId, ru.ownerSettings.title, {
         keyboard: { inline_keyboard: rows },
       });
@@ -87,9 +95,70 @@ export function registerSettingsHandlers(bot: Bot<BotContextWithSession>): void 
           chatIdR,
           messageIdR,
           nowAccept ? 'Приём заказов включён.' : 'Приём заказов выключен (режим «перегруз»).',
-          { keyboard: { inline_keyboard: [[{ text: 'Назад', callback_data: 'adm:set:list' }]] } }
+          {
+            keyboard: {
+              inline_keyboard: [[{ text: ru.common.back, callback_data: 'adm:set:list' }]],
+            },
+          }
         );
       }
+      return;
+    }
+
+    if (action === 'edit' && arg === 'features') {
+      const flags = await listFeatureFlags(ctx.tenant.id);
+      const rows: InlineKeyboard['inline_keyboard'] = [];
+      for (const flag of flags) {
+        rows.push([
+          {
+            text: `${flag.enabled ? ru.ownerSettings.featureEnabled : ru.ownerSettings.featureDisabled} ${flag.name}`,
+            callback_data: `adm:set:feat:${flag.name}`,
+          },
+        ]);
+      }
+      rows.push([{ text: ru.ownerSettings.featureAdd, callback_data: 'adm:set:featadd' }]);
+      rows.push([{ text: ru.common.back, callback_data: 'adm:set:list' }]);
+      await ctx.port.editMessageText(chatId, messageId, ru.ownerSettings.title, {
+        keyboard: { inline_keyboard: rows },
+      });
+      return;
+    }
+
+    if (action === 'featadd') {
+      ctx.sessionState = 'owner.edit_field';
+      ctx.session.ownerDraft = { kind: 'feature_add_name' };
+      await ctx.port.editMessageText(chatId, messageId, ru.ownerSettings.featureNamePrompt, {
+        keyboard: {
+          inline_keyboard: [[{ text: ru.common.back, callback_data: 'adm:set:edit:features' }]],
+        },
+      });
+      return;
+    }
+
+    if (action === 'feat' && arg) {
+      const flagName = arg;
+      const flagRows = await getDb()
+        .select()
+        .from(featureFlags)
+        .where(and(eq(featureFlags.tenantId, ctx.tenant.id), eq(featureFlags.name, flagName)))
+        .limit(1);
+      const flagRow = flagRows[0];
+      if (!flagRow) return;
+      await setFeatureFlag(ctx.tenant.id, flagName, !flagRow.enabled);
+      const updatedFlags = await listFeatureFlags(ctx.tenant.id);
+      const flagRowsKb: InlineKeyboard['inline_keyboard'] = [];
+      for (const f of updatedFlags) {
+        flagRowsKb.push([
+          {
+            text: `${f.enabled ? ru.ownerSettings.featureEnabled : ru.ownerSettings.featureDisabled} ${f.name}`,
+            callback_data: `adm:set:feat:${f.name}`,
+          },
+        ]);
+      }
+      flagRowsKb.push([{ text: ru.common.back, callback_data: 'adm:set:edit:features' }]);
+      await ctx.port.editMessageText(chatId, messageId, ru.ownerSettings.title, {
+        keyboard: { inline_keyboard: flagRowsKb },
+      });
       return;
     }
 
@@ -115,7 +184,11 @@ export function registerSettingsHandlers(bot: Bot<BotContextWithSession>): void 
         chatId,
         messageId,
         `${ru.ownerSettings.prompt}: ${FIELD_LABELS[arg]}\nТекущее значение: ${escapeHtml(currentText)}\n\n${ru.ownerSettings.hint}`,
-        { keyboard: { inline_keyboard: [[{ text: 'Назад', callback_data: 'adm:set:list' }]] } }
+        {
+          keyboard: {
+            inline_keyboard: [[{ text: ru.common.back, callback_data: 'adm:set:list' }]],
+          },
+        }
       );
       return;
     }

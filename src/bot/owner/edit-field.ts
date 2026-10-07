@@ -12,6 +12,7 @@ import {
 } from '../../services/settings.js';
 import { getCapacityForDate, setCapacityForDate } from '../../services/calendar.js';
 import { addSource } from '../../services/sources.js';
+import { setFeatureFlag } from '../../services/feature-flags.js';
 
 const tenantFieldCheck: Record<string, true> = Object.fromEntries(
   SETTINGS_FIELDS.map((f) => [f, true])
@@ -297,6 +298,19 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
           }
           await updateTenantSetting(ctx.tenant.id, field as SettingsField, result.value);
         }
+        await ctx.port.sendMessage(ctx.chat.id, ru.ownerSettings.saved);
+        return;
+      }
+      case 'feature_add_name': {
+        if (!/^[a-z0-9_-]{1,32}$/.test(text)) {
+          ctx.sessionState = 'owner.edit_field';
+          ctx.session.ownerDraft = draft;
+          await ctx.port.sendMessage(ctx.chat.id, ru.ownerSettings.badFeatureName);
+          return;
+        }
+        await setFeatureFlag(ctx.tenant.id, text, false);
+        ctx.sessionState = 'idle';
+        ctx.session.ownerDraft = undefined;
         await ctx.port.sendMessage(ctx.chat.id, ru.ownerSettings.saved);
         return;
       }

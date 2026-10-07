@@ -91,6 +91,13 @@ const callbackSchema = z
       arg: idSchema,
     }),
     z.object({ ns: z.literal('adm'), area: z.literal('set'), action: z.literal('list') }),
+    z.object({ ns: z.literal('adm'), area: z.literal('set'), action: z.literal('featadd') }),
+    z.object({
+      ns: z.literal('adm'),
+      area: z.literal('set'),
+      action: z.literal('feat'),
+      arg: sourceCodeSchema,
+    }),
     z.object({
       ns: z.literal('adm'),
       area: z.literal('set'),

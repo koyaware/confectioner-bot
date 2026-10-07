@@ -3,6 +3,7 @@ import { tenants, orders } from '../db/schema.js';
 import { addDays, toIsoDate, zonedTimeToUtc } from '../lib/time.js';
 import { and, eq, gte, inArray, lte } from 'drizzle-orm';
 import { createJob } from '../jobs/create.js';
+import { isFeatureEnabled } from './feature-flags.js';
 import { OrderStatus } from '../types.js';
 
 export interface DigestOrder {
@@ -88,6 +89,10 @@ export async function ensureDailyDigestJobs(now: Date = new Date()): Promise<voi
   for (const t of activeTenants) {
     // Only today's digest: tomorrow's job is ensured when tomorrow arrives.
     // A missed runAt fires immediately on the next poll.
+    // Tenants can switch the digest off per shop via the daily_digest flag.
+    if (!(await isFeatureEnabled(t.id, 'daily_digest', true))) {
+      continue;
+    }
     const date = toIsoDate(now, t.timezone);
     const runAt = zonedTimeToUtc(date, `${String(t.digestHour).padStart(2, '0')}:00`, t.timezone);
     await createJob({

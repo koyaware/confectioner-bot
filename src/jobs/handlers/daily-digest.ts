@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm';
 import { TelegramError, TelegramPort } from '../../telegram/port.js';
 import { ownerDailyDigestPayloadSchema } from '../types.js';
 import { computeDigest, formatDigest } from '../../services/digest.js';
+import { isFeatureEnabled } from '../../services/feature-flags.js';
 
 export function createDailyDigestHandler(ports: {
   getPort: (tenantId: string) => TelegramPort | undefined;
@@ -26,6 +27,9 @@ export function createDailyDigestHandler(ports: {
       .limit(1);
     const tenant = tenantRows[0];
     if (!tenant || tenant.status !== 'active' || !tenant.ownerTelegramId) {
+      return { success: true };
+    }
+    if (!(await isFeatureEnabled(tenant.id, 'daily_digest', true))) {
       return { success: true };
     }
     const port = ports.getPort(tenant.id);

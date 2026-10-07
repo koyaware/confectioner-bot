@@ -300,6 +300,24 @@ export const relayMessages = sqliteTable(
   })
 );
 
+export const featureFlags = sqliteTable(
+  'feature_flags',
+  {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id')
+      .notNull()
+      .references(() => tenants.id),
+    name: text('name').notNull(),
+    enabled: integer('enabled', { mode: 'boolean' }).notNull().default(false),
+    description: text('description'),
+    createdAt: ts('created_at').notNull(),
+    updatedAt: ts('updated_at').notNull(),
+  },
+  (t) => ({
+    tenantNameIdx: uniqueIndex('feature_flags_tenant_name_uq').on(t.tenantId, t.name),
+  })
+);
+
 export const sessions = sqliteTable(
   'sessions',
   {

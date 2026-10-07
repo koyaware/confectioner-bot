@@ -124,6 +124,13 @@ export const ru = {
     hint: 'Для доставки указывайте рубли/тенге/сум, для дней — целые неотрицательные числа. Валюта: ₽, ₸, UZS.',
     badValue: 'Значение не подходит.',
     saved: 'Сохранено.',
+    featureFlagsTitle: 'Функции',
+    featureEnabled: '[ON]',
+    featureDisabled: '[OFF]',
+    featureAdd: 'Добавить функцию',
+    featureNamePrompt: 'Введите название новой функции (латиницей, без пробелов):',
+    badFeatureName: 'Название не подходит: только латиница, цифры, _ и -, до 32 символов.',
+    noFeatures: 'Функций пока нет.',
   },
   ownerLinks: {
     title: 'Ссылки для Instagram',

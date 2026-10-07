@@ -1,6 +1,6 @@
 # ТЗ: Telegram-бот приема заказов для кондитеров
 
-**Версия ядра: v1.21**
+**Версия ядра: v1.22**
 
 Changelog:
 
@@ -26,6 +26,7 @@ Changelog:
 - v1.19: `createOrder` возвращает `BAD_ADDRESS` для доставки без адреса; `chk:submit` требует адрес при доставке.
 - v1.20: `createOrder` возвращает `BAD_OPTIONS` при неактивной опции или неполном выборе опций в группе.
 - v1.21: `createOrder` возвращает `CUSTOMER_BLOCKED` для заблокированных клиентов; `chk:start`/`chk:submit` блокируют оформление.
+- v1.22: добавлены callback `adm:set:feat:<name>` / `adm:set:featadd` и таблица `feature_flags` для per-tenant feature-флагов.
 
 Правила изменения этого файла: менять только append-only. Любое изменение контракта (схема БД, типы, callback-данные, джобы, статусы заказа) поднимает версию и записывается в changelog до написания кода, который от него зависит.
 
@@ -717,6 +718,7 @@ export interface TelegramPort {
 | `adm:ord:ready:<orderId>` / `adm:ord:done:<orderId>` / `adm:ord:cancel:<orderId>`                           | статусы                                                                                           |
 | `pd:yes:<orderId>` / `pd:no:<orderId>`                                                                      | клиент принимает или отклоняет предложенную дату                                                  |
 | `adm:cat:*`, `adm:prd:*`, `adm:faq:*`, `adm:set:*`, `adm:cal:*`, `adm:src:*`                                | редакторы владельца                                                                               |
+| `adm:set:feat:<name>` / `adm:set:featadd`                                                                   | переключение / добавление per-tenant feature-флага                                                |
 | `adm:menu` / `adm:preview`                                                                                  | меню владельца / предпросмотр клиентского меню                                                    |
 | `adm:stats` / `adm:stats:7` / `adm:stats:30`                                                                | статистика за период по умолчанию, 7 или 30 дней                                                  |
 | `adm:relay:block:<customerId>`                                                                              | блокировка клиента из relay-шапки                                                                 |
