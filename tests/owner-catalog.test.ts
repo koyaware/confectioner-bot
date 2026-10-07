@@ -245,4 +245,40 @@ describe('owner catalog editor', () => {
     expect(sent).toContain('Пришлите фото товара.');
     expect(sent).not.toContain('Сохранено.');
   });
+
+  it('empty category rename is rejected with guidance', async () => {
+    const { tenantId } = await seedDemo(appSecret, new Date());
+    await getDb().update(tenants).set({ ownerTelegramId: 555 }).where(eq(tenants.id, tenantId));
+    const db = getDb();
+    const cats = await listCategoriesAll(tenantId);
+    await db.insert(sessions).values({
+      tenantId,
+      telegramId: 555,
+      state: 'owner.edit_field',
+      data: {
+        cart: { lines: [] },
+        ownerDraft: { kind: 'cat_rename', targetId: cats[0]!.id },
+      },
+      updatedAt: new Date(),
+    });
+
+    const port = new FakePort();
+    const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
+
+    await bot.handleUpdate({
+      update_id: 1,
+      message: {
+        message_id: 1,
+        date: 1,
+        chat: { id: 555, type: 'private' },
+        from: { id: 555, is_bot: false, first_name: 'O' },
+        text: '   ',
+        entities: [],
+      },
+    } as never);
+
+    const sent = port.getCallsForMethod('sendMessage').map((c) => c.args[1] as string);
+    expect(sent).toContain('Название не подходит.');
+    expect((await listCategoriesAll(tenantId))[0]!.title).toBe(cats[0]!.title);
+  });
 });

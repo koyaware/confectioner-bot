@@ -25,6 +25,10 @@ function parsePriceRubles(s: string): number | null {
   return rubles * 100 + kopecks;
 }
 
+function badText(text: string, max: number): boolean {
+  return text.length === 0 || text.length > max;
+}
+
 export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void {
   bot.on('message:text', async (ctx, next) => {
     if (
@@ -52,23 +56,30 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
         return;
       }
       case 'cat_rename': {
-        if (draft.targetId && text.length > 0) {
-          await editor.updateCategoryTitle(ctx.tenant.id, draft.targetId, text);
+        if (!draft.targetId || badText(text, 64)) {
+          ctx.sessionState = 'owner.edit_field';
+          ctx.session.ownerDraft = draft;
+          await ctx.port.sendMessage(ctx.chat.id, ru.ownerCatalog.badTitle);
+          return;
         }
+        await editor.updateCategoryTitle(ctx.tenant.id, draft.targetId, text);
         await ctx.port.sendMessage(ctx.chat.id, ru.ownerCatalog.saved);
         return;
       }
       case 'prd_add_title': {
-        if (draft.targetId && text.length > 0) {
+        if (!draft.targetId || badText(text, 200)) {
           ctx.sessionState = 'owner.edit_field';
-          ctx.session.ownerDraft = {
-            kind: 'prd_add_price',
-            targetId: draft.targetId,
-            extra: { title: text },
-          };
-          await ctx.port.sendMessage(ctx.chat.id, ru.ownerCatalog.promptProductPrice);
+          ctx.session.ownerDraft = draft;
+          await ctx.port.sendMessage(ctx.chat.id, ru.ownerCatalog.badTitle);
           return;
         }
+        ctx.sessionState = 'owner.edit_field';
+        ctx.session.ownerDraft = {
+          kind: 'prd_add_price',
+          targetId: draft.targetId,
+          extra: { title: text },
+        };
+        await ctx.port.sendMessage(ctx.chat.id, ru.ownerCatalog.promptProductPrice);
         return;
       }
       case 'prd_add_price': {
@@ -95,8 +106,20 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
             return;
           }
           if (field === 'title') {
+            if (badText(text, 200)) {
+              ctx.sessionState = 'owner.edit_field';
+              ctx.session.ownerDraft = draft;
+              await ctx.port.sendMessage(ctx.chat.id, ru.ownerCatalog.badTitle);
+              return;
+            }
             await editor.updateProduct(ctx.tenant.id, draft.targetId, { title: text });
           } else if (field === 'description') {
+            if (badText(text, 1000)) {
+              ctx.sessionState = 'owner.edit_field';
+              ctx.session.ownerDraft = draft;
+              await ctx.port.sendMessage(ctx.chat.id, ru.common.badText);
+              return;
+            }
             await editor.updateProduct(ctx.tenant.id, draft.targetId, { description: text });
           } else if (field === 'price') {
             const priceMinor = parsePriceRubles(text);
@@ -108,6 +131,12 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
             }
             await editor.updateProduct(ctx.tenant.id, draft.targetId, { priceMinor });
           } else if (field === 'unit') {
+            if (badText(text, 20)) {
+              ctx.sessionState = 'owner.edit_field';
+              ctx.session.ownerDraft = draft;
+              await ctx.port.sendMessage(ctx.chat.id, ru.ownerCatalog.badTitle);
+              return;
+            }
             await editor.updateProduct(ctx.tenant.id, draft.targetId, { unit: text });
           } else if (field === 'lead') {
             const days = Number(text);
@@ -133,6 +162,12 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
         return;
       }
       case 'opt_add_group': {
+        if (badText(text, 100)) {
+          ctx.sessionState = 'owner.edit_field';
+          ctx.session.ownerDraft = draft;
+          await ctx.port.sendMessage(ctx.chat.id, ru.ownerCatalog.badTitle);
+          return;
+        }
         ctx.sessionState = 'owner.edit_field';
         ctx.session.ownerDraft = {
           kind: 'opt_add_title',
@@ -143,6 +178,12 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
         return;
       }
       case 'opt_add_title': {
+        if (badText(text, 100)) {
+          ctx.sessionState = 'owner.edit_field';
+          ctx.session.ownerDraft = draft;
+          await ctx.port.sendMessage(ctx.chat.id, ru.ownerCatalog.badTitle);
+          return;
+        }
         ctx.sessionState = 'owner.edit_field';
         ctx.session.ownerDraft = {
           kind: 'opt_add_delta',
@@ -177,29 +218,47 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
         return;
       }
       case 'faq_add_question': {
+        if (badText(text, 300)) {
+          ctx.sessionState = 'owner.edit_field';
+          ctx.session.ownerDraft = draft;
+          await ctx.port.sendMessage(ctx.chat.id, ru.ownerCatalog.badTitle);
+          return;
+        }
         ctx.sessionState = 'owner.edit_field';
         ctx.session.ownerDraft = { kind: 'faq_add_answer', extra: { question: text } };
         await ctx.port.sendMessage(ctx.chat.id, ru.ownerFaq.promptAnswer);
         return;
       }
       case 'faq_add_answer': {
-        if (draft.extra?.question && text) {
-          await createFaq(ctx.tenant.id, draft.extra.question, text);
+        if (!draft.extra?.question || badText(text, 2000)) {
+          ctx.sessionState = 'owner.edit_field';
+          ctx.session.ownerDraft = draft;
+          await ctx.port.sendMessage(ctx.chat.id, ru.common.badText);
+          return;
         }
+        await createFaq(ctx.tenant.id, draft.extra.question, text);
         await ctx.port.sendMessage(ctx.chat.id, ru.ownerCatalog.saved);
         return;
       }
       case 'faq_edit_q': {
-        if (draft.targetId && text) {
-          await updateFaq(ctx.tenant.id, draft.targetId, { question: text });
+        if (!draft.targetId || badText(text, 300)) {
+          ctx.sessionState = 'owner.edit_field';
+          ctx.session.ownerDraft = draft;
+          await ctx.port.sendMessage(ctx.chat.id, ru.ownerCatalog.badTitle);
+          return;
         }
+        await updateFaq(ctx.tenant.id, draft.targetId, { question: text });
         await ctx.port.sendMessage(ctx.chat.id, ru.ownerCatalog.saved);
         return;
       }
       case 'faq_edit_a': {
-        if (draft.targetId && text) {
-          await updateFaq(ctx.tenant.id, draft.targetId, { answer: text });
+        if (!draft.targetId || badText(text, 2000)) {
+          ctx.sessionState = 'owner.edit_field';
+          ctx.session.ownerDraft = draft;
+          await ctx.port.sendMessage(ctx.chat.id, ru.common.badText);
+          return;
         }
+        await updateFaq(ctx.tenant.id, draft.targetId, { answer: text });
         await ctx.port.sendMessage(ctx.chat.id, ru.ownerCatalog.saved);
         return;
       }
