@@ -1,6 +1,6 @@
 # ТЗ: Telegram-бот приема заказов для кондитеров
 
-**Версия ядра: v1.19**
+**Версия ядра: v1.20**
 
 Changelog:
 
@@ -24,6 +24,7 @@ Changelog:
 - v1.17: добавлены callback `my:refs:<orderId>` и `adm:ord:refs:<orderId>` для просмотра референсов заказа.
 - v1.18: в контракт добавлены недостающие callback `cart:noop`, `chk:photos:done`, `adm:menu`, `adm:preview`, `adm:stats[:7|:30]`.
 - v1.19: `createOrder` возвращает `BAD_ADDRESS` для доставки без адреса; `chk:submit` требует адрес при доставке.
+- v1.20: `createOrder` возвращает `BAD_OPTIONS` при неактивной опции или неполном выборе опций в группе.
 
 Правила изменения этого файла: менять только append-only. Любое изменение контракта (схема БД, типы, callback-данные, джобы, статусы заказа) поднимает версию и записывается в changelog до написания кода, который от него зависит.
 
@@ -739,7 +740,7 @@ export interface TelegramPort {
 
 ```ts
 createOrder(input: { tenantId; customerId; cart: Cart; checkout: Required<Pick<CheckoutDraft,'checkoutId'|'dueDate'|'fulfillment'|'contactName'|'contactPhone'>> & CheckoutDraft; now: Date })
-  : Result<Order, 'EMPTY_CART' | 'PRODUCT_INACTIVE' | 'DATE_UNAVAILABLE' | 'CAPACITY_EXCEEDED' | 'TENANT_BUSY' | 'BAD_QTY' | 'BAD_ADDRESS'>
+  : Result<Order, 'EMPTY_CART' | 'PRODUCT_INACTIVE' | 'DATE_UNAVAILABLE' | 'CAPACITY_EXCEEDED' | 'TENANT_BUSY' | 'BAD_QTY' | 'BAD_ADDRESS' | 'BAD_OPTIONS'>
   // повторный вызов с тем же checkoutId возвращает уже созданный заказ
 applyOrderEvent(orderId: string, event: OrderEvent, actor: 'customer'|'owner'|'system', now: Date)
   : Result<Order, 'NOT_FOUND' | 'ILLEGAL_TRANSITION'>

@@ -483,7 +483,7 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
             ? (ctx.tenant.busyText ?? ru.checkout.busy)
             : result.error === 'BAD_QTY'
               ? ru.checkout.badQty
-              : result.error === 'BAD_ADDRESS'
+              : result.error === 'BAD_ADDRESS' || result.error === 'BAD_OPTIONS'
                 ? ru.checkout.incomplete
                 : ru.checkout.emptyCart;
       await ctx.port.editMessageText(chatId, messageId, text, {});

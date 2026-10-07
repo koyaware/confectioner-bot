@@ -12,6 +12,7 @@ import {
 import { FakePort } from '../src/telegram/fake-port.js';
 import { addDays, toIsoDate } from '../src/domain/dates.js';
 import { eq } from 'drizzle-orm';
+import { firstActiveOptionIds } from './helpers.js';
 
 describe('payment jobs', () => {
   const testDbPath = './test-payjobs.db';
@@ -55,7 +56,16 @@ describe('payment jobs', () => {
     const result = await createOrder({
       tenantId,
       customerId: 'cust1',
-      cart: { lines: [{ lineId: 'l1', productId: products[0]!.id, qty: 1, optionIds: [] }] },
+      cart: {
+        lines: [
+          {
+            lineId: 'l1',
+            productId: products[0]!.id,
+            qty: 1,
+            optionIds: await firstActiveOptionIds(products[0]!.id),
+          },
+        ],
+      },
       checkout: {
         checkoutId: 'chk-j1',
         dueDate: addDays(toIsoDate(now, 'Europe/Moscow'), 5),

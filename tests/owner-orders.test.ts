@@ -9,6 +9,7 @@ import { createOrder } from '../src/services/orders.js';
 import { tenants, customers, orders } from '../src/db/schema.js';
 import { eq } from 'drizzle-orm';
 import { addDays, toIsoDate } from '../src/domain/dates.js';
+import { firstActiveOptionIds } from './helpers.js';
 
 describe('owner order handling', () => {
   const testDbPath = './test-ownerords.db';
@@ -63,7 +64,16 @@ describe('owner order handling', () => {
     const result = await createOrder({
       tenantId,
       customerId: 'cust1',
-      cart: { lines: [{ lineId: 'l1', productId: products[0]!.id, qty: 1, optionIds: [] }] },
+      cart: {
+        lines: [
+          {
+            lineId: 'l1',
+            productId: products[0]!.id,
+            qty: 1,
+            optionIds: await firstActiveOptionIds(products[0]!.id),
+          },
+        ],
+      },
       checkout: {
         checkoutId: 'chk-o1',
         dueDate: addDays(toIsoDate(now, 'Europe/Moscow'), 5),

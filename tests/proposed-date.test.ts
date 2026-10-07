@@ -9,6 +9,7 @@ import { createOrder } from '../src/services/orders.js';
 import { tenants, customers, orders } from '../src/db/schema.js';
 import { eq } from 'drizzle-orm';
 import { addDays, toIsoDate } from '../src/domain/dates.js';
+import { firstActiveOptionIds } from './helpers.js';
 
 describe('proposed date', () => {
   const testDbPath = './test-propdate.db';
@@ -53,7 +54,16 @@ describe('proposed date', () => {
     const result = await createOrder({
       tenantId,
       customerId: 'cust1',
-      cart: { lines: [{ lineId: 'l1', productId: products[0]!.id, qty: 1, optionIds: [] }] },
+      cart: {
+        lines: [
+          {
+            lineId: 'l1',
+            productId: products[0]!.id,
+            qty: 1,
+            optionIds: await firstActiveOptionIds(products[0]!.id),
+          },
+        ],
+      },
       checkout: {
         checkoutId: 'chk-pd',
         dueDate: addDays(toIsoDate(now, 'Europe/Moscow'), 5),

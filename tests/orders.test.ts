@@ -7,6 +7,7 @@ import { createOrder } from '../src/services/orders.js';
 import { orders } from '../src/db/schema.js';
 import { addDays, toIsoDate } from '../src/domain/dates.js';
 import { eq } from 'drizzle-orm';
+import { firstActiveOptionIds } from './helpers.js';
 
 describe('createOrder', () => {
   const testDbPath = './test-orders.db';
@@ -55,7 +56,7 @@ describe('createOrder', () => {
     return { cart: { lines: [{ lineId: 'l1', productId, qty, optionIds }] } };
   }
 
-  it('rejects delivery orders without address', async () => {
+  it('rejects empty option selection on optioned products', async () => {
     const { tenantId, products, customerId } = await setup();
     const product = products[0]!;
     const dueDate = addDays(toIsoDate(now, 'Europe/Moscow'), 5);
@@ -64,6 +65,29 @@ describe('createOrder', () => {
       tenantId,
       customerId,
       cart: cartWith(product.id, 1, []).cart,
+      checkout: {
+        checkoutId: 'chk-noopts',
+        dueDate,
+        fulfillment: 'pickup',
+        contactName: 'Иван',
+        contactPhone: '+7999',
+        referenceFileIds: [],
+      },
+      now,
+    });
+
+    expect(result).toEqual({ ok: false, error: 'BAD_OPTIONS' });
+  });
+
+  it('rejects delivery orders without address', async () => {
+    const { tenantId, products, customerId } = await setup();
+    const product = products[0]!;
+    const dueDate = addDays(toIsoDate(now, 'Europe/Moscow'), 5);
+
+    const result = await createOrder({
+      tenantId,
+      customerId,
+      cart: cartWith(product.id, 1, await firstActiveOptionIds(product.id)).cart,
       checkout: {
         checkoutId: 'chk-noaddr',
         dueDate,
@@ -86,7 +110,7 @@ describe('createOrder', () => {
     const result = await createOrder({
       tenantId,
       customerId,
-      cart: cartWith(product.id, 2, []).cart,
+      cart: cartWith(product.id, 2, await firstActiveOptionIds(product.id)).cart,
       checkout: {
         checkoutId: 'chk-1',
         dueDate,
@@ -116,7 +140,7 @@ describe('createOrder', () => {
     const input = {
       tenantId,
       customerId,
-      cart: cartWith(product.id, 1, []).cart,
+      cart: cartWith(product.id, 1, await firstActiveOptionIds(product.id)).cart,
       checkout: {
         checkoutId: 'chk-2',
         dueDate,
@@ -148,7 +172,7 @@ describe('createOrder', () => {
       const r = await createOrder({
         tenantId,
         customerId,
-        cart: cartWith(product.id, 1, []).cart,
+        cart: cartWith(product.id, 1, await firstActiveOptionIds(product.id)).cart,
         checkout: {
           checkoutId: `fill-${i}`,
           dueDate,
@@ -166,7 +190,7 @@ describe('createOrder', () => {
     const overflow = await createOrder({
       tenantId,
       customerId,
-      cart: cartWith(product.id, 1, []).cart,
+      cart: cartWith(product.id, 1, await firstActiveOptionIds(product.id)).cart,
       checkout: {
         checkoutId: 'overflow',
         dueDate,
@@ -189,7 +213,7 @@ describe('createOrder', () => {
     const result = await createOrder({
       tenantId,
       customerId,
-      cart: cartWith(products[0]!.id, 1, []).cart,
+      cart: cartWith(products[0]!.id, 1, await firstActiveOptionIds(products[0]!.id)).cart,
       checkout: {
         checkoutId: 'chk-busy',
         dueDate: addDays(toIsoDate(now, 'Europe/Moscow'), 5),
@@ -212,7 +236,7 @@ describe('createOrder', () => {
     const result = await createOrder({
       tenantId,
       customerId,
-      cart: cartWith(products[0]!.id, 1, []).cart,
+      cart: cartWith(products[0]!.id, 1, await firstActiveOptionIds(products[0]!.id)).cart,
       checkout: {
         checkoutId: 'chk-inactive',
         dueDate: addDays(toIsoDate(now, 'Europe/Moscow'), 5),

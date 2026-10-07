@@ -8,6 +8,7 @@ import { customers, jobs, orders } from '../src/db/schema.js';
 import { createPickupReminderHandler } from '../src/jobs/handlers/pickup-reminder.js';
 import { FakePort } from '../src/telegram/fake-port.js';
 import { addDays, toIsoDate } from '../src/domain/dates.js';
+import { firstActiveOptionIds } from './helpers.js';
 
 describe('pickup reminder', () => {
   const testDbPath = './test-pickup.db';
@@ -49,7 +50,16 @@ describe('pickup reminder', () => {
     const result = await createOrder({
       tenantId,
       customerId: 'cust1',
-      cart: { lines: [{ lineId: 'l1', productId: products[0]!.id, qty: 1, optionIds: [] }] },
+      cart: {
+        lines: [
+          {
+            lineId: 'l1',
+            productId: products[0]!.id,
+            qty: 1,
+            optionIds: await firstActiveOptionIds(products[0]!.id),
+          },
+        ],
+      },
       checkout: {
         checkoutId: 'chk-pickup',
         dueDate: addDays(toIsoDate(now, 'Europe/Moscow'), 5),

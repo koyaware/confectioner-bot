@@ -39,7 +39,8 @@ export type CreateOrderError =
   | 'CAPACITY_EXCEEDED'
   | 'TENANT_BUSY'
   | 'BAD_QTY'
-  | 'BAD_ADDRESS';
+  | 'BAD_ADDRESS'
+  | 'BAD_OPTIONS';
 
 export async function getCustomerOrderNumber(orderId: string): Promise<number | null> {
   const db = getDb();
@@ -140,10 +141,27 @@ export async function createOrder(
             .from(productOptions)
             .where(eq(productOptions.productId, product.id))
             .all();
+          const selected = options.filter((o) => line.optionIds.includes(o.id));
+          if (selected.some((o) => !o.isActive)) {
+            return { error: 'PRODUCT_INACTIVE' as const };
+          }
+          const activeByGroup = new Map<string, string[]>();
+          for (const o of options) {
+            if (!o.isActive) continue;
+            const ids = activeByGroup.get(o.groupTitle) ?? [];
+            ids.push(o.id);
+            activeByGroup.set(o.groupTitle, ids);
+          }
+          for (const ids of activeByGroup.values()) {
+            const chosen = selected.filter((s) => ids.includes(s.id));
+            if (chosen.length !== 1) {
+              return { error: 'BAD_OPTIONS' as const };
+            }
+          }
           lines.push({
             product,
             qty: line.qty,
-            options: options.filter((o) => line.optionIds.includes(o.id)),
+            options: selected,
           });
         }
 
