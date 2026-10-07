@@ -6,7 +6,10 @@ import { eq } from 'drizzle-orm';
 
 export const DEMO_SLUG = 'demo';
 
-export async function seedDemo(appSecret: string, now: Date): Promise<{ tenantId: string; created: boolean }> {
+export async function seedDemo(
+  appSecret: string,
+  now: Date
+): Promise<{ tenantId: string; created: boolean }> {
   const db = getDb();
 
   const existing = await db.select().from(tenants).where(eq(tenants.slug, DEMO_SLUG)).limit(1);
@@ -30,7 +33,8 @@ export async function seedDemo(appSecret: string, now: Date): Promise<{ tenantId
     botId: 0,
     botUsername: 'demo_bot',
     shopName: 'Демо-кондитерская',
-    greetingText: 'Привет! Я бот демо-магазина. Здесь вы можете посмотреть каталог и оформить заказ.',
+    greetingText:
+      'Привет! Я бот демо-магазина. Здесь вы можете посмотреть каталог и оформить заказ.',
     aboutText: 'Демо-магазин для тестового запуска бота.',
     contactsText: 'Telegram: @demo',
     deliveryText: 'Доставка по городу, от 300 ₽.',
@@ -92,19 +96,56 @@ export async function seedDemo(appSecret: string, now: Date): Promise<{ tenantId
   await db.insert(products).values([prdCake, prdBento, prdCupcakes, prdMacarons]);
 
   await db.insert(productOptions).values([
-    { id: nanoid(), productId: prdCake.id, groupTitle: 'Вес', title: '1 кг', priceDeltaMinor: 0, sortOrder: 1 },
-    { id: nanoid(), productId: prdCake.id, groupTitle: 'Вес', title: '2 кг', priceDeltaMinor: 150000, sortOrder: 2 },
-    { id: nanoid(), productId: prdBento.id, groupTitle: 'Начинка', title: 'Малина-фисташка', priceDeltaMinor: 0, sortOrder: 1 },
-    { id: nanoid(), productId: prdBento.id, groupTitle: 'Начинка', title: 'Шоколад-вишня', priceDeltaMinor: 20000, sortOrder: 2 },
+    {
+      id: nanoid(),
+      productId: prdCake.id,
+      groupTitle: 'Вес',
+      title: '1 кг',
+      priceDeltaMinor: 0,
+      sortOrder: 1,
+    },
+    {
+      id: nanoid(),
+      productId: prdCake.id,
+      groupTitle: 'Вес',
+      title: '2 кг',
+      priceDeltaMinor: 150000,
+      sortOrder: 2,
+    },
+    {
+      id: nanoid(),
+      productId: prdBento.id,
+      groupTitle: 'Начинка',
+      title: 'Малина-фисташка',
+      priceDeltaMinor: 0,
+      sortOrder: 1,
+    },
+    {
+      id: nanoid(),
+      productId: prdBento.id,
+      groupTitle: 'Начинка',
+      title: 'Шоколад-вишня',
+      priceDeltaMinor: 20000,
+      sortOrder: 2,
+    },
   ]);
 
   await db.insert(faqItems).values(
     [
-      { q: 'Сколько стоит торт?', a: 'Цены есть в каталоге. Медовик от 1500 ₽ за кг, бенто от 1200 ₽.' },
+      {
+        q: 'Сколько стоит торт?',
+        a: 'Цены есть в каталоге. Медовик от 1500 ₽ за кг, бенто от 1200 ₽.',
+      },
       { q: 'За сколько дней заказывать?', a: 'Минимум за 2 дня. В праздники лучше раньше.' },
       { q: 'Есть доставка?', a: 'Да, по городу. Стоимость доставки показывается при оформлении.' },
-      { q: 'Как оплатить?', a: 'Предоплата 50% по реквизитам, остаток при получении. Чек присылаете в бота.' },
-      { q: 'Как сделать заказ?', a: 'Откройте каталог, добавьте товар в корзину и оформите заказ.' },
+      {
+        q: 'Как оплатить?',
+        a: 'Предоплата 50% по реквизитам, остаток при получении. Чек присылаете в бота.',
+      },
+      {
+        q: 'Как сделать заказ?',
+        a: 'Откройте каталог, добавьте товар в корзину и оформите заказ.',
+      },
       { q: 'Где самовывоз?', a: 'Адрес пришлём после подтверждения заказа.' },
     ].map((f, i) => ({ id: nanoid(), tenantId, question: f.q, answer: f.a, sortOrder: i + 1 }))
   );
