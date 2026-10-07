@@ -363,6 +363,22 @@ describe('checkout steps', () => {
     );
   });
 
+  it('address step shows delivery terms when set', async () => {
+    const now = new Date();
+    const { tenantId } = await seedDemo(appSecret, now);
+    const db = getDb();
+    await db.update(tenants).set({ deliveryText: 'Зона 1 — 300' }).where(eq(tenants.id, tenantId));
+    const port = new FakePort();
+    const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
+
+    await setupCartAndCheckout(port, bot);
+    await bot.handleUpdate(msg(20, 42, 'к 15:00'));
+    await bot.handleUpdate(cb(21, 'c8', 42, 10, 'chk:ful:delivery'));
+
+    const edits = port.getCallsForMethod('editMessageTextOrSend');
+    expect(edits[edits.length - 1]!.args[2] as string).toContain('Зона 1 — 300');
+  });
+
   it('confirm without draft shows stale hint and no dead submit button', async () => {
     const now = new Date();
     const { tenantId } = await seedDemo(appSecret, now);

@@ -274,6 +274,28 @@ describe('payment flow', () => {
     expect(datas).toContain(`pay:sent:${order.id}`);
   });
 
+  it('sticker in receipt state gets the invalid hint', async () => {
+    const { tenantId, order } = await setupOrder();
+    const port = new FakePort();
+    const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
+
+    await bot.handleUpdate(cb(1, 'c1', 555, 10, `adm:ord:accept:${order.id}`));
+    await bot.handleUpdate(cb(2, 'c2', 42, 11, `pay:sent:${order.id}`));
+    await bot.handleUpdate({
+      update_id: 3,
+      message: {
+        message_id: 3,
+        date: 1,
+        chat: { id: 42, type: 'private' },
+        from: { id: 42, is_bot: false, first_name: 'C' },
+        sticker: { file_id: 's1', file_unique_id: 'su1', width: 10, height: 10 },
+      },
+    } as never);
+
+    const edits = port.getCallsForMethod('editMessageTextOrSend');
+    expect(edits.some((c) => String(c.args[2]).includes('только фото'))).toBe(true);
+  });
+
   it('receipt document is rejected, photo is accepted', async () => {
     const { tenantId, order } = await setupOrder();
     const port = new FakePort();

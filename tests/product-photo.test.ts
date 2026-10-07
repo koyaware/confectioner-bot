@@ -106,6 +106,29 @@ describe('product photo on card', () => {
     expect(deleted2.some((c) => c.args[1] === 1)).toBe(false);
   });
 
+  it('long description truncates caption instead of failing', async () => {
+    const { tenantId } = await seedDemo(appSecret, new Date());
+    const db = getDb();
+    const all = await db.select().from(products).limit(1);
+    await db
+      .update(products)
+      .set({ photoFileId: 'photo-file-1', description: 'D'.repeat(2000) })
+      .where(eq(products.id, all[0]!.id));
+
+    const port = new FakePort();
+    const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
+
+    await bot.handleUpdate(cb(1, 'c1', 42, 10, `prd:open:${all[0]!.id}`));
+
+    const photos = port.getCallsForMethod('sendPhoto');
+    expect(photos).toHaveLength(1);
+    expect(String(photos[0]!.args[2]).length).toBeLessThanOrEqual(1024);
+    const sends = port.getCallsForMethod('sendMessage');
+    expect(
+      sends.some((c) => c.args[0] === 42 && String(c.args[1]).includes('Произошла ошибка'))
+    ).toBe(false);
+  });
+
   it('card without photo stays a text screen', async () => {
     const { tenantId } = await seedDemo(appSecret, new Date());
     const db = getDb();

@@ -100,6 +100,43 @@ describe('contacts instead of chat', () => {
     expect(edits[edits.length - 1]!.args[2] as string).toContain('шапке профиля Instagram');
   });
 
+  it('oversized contacts open truncated without error', async () => {
+    const { tenantId } = await seedDemo(appSecret, new Date());
+    await getDb()
+      .update(tenants)
+      .set({ ownerTelegramId: 555, contactsText: 'C'.repeat(5000) })
+      .where(eq(tenants.id, tenantId));
+
+    const port = new FakePort();
+    const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
+
+    await bot.handleUpdate(cb(1, 42, 9, 'cnt:show'));
+    const edits = port.getCallsForMethod('editMessageTextOrSend');
+    expect(edits.length).toBeGreaterThan(0);
+    expect(String(edits[edits.length - 1]!.args[2]).length).toBeLessThanOrEqual(4096);
+    const sends = port.getCallsForMethod('sendMessage');
+    expect(
+      sends.some((c) => c.args[0] === 42 && String(c.args[1]).includes('Произошла ошибка'))
+    ).toBe(false);
+  });
+
+  it('about text is shown on the contacts screen', async () => {
+    const { tenantId } = await seedDemo(appSecret, new Date());
+    await getDb()
+      .update(tenants)
+      .set({ ownerTelegramId: 555, aboutText: 'Про нас', contactsText: 'Звоните' })
+      .where(eq(tenants.id, tenantId));
+
+    const port = new FakePort();
+    const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
+
+    await bot.handleUpdate(cb(1, 42, 9, 'cnt:show'));
+    const edits = port.getCallsForMethod('editMessageTextOrSend');
+    const text = edits[edits.length - 1]!.args[2] as string;
+    expect(text).toContain('Про нас');
+    expect(text).toContain('Звоните');
+  });
+
   it('free text points to contacts once per 6h, nothing relayed', async () => {
     const { tenantId } = await seedDemo(appSecret, new Date());
     await getDb().update(tenants).set({ ownerTelegramId: 555 }).where(eq(tenants.id, tenantId));

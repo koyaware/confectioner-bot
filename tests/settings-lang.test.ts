@@ -162,6 +162,20 @@ describe('settings language/currency buttons', () => {
     expect(edits[edits.length - 1]!.args[2]).toContain('Дүкен баптаулары');
   });
 
+  it('settings list has no currency text input, only the picker', async () => {
+    const { tenantId } = await seedDemo(appSecret, new Date());
+    await getDb().update(tenants).set({ ownerTelegramId: 555 }).where(eq(tenants.id, tenantId));
+
+    const port = new FakePort();
+    const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
+
+    await bot.handleUpdate(cb(1, 555, 1, 'adm:set:list'));
+    const edits = port.getCallsForMethod('editMessageTextOrSend');
+    const kb = JSON.stringify(edits[edits.length - 1]!.args[3]);
+    expect(kb).toContain('adm:set:cur');
+    expect(kb).not.toContain('adm:set:edit:currency');
+  });
+
   it('invalid codes and non-owner attempts change nothing', async () => {
     const { tenantId } = await seedDemo(appSecret, new Date());
     await getDb().update(tenants).set({ ownerTelegramId: 555 }).where(eq(tenants.id, tenantId));

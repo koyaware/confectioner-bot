@@ -10,15 +10,15 @@ describe('truncateText', () => {
 
   it('truncates with ellipsis and never splits emoji', () => {
     const out = truncateText(`a🍰${'b'.repeat(2000)}`, 1024);
-    expect(Array.from(out).length).toBeLessThanOrEqual(1024);
+    expect(out.length).toBeLessThanOrEqual(1024);
     expect(out.endsWith('…')).toBe(true);
     expect(out.startsWith('a🍰')).toBe(true);
   });
 
-  it('property: output never exceeds max code points', () => {
+  it('property: output never exceeds max UTF-16 units', () => {
     fc.assert(
       fc.property(fc.string({ maxLength: 3000 }), fc.integer({ min: 1, max: 2000 }), (s, max) => {
-        expect(Array.from(truncateText(s, max)).length).toBeLessThanOrEqual(max);
+        expect(truncateText(s, max).length).toBeLessThanOrEqual(max);
       })
     );
   });
