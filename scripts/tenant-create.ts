@@ -4,19 +4,33 @@ import { migrate } from '../src/db/migrate.js';
 import { createTenant } from '../src/services/tenants.js';
 import { Bot } from 'grammy';
 
+import { z } from 'zod';
+
 function arg(name: string): string | undefined {
   const idx = process.argv.indexOf(`--${name}`);
   return idx >= 0 ? process.argv[idx + 1] : undefined;
 }
 
-const slug = arg('slug');
-const shopName = arg('name');
-const token = arg('token');
+const argsSchema = z.object({
+  slug: z.string().regex(/^[a-z0-9_-]{1,32}$/, 'slug must be 1-32 chars: a-z, 0-9, _ or -'),
+  shopName: z.string().min(1).max(200),
+  token: z.string().regex(/^\d+:[A-Za-z0-9_-]{20,}$/, 'token must look like 123456:ABC...'),
+});
 
-if (!slug || !shopName || !token) {
-  console.error('Usage: tsx scripts/tenant-create.ts --slug <slug> --name <shop name> --token <bot token>');
+const parsed = argsSchema.safeParse({
+  slug: arg('slug'),
+  shopName: arg('name'),
+  token: arg('token'),
+});
+if (!parsed.success) {
+  console.error(
+    'Usage: tsx scripts/tenant-create.ts --slug <slug> --name <shop name> --token <bot token>'
+  );
+  console.error(parsed.error.issues.map((i) => `- ${i.path.join('.')}: ${i.message}`).join('\n'));
   process.exit(1);
 }
+
+const { slug, shopName, token } = parsed.data;
 
 const config = loadConfig();
 

@@ -5,12 +5,21 @@ import { funnelEvents, customers } from '../../db/schema.js';
 import { nanoid } from 'nanoid';
 import { eq, and } from 'drizzle-orm';
 
+const SOURCE_RE = /^[a-z0-9_-]{1,32}$/;
+
+function extractSource(ctx: BotContextWithSession): string | null {
+  const param = ctx.message?.text?.split(' ')[1];
+  if (!param || param.startsWith('claim_')) return null;
+  return SOURCE_RE.test(param) ? param : null;
+}
+
 /**
  * Funnel tracking middleware
  */
 export const funnelMiddleware: MiddlewareFn<BotContextWithSession> = async (ctx, next) => {
-  // Track start command
-  if (ctx.message?.text?.startsWith('/start')) {
+  // Track start command (owner claim links are not funnel traffic)
+  const param = ctx.message?.text?.split(' ')[1];
+  if (ctx.message?.text?.startsWith('/start') && !(param && param.startsWith('claim_'))) {
     await trackFunnelEvent(ctx, 'start');
   }
 
@@ -50,10 +59,6 @@ export async function trackFunnelEvent(
     customerId = nanoid();
     const now = new Date();
 
-    // Extract source from start parameter
-    const startParam = ctx.message?.text?.split(' ')[1];
-    const source = startParam && !startParam.startsWith('claim_') ? startParam : null;
-
     await db.insert(customers).values({
       id: customerId,
       tenantId,
@@ -61,7 +66,7 @@ export async function trackFunnelEvent(
       username: ctx.from.username || null,
       firstName: ctx.from.first_name || null,
       phone: null,
-      source,
+      source: extractSource(ctx),
       isBlocked: false,
       botBlocked: false,
       firstSeenAt: now,
@@ -72,12 +77,11 @@ export async function trackFunnelEvent(
   if (!customerId) return;
 
   // Record funnel event
-  const rawParam = ctx.message?.text?.split(' ')[1] || null;
   await db.insert(funnelEvents).values({
     tenantId,
     customerId,
     type,
-    source: rawParam && !rawParam.startsWith('claim_') ? rawParam : null,
+    source: extractSource(ctx),
     at: new Date(),
   });
 }

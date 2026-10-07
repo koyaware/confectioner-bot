@@ -19,6 +19,10 @@ export class BotRunner {
     const allTenants = await db.select().from(tenants).where(eq(tenants.status, 'active'));
 
     for (const tenant of allTenants) {
+      if (!tenant.botId) {
+        console.log(`Skipping tenant ${tenant.slug}: placeholder bot token, nothing to run`);
+        continue;
+      }
       try {
         await this.startTenant(tenant.id, tenant.slug, tenant.botTokenEnc);
       } catch (error) {

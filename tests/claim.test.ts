@@ -114,6 +114,10 @@ describe('owner claim', () => {
     expect(sentTexts.some((t) => t.includes('владелец'))).toBe(true);
     expect(sentTexts.some((t) => t.includes('Меню владельца'))).toBe(true);
 
+    const { customers, funnelEvents } = await import('../src/db/schema.js');
+    expect(await getDb().select().from(customers)).toHaveLength(0);
+    expect(await getDb().select().from(funnelEvents)).toHaveLength(0);
+
     await bot.handleUpdate({
       update_id: 2,
       message: {
