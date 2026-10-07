@@ -1,20 +1,16 @@
 import { MiddlewareFn } from 'grammy';
 import { BotContextWithSession } from '../context.js';
 
-const SUPERADMIN_TELEGRAM_ID = parseInt(process.env.SUPERADMIN_TELEGRAM_ID || '0', 10);
-
-/**
- * Role middleware - determines user role
- */
 export const roleMiddleware: MiddlewareFn<BotContextWithSession> = async (ctx, next) => {
   if (!ctx.from) {
     return next();
   }
 
   const userId = ctx.from.id;
+  const superadminId = parseInt(process.env.SUPERADMIN_TELEGRAM_ID || '0', 10);
 
   // Check if superadmin
-  if (userId === SUPERADMIN_TELEGRAM_ID) {
+  if (userId === superadminId) {
     ctx.role = 'superadmin';
     return next();
   }

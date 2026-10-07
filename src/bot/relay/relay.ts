@@ -171,6 +171,10 @@ export function registerRelayHandlers(bot: Bot<BotContextWithSession>): void {
       await next();
       return;
     }
+    if (ctx.message?.text?.startsWith('/')) {
+      await next();
+      return;
+    }
     if (ctx.role === 'owner') {
       await handleOwnerReply(ctx);
       return;
