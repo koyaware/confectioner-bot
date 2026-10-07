@@ -3,10 +3,33 @@ import { Result } from '../types.js';
 
 const idSchema = z.string().min(1).max(32);
 
+const admActionSchema = z.enum([
+  'list',
+  'add',
+  'rename',
+  'edit',
+  'toggle',
+  'up',
+  'down',
+  'del',
+  'field',
+  'opt',
+  'optadd',
+  'optdel',
+  'opttoggle',
+]);
+
 const callbackSchema = z.union([
   z.object({ ns: z.literal('cat'), action: z.literal('list') }),
   z.object({ ns: z.literal('cat'), action: z.literal('open'), arg: idSchema }),
   z.object({ ns: z.literal('prd'), action: z.literal('open'), arg: idSchema }),
+  z.object({
+    ns: z.literal('adm'),
+    area: z.enum(['cat', 'prd']),
+    action: admActionSchema,
+    arg: idSchema.optional(),
+    arg2: z.string().min(1).max(32).optional(),
+  }),
 ]);
 
 export type Callback = z.infer<typeof callbackSchema>;
@@ -19,17 +42,33 @@ export function encodeCallback(c: Callback): string {
       return c.action === 'list' ? 'cat:list' : `cat:open:${c.arg}`;
     case 'prd':
       return `prd:open:${c.arg}`;
+    case 'adm': {
+      const base = `adm:${c.area}:${c.action}`;
+      if (c.arg2) return `${base}:${c.arg}:${c.arg2}`;
+      if (c.arg) return `${base}:${c.arg}`;
+      return base;
+    }
   }
 }
 
 export function decodeCallback(s: string): Result<Callback, 'BAD_CALLBACK'> {
   const parts = s.split(':');
-  if (parts.length < 2 || parts.length > 3) {
+  if (parts.length < 2 || parts.length > 5) {
     return { ok: false, error: 'BAD_CALLBACK' };
   }
-  const [ns, action, ...rest] = parts;
-  const arg = rest[0];
+  const [ns, second, third, ...rest] = parts;
 
+  if (ns === 'adm') {
+    const candidate = { ns, area: second, action: third, arg: rest[0], arg2: rest[1] };
+    const parsed = callbackSchema.safeParse(candidate);
+    if (!parsed.success) {
+      return { ok: false, error: 'BAD_CALLBACK' };
+    }
+    return { ok: true, value: parsed.data };
+  }
+
+  const action = second;
+  const arg = third;
   const candidate = arg ? { ns, action, arg } : { ns, action };
   const parsed = callbackSchema.safeParse(candidate);
   if (!parsed.success) {
