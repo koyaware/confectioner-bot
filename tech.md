@@ -1,6 +1,6 @@
 # ТЗ: Telegram-бот приема заказов для кондитеров
 
-**Версия ядра: v1.27**
+**Версия ядра: v1.28**
 
 Changelog:
 
@@ -32,6 +32,7 @@ Changelog:
 - v1.25: Упрощен relay: удален сложный диалог с историей. Осталась простая схема — клиент пишет через `rel:start` (`relay.compose`), владелец отвечает reply на заголовок/копию. Кнопка `adm:ord:msg` включает `owner.reply_to_customer` на одно сообщение.
 - v1.26: закрыт GAP (контракт догоняет код): удалены callback `adm:ord:msg:<orderId>` (из кодека и из шапки relay) и состояние `owner.reply_to_customer` (функция «написать клиенту» убрана, владелец отвечает только Telegram-reply на relay-сообщение); UI `adm:set:feat:*` убран из настроек (сервис feature-flags оставлен для daily-digest); задокументированы поле `orders.ownerCardMessageId`, поле `relay_messages.customer_dialog_message_id` (резерв, не используется), метод `TelegramPort.editMessageTextOrSend`, таблица `feature_flags`, транзитные поля сессий (`CheckoutDraft.screenMessageId`, `SessionData.paymentScreenId`, `SessionData.refsMessageIds`). Новое: per-tenant язык интерфейса (`tenants.language`: `ru`/`uz`, независим от валюты) — read-path: все тексты через `ctx.t`, словарь `src/i18n/uz.ts` зеркалит `src/i18n/ru.ts`, fallback `ru`. Язык задаётся при создании магазина/скриптом (кнопок в боте нет), валюта правится текстовым полем настроек (`currency`: `₽`/`₸`/`UZS`); независимость языка и валюты держится на уровне данных.
 - v1.27: кнопки языка и валюты в настройках владельца: `adm:set:lang` / `adm:set:lang:<ru|uz>`, `adm:set:cur` / `adm:set:cur:<rub|kzt|uzs>` (→ `₽`/`₸`/`UZS`). Выбор пишет `tenants.language` / `tenants.currency`; список настроек перерисовывается уже на новом языке (свежие строки, не stale `ctx.t`). Язык и валюта независимы. Невалидные коды отклоняются кодеком (`BAD_CALLBACK`, без эффекта).
+- v1.28: код догнал контракт (§9.2, §9.4, §9.5): карточка товара показывает фото (`photoFileId`: текстовый экран заменяется фото с подписью); чеки-документы принимаются (`message:document` ведёт в `handleReceipt`); шаг контактов присылает reply-клавиатуру с кнопкой контакта; уведомление `badpay` идёт с кнопкой «Я оплатил». Новое в контракте: `SendOpts.replyKeyboard/removeKeyboard` (+ тип `ReplyKeyboardButton` в §7.1), транзитное поле `SessionData.contactKbMsgId`.
 
 Правила изменения этого файла: менять только append-only. Любое изменение контракта (схема БД, типы, callback-данные, джобы, статусы заказа) поднимает версию и записывается в changelog до написания кода, который от него зависит.
 
@@ -679,7 +680,8 @@ export type SessionData = {
   checkout?: CheckoutDraft;
   ownerDraft?: { kind: string; targetId?: string; extra?: Record<string, string> };
   paymentOrderId?: string;
-  paymentScreenId?: number; // транзитное: сообщение экрана оплаты для правок
+  paymentScreenId?: number;
+  contactKbMsgId?: number; // транзитное сообщение reply-клавиатуры шага checkout.contact // транзитное: сообщение экрана оплаты для правок
   lastAutoReplyAt?: number; // unix seconds
   refsMessageIds?: number[]; // транзитные сообщения референсов, удаляются при навигации
   antispam?: { windowStart: number; count: number };
@@ -694,6 +696,20 @@ export type TelegramErrorCode = 'BLOCKED' | 'RATE_LIMIT' | 'NOT_FOUND' | 'NETWOR
 Вся отправка сообщений идет через него. Реальная реализация на grammY, фейк для тестов.
 
 ```ts
+export interface ReplyKeyboardButton {
+  text: string;
+  requestContact?: boolean;
+}
+
+export interface SendOpts {
+  keyboard?: InlineKeyboard;
+  parseMode?: 'HTML';
+  /** Reply-клавиатура (например, кнопка отправки контакта). Не комбинируется с keyboard. */
+  replyKeyboard?: ReplyKeyboardButton[][];
+  /** Скрыть reply-клавиатуру. Не комбинируется с keyboard/replyKeyboard. */
+  removeKeyboard?: boolean;
+}
+
 export interface TelegramPort {
   sendMessage(chatId: number, text: string, opts?: SendOpts): Promise<{ messageId: number }>;
   sendPhoto(
@@ -723,7 +739,7 @@ export interface TelegramPort {
     opts?: SendOpts
   ): Promise<{ messageId: number }>;
 }
-// SendOpts: { keyboard?: InlineKeyboard; parseMode: 'HTML' }. Ошибки: TelegramError { code: TelegramErrorCode }
+// SendOpts: { keyboard?; parseMode?; replyKeyboard?; removeKeyboard? }. Ошибки: TelegramError { code: TelegramErrorCode }
 ```
 
 Фейк умеет: записывать все вызовы, возвращать заданную ошибку на N-й вызов, эмулировать `RATE_LIMIT` и `BLOCKED`.
@@ -888,7 +904,7 @@ requiredLeadDays(cartProductLeadDays: (number|null)[], tenantMinLead: number): n
 
 ### 10.3 Заказы
 
-Новый заказ приходит карточкой: номер, клиент (имя, ссылка на профиль), состав с опциями, дата и время, получение и адрес, контакт, комментарий, референсы (фото), сумма и предоплата, источник, текущая загрузка даты («на 12.10 занято 3 из 5»). Кнопки: «Принять», «Отклонить» (выбор причины из списка или свой текст), «Другая дата», «Написать клиенту». Списки: новые, в работе (`awaiting_payment`, `payment_review`, `confirmed`), готовые, на сегодня и завтра. Кнопки статусов соответствуют событиям раздела 6. Каждая смена статуса уведомляет клиента шаблонным сообщением.
+Новый заказ приходит карточкой: номер, клиент (имя, ссылка на профиль), состав с опциями, дата и время, получение и адрес, контакт, комментарий, референсы (фото), сумма и предоплата, источник, текущая загрузка даты («на 12.10 занято 3 из 5»). Кнопки: «Принять», «Отклонить» (выбор причины из списка или свой текст), «Другая дата». Владелец пишет клиенту только Telegram-ответом на relay-сообщение. Списки: новые, в работе (`awaiting_payment`, `payment_review`, `confirmed`), готовые, на сегодня и завтра. Кнопки статусов соответствуют событиям раздела 6. Каждая смена статуса уведомляет клиента шаблонным сообщением.
 
 ### 10.4 Каталог
 
