@@ -4,6 +4,7 @@ import { sessions } from '../../db/schema.js';
 import { eq, and } from 'drizzle-orm';
 import { BotContextWithSession } from '../context.js';
 import { z } from 'zod';
+import { SessionState } from '../../types.js';
 
 const sessionDataSchema = z.object({
   cart: z.object({
@@ -47,26 +48,18 @@ export const sessionMiddleware: MiddlewareFn<BotContextWithSession> = async (ctx
     .where(and(eq(sessions.tenantId, tenantId), eq(sessions.telegramId, telegramId)))
     .limit(1);
 
-  if (results.length > 0) {
-    const row = results[0];
-    if (row && typeof row.data === 'string') {
-      try {
-        ctx.session = sessionDataSchema.parse(JSON.parse(row.data));
-      } catch {
-        // Invalid session data, create new
-        ctx.session = {
-          cart: { lines: [] },
-        };
-      }
-    } else {
-      ctx.session = {
-        cart: { lines: [] },
-      };
+  const row = results[0];
+  if (row && typeof row.data === 'string') {
+    try {
+      ctx.session = sessionDataSchema.parse(JSON.parse(row.data));
+      ctx.sessionState = row.state as SessionState;
+    } catch {
+      ctx.session = { cart: { lines: [] } };
+      ctx.sessionState = 'idle';
     }
   } else {
-    ctx.session = {
-      cart: { lines: [] },
-    };
+    ctx.session = { cart: { lines: [] } };
+    ctx.sessionState = 'idle';
   }
 
   await next();
@@ -80,14 +73,14 @@ export const sessionMiddleware: MiddlewareFn<BotContextWithSession> = async (ctx
     .values({
       tenantId,
       telegramId,
-      state: 'idle',
+      state: ctx.sessionState,
       data: sessionData,
       updatedAt: now,
     })
     .onConflictDoUpdate({
       target: [sessions.tenantId, sessions.telegramId],
       set: {
-        state: 'idle',
+        state: ctx.sessionState,
         data: sessionData,
         updatedAt: now,
       },

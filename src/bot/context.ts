@@ -1,5 +1,6 @@
 import { Context, SessionFlavor } from 'grammy';
-import { SessionData } from '../types.js';
+import { SessionData, SessionState } from '../types.js';
+import { TelegramPort } from '../telegram/port.js';
 
 export interface BotContext extends Context {
   tenant: {
@@ -29,6 +30,8 @@ export interface BotContext extends Context {
   };
   role: 'customer' | 'owner' | 'superadmin';
   session: SessionData;
+  sessionState: SessionState;
+  port: TelegramPort;
 }
 
 export type BotContextWithSession = BotContext & SessionFlavor<SessionData>;

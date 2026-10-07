@@ -17,7 +17,7 @@ export const funnelMiddleware: MiddlewareFn<BotContextWithSession> = async (ctx,
   await next();
 };
 
-async function trackFunnelEvent(
+export async function trackFunnelEvent(
   ctx: BotContextWithSession,
   type:
     | 'start'

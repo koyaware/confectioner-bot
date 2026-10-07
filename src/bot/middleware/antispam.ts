@@ -6,7 +6,10 @@ const ANTISPAM_MAX_MESSAGES = 20;
 const ANTISPAM_BLOCK_SECONDS = 300; // 5 minutes
 
 /**
- * Antispam middleware - limits message rate per user
+ * Antispam middleware - limits message rate per user.
+ * Not blocked: count messages in a 60s window. count > 20 marks a 300s block
+ * (windowStart is moved to the block start). While blocked, windowStart + 300
+ * is in the future, so messages are ignored. After 300s the state resets.
  */
 export const antispamMiddleware: MiddlewareFn<BotContextWithSession> = async (ctx, next) => {
   if (!ctx.from) {
@@ -21,40 +24,29 @@ export const antispamMiddleware: MiddlewareFn<BotContextWithSession> = async (ct
   const now = Math.floor(Date.now() / 1000);
   const antispam = ctx.session.antispam;
 
-  if (antispam) {
-    // Check if in block period
-    if (antispam.windowStart + ANTISPAM_BLOCK_SECONDS > now) {
-      // Still in block period, ignore message
-      return;
-    }
-
-    // Check if within window
-    if (antispam.windowStart + ANTISPAM_WINDOW_SECONDS > now) {
-      // Within window, increment counter
-      antispam.count++;
-
-      if (antispam.count > ANTISPAM_MAX_MESSAGES) {
-        // Exceeded limit, start block period
-        ctx.session.antispam = {
-          windowStart: now,
-          count: antispam.count,
-        };
-        return;
-      }
-    } else {
-      // Outside window, reset counter
-      ctx.session.antispam = {
-        windowStart: now,
-        count: 1,
-      };
-    }
-  } else {
-    // No antispam data, create new
-    ctx.session.antispam = {
-      windowStart: now,
-      count: 1,
-    };
+  if (!antispam) {
+    ctx.session.antispam = { windowStart: now, count: 1 };
+    return next();
   }
 
-  await next();
+  // Blocked state: count exceeded the limit
+  if (antispam.count > ANTISPAM_MAX_MESSAGES) {
+    if (now < antispam.windowStart + ANTISPAM_BLOCK_SECONDS) {
+      return;
+    }
+    ctx.session.antispam = { windowStart: now, count: 1 };
+    return next();
+  }
+
+  if (now < antispam.windowStart + ANTISPAM_WINDOW_SECONDS) {
+    antispam.count++;
+    if (antispam.count > ANTISPAM_MAX_MESSAGES) {
+      ctx.session.antispam = { windowStart: now, count: antispam.count };
+      return;
+    }
+    return next();
+  }
+
+  ctx.session.antispam = { windowStart: now, count: 1 };
+  return next();
 };

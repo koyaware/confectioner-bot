@@ -9,6 +9,8 @@ import { sessionMiddleware } from './middleware/session.js';
 import { antispamMiddleware } from './middleware/antispam.js';
 import { funnelMiddleware } from './middleware/funnel.js';
 import { errorMiddleware } from './middleware/errors.js';
+import { registerStartHandler } from './customer/start.js';
+import { registerCatalogHandlers } from './customer/catalog.js';
 
 export interface TenantBot {
   tenantId: string;
@@ -20,8 +22,29 @@ export interface TenantBot {
 /**
  * Creates a bot instance for a specific tenant
  */
-export function createTenantBot(botToken: string, tenantId: string, tenantSlug: string): TenantBot {
-  const bot = new Bot<BotContextWithSession>(botToken);
+export function createTenantBot(
+  botToken: string,
+  tenantId: string,
+  tenantSlug: string,
+  portOverride?: TelegramPort
+): TenantBot {
+  const bot = new Bot<BotContextWithSession>(botToken, {
+    botInfo: {
+      id: 0,
+      is_bot: true,
+      first_name: tenantSlug,
+      username: tenantSlug,
+      can_join_groups: true,
+      can_read_all_group_messages: false,
+      supports_inline_queries: false,
+      can_connect_to_business: false,
+      has_main_web_app: false,
+      has_topics_enabled: false,
+      allows_users_to_create_topics: false,
+      can_manage_bots: false,
+      supports_join_request_queries: false,
+    },
+  });
 
   // Enable auto-retry for rate limits
   bot.api.config.use(autoRetry());
@@ -54,6 +77,11 @@ export function createTenantBot(botToken: string, tenantId: string, tenantSlug: 
       digestHour: 9,
     };
     ctx.role = 'customer'; // Will be overridden by role middleware
+
+    const port = portOverride ?? new GrammyPort(botToken);
+    ctx.port = port;
+    ctx.sessionState = 'idle';
+
     await next();
   });
 
@@ -65,7 +93,10 @@ export function createTenantBot(botToken: string, tenantId: string, tenantSlug: 
   bot.use(antispamMiddleware);
   bot.use(funnelMiddleware);
 
-  const port = new GrammyPort(botToken);
+  const port = portOverride ?? new GrammyPort(botToken);
+
+  registerStartHandler(bot);
+  registerCatalogHandlers(bot);
 
   return {
     tenantId,
