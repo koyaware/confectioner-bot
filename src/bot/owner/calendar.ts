@@ -3,7 +3,7 @@ import { canAccessOwner } from '../permissions.js';
 import { BotContextWithSession } from '../context.js';
 import { ru } from '../../i18n/ru.js';
 import { InlineKeyboard } from '../../telegram/port.js';
-import { addDays } from '../../domain/dates.js';
+import { addDays, monthEndOf } from '../../lib/time.js';
 import { getCapacityForDate, setCapacityForDate } from '../../services/calendar.js';
 import { getDateAvailability } from '../../services/dates.js';
 
@@ -21,10 +21,6 @@ const MONTH_NAMES = [
   'Ноябрь',
   'Декабрь',
 ];
-
-function monthEndOf(monthStart: string): string {
-  return addDays(addDays(monthStart, 32).slice(0, 8) + '01', -1);
-}
 
 function calendarGrid(year: number, month: number, marks: Map<string, string>): InlineKeyboard {
   const rows: InlineKeyboard['inline_keyboard'] = [];

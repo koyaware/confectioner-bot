@@ -18,7 +18,7 @@ import {
 } from '../../db/schema.js';
 import { effectiveCapacity, OCCUPYING_STATUSES, usedUnits } from '../../domain/capacity.js';
 import { and, asc, eq, inArray } from 'drizzle-orm';
-import { addDays } from '../../domain/dates.js';
+import { addDays } from '../../lib/time.js';
 import { getDateAvailability } from '../../services/dates.js';
 
 export const REJECT_REASONS: Record<string, string> = {

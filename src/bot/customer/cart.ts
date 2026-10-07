@@ -13,7 +13,7 @@ import { trackFunnelEvent } from '../middleware/funnel.js';
 import { resolveSelections, renderProductCard } from './product-card.js';
 import { getDateAvailability } from '../../services/dates.js';
 import { calendarKeyboard } from './checkout.js';
-import { addDays, toIsoDate } from '../../domain/dates.js';
+import { addDays, toIsoDate } from '../../lib/time.js';
 
 async function cartKeyboard(
   ctx: BotContextWithSession

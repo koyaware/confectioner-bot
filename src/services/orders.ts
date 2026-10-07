@@ -17,7 +17,7 @@ import { priceLine, requiredLeadDays } from '../domain/pricing.js';
 import { effectiveCapacity, OCCUPYING_STATUSES, usedUnits } from '../domain/capacity.js';
 import { transition } from '../domain/order-machine.js';
 import { OrderEvent } from '../types.js';
-import { addDays, compareIso, toIsoDate, zonedTimeToUtc } from '../domain/dates.js';
+import { addDays, compareIso, toIsoDate, zonedTimeToUtc } from '../lib/time.js';
 import { getDateAvailability } from './dates.js';
 import { nanoid } from 'nanoid';
 

@@ -8,7 +8,7 @@ import { getDb } from '../../db/client.js';
 import { customers } from '../../db/schema.js';
 import { eq, and } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
-import { addDays } from '../../domain/dates.js';
+import { addDays, monthEndOf, toIsoDate } from '../../lib/time.js';
 import { InlineKeyboard } from '../../telegram/port.js';
 import { getProductById, listProductOptions } from '../../services/catalog.js';
 import { priceLine, priceOrder } from '../../domain/pricing.js';
@@ -32,20 +32,6 @@ const MONTH_NAMES = [
 ];
 
 const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
-
-function monthEndOf(monthStart: string): string {
-  return addDays(addDays(monthStart, 32).slice(0, 8) + '01', -1);
-}
-
-function toIsoDateInTenant(date: Date, timezone: string): string {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: timezone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(date);
-  return `${parts.find((p) => p.type === 'year')!.value}-${parts.find((p) => p.type === 'month')!.value}-${parts.find((p) => p.type === 'day')!.value}`;
-}
 
 async function findOrCreateCustomer(ctx: BotContextWithSession): Promise<string> {
   const db = getDb();
@@ -129,7 +115,7 @@ export function calendarKeyboard(
 
 async function showCalendar(ctx: BotContextWithSession, edit: boolean): Promise<void> {
   const draft = ctx.session.checkout;
-  const baseDate = draft?.dueDate ?? toIsoDateToday(ctx.tenant.timezone);
+  const baseDate = draft?.dueDate ?? toIsoDate(new Date(), ctx.tenant.timezone);
   const year = Number(baseDate.slice(0, 4));
   const month = Number(baseDate.slice(5, 7));
   const monthStart = `${baseDate.slice(0, 7)}-01`;
@@ -165,16 +151,6 @@ async function showCalendar(ctx: BotContextWithSession, edit: boolean): Promise<
       },
     });
   }
-}
-
-function toIsoDateToday(timezone: string): string {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: timezone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(new Date());
-  return `${parts.find((p) => p.type === 'year')!.value}-${parts.find((p) => p.type === 'month')!.value}-${parts.find((p) => p.type === 'day')!.value}`;
 }
 
 function stepKeyboard(opts?: { skip?: boolean; back?: boolean }): InlineKeyboard {
@@ -457,7 +433,7 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
       if (result.error === 'CAPACITY_EXCEEDED' || result.error === 'DATE_UNAVAILABLE') {
         ctx.sessionState = 'checkout.date';
         draft.dueDate = undefined;
-        const today = toIsoDateInTenant(new Date(), ctx.tenant.timezone);
+        const today = toIsoDate(new Date(), ctx.tenant.timezone);
         const monthStart = `${today.slice(0, 7)}-01`;
         const monthEnd = monthEndOf(monthStart);
         const avail = await getDateAvailability(
