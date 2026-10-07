@@ -4,32 +4,32 @@ import { ru } from '../../i18n/ru.js';
 import { canAccessOwner } from '../permissions.js';
 import { InlineKeyboard } from '../../telegram/port.js';
 
-export function registerMenuHandler(bot: Bot<BotContextWithSession>): void {
-  const ownerMenuKeyboard = (): InlineKeyboard => {
-    const s = ru.menu.ownerSections;
-    return {
-      inline_keyboard: [
-        [
-          { text: s.orders, callback_data: 'adm:ord:list' },
-          { text: s.catalog, callback_data: 'adm:cat:list' },
-        ],
-        [
-          { text: s.faq, callback_data: 'adm:faq:list' },
-          { text: s.calendar, callback_data: 'adm:cal:list' },
-        ],
-        [
-          { text: s.settings, callback_data: 'adm:set:list' },
-          { text: s.links, callback_data: 'adm:src:list' },
-        ],
-        [
-          { text: s.stats, callback_data: 'adm:stats' },
-          { text: s.preview, callback_data: 'adm:preview' },
-        ],
+export function ownerMenuKeyboard(): InlineKeyboard {
+  const s = ru.menu.ownerSections;
+  return {
+    inline_keyboard: [
+      [
+        { text: s.orders, callback_data: 'adm:ord:list' },
+        { text: s.catalog, callback_data: 'adm:cat:list' },
       ],
-    };
+      [
+        { text: s.faq, callback_data: 'adm:faq:list' },
+        { text: s.calendar, callback_data: 'adm:cal:list' },
+      ],
+      [
+        { text: s.settings, callback_data: 'adm:set:list' },
+        { text: s.links, callback_data: 'adm:src:list' },
+      ],
+      [
+        { text: s.stats, callback_data: 'adm:stats' },
+        { text: s.preview, callback_data: 'adm:preview' },
+      ],
+    ],
   };
+}
 
-  const customerMenuKeyboard = (): InlineKeyboard => ({
+export function customerMenuKeyboard(): InlineKeyboard {
+  return {
     inline_keyboard: [
       [{ text: ru.start.buttonCatalog, callback_data: 'cat:list' }],
       [
@@ -38,8 +38,10 @@ export function registerMenuHandler(bot: Bot<BotContextWithSession>): void {
       ],
       [{ text: ru.faq.button, callback_data: 'faq:list' }],
     ],
-  });
+  };
+}
 
+export function registerMenuHandler(bot: Bot<BotContextWithSession>): void {
   bot.command('menu', async (ctx) => {
     ctx.sessionState = 'idle';
     ctx.session.cart = ctx.session.cart ?? { lines: [] };

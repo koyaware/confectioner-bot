@@ -2,7 +2,7 @@ import { getDb } from '../db/client.js';
 import { tenants } from '../db/schema.js';
 import { encrypt, generateClaimCode, hash } from '../lib/crypto.js';
 import { nanoid } from 'nanoid';
-import { eq } from 'drizzle-orm';
+import { eq, isNull, gt, and } from 'drizzle-orm';
 import { Result } from '../types.js';
 
 export async function claimTenant(
@@ -15,31 +15,44 @@ export async function claimTenant(
   const db = getDb();
   const codeHash = hash(`claim_${claimCode}`);
 
-  const rows = await db.select().from(tenants).where(eq(tenants.claimCodeHash, codeHash)).limit(1);
-
-  const tenant = rows[0];
-  if (!tenant) {
+  const candidates = await db
+    .select()
+    .from(tenants)
+    .where(eq(tenants.claimCodeHash, codeHash))
+    .limit(1);
+  const candidate = candidates[0];
+  if (!candidate) {
     return { ok: false, error: 'NOT_FOUND' };
   }
 
-  if (tenant.ownerTelegramId !== null) {
-    return { ok: false, error: 'ALREADY_CLAIMED' };
-  }
-
-  if (!tenant.claimExpiresAt || tenant.claimExpiresAt.getTime() < now.getTime()) {
-    return { ok: false, error: 'EXPIRED' };
-  }
-
-  await db
+  // Atomic claim: only one concurrent caller can flip an unclaimed, unexpired code.
+  const claimed = db
     .update(tenants)
     .set({
       ownerTelegramId: telegramId,
       claimCodeHash: null,
       claimExpiresAt: null,
     })
-    .where(eq(tenants.id, tenant.id));
+    .where(
+      and(
+        eq(tenants.id, candidate.id),
+        eq(tenants.claimCodeHash, codeHash),
+        isNull(tenants.ownerTelegramId),
+        gt(tenants.claimExpiresAt, now)
+      )
+    )
+    .run();
 
-  return { ok: true, value: { tenantId: tenant.id, shopName: tenant.shopName } };
+  if (claimed.changes > 0) {
+    return { ok: true, value: { tenantId: candidate.id, shopName: candidate.shopName } };
+  }
+
+  const rows = await db.select().from(tenants).where(eq(tenants.id, candidate.id)).limit(1);
+  const tenant = rows[0];
+  if (!tenant || tenant.ownerTelegramId !== null) {
+    return { ok: false, error: 'ALREADY_CLAIMED' };
+  }
+  return { ok: false, error: 'EXPIRED' };
 }
 
 const CLAIM_TTL_MS = 24 * 60 * 60 * 1000;

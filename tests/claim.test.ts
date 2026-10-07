@@ -112,6 +112,7 @@ describe('owner claim', () => {
 
     const sentTexts = port.getCallsForMethod('sendMessage').map((c) => c.args[1] as string);
     expect(sentTexts.some((t) => t.includes('владелец'))).toBe(true);
+    expect(sentTexts.some((t) => t.includes('Меню владельца'))).toBe(true);
 
     await bot.handleUpdate({
       update_id: 2,
