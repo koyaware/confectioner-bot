@@ -8,8 +8,8 @@ import { FakePort } from '../src/telegram/fake-port.js';
 import { tenants, customers, orders, relayMessages, sessions } from '../src/db/schema.js';
 import { eq } from 'drizzle-orm';
 
-describe('dialog', () => {
-  const testDbPath = './test-dialog.db';
+describe('relay', () => {
+  const testDbPath = './test-relay.db';
   const appSecret = 's'.repeat(32);
 
   beforeEach(() => {
@@ -62,13 +62,13 @@ describe('dialog', () => {
     } as never;
   }
 
-  it('customer opens dialog via rel:start, sends message, owner sees it', async () => {
+  it('customer opens relay via rel:start, sends message, owner gets notification with reply button', async () => {
     const { tenantId } = await seedDemo(appSecret, new Date());
     await getDb().update(tenants).set({ ownerTelegramId: 555 }).where(eq(tenants.id, tenantId));
 
     // Create a customer and active order for testing
     const db = getDb();
-    const customerId = 'test-cust-dialog';
+    const customerId = 'test-cust-relay';
     await db.insert(customers).values({
       id: customerId,
       tenantId,
@@ -78,7 +78,7 @@ describe('dialog', () => {
       firstSeenAt: new Date(),
       lastSeenAt: new Date(),
     });
-    const orderId = 'test-order-dialog';
+    const orderId = 'test-order-relay';
     await db.insert(orders).values({
       id: orderId,
       tenantId,
@@ -103,14 +103,13 @@ describe('dialog', () => {
     const port = new FakePort();
     const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
 
-    // Customer opens dialog via rel:start
+    // Customer opens relay via rel:start
     await bot.handleUpdate(cb(0, 42, 'rel:start', 9));
 
-    // Customer sends a message in dialog
+    // Customer sends a message in relay
     await bot.handleUpdate(msg(1, 42, 'Подскажите, есть ли доставка?'));
 
-    // Owner got a notification message (sendMessage) with header + text + reply button
-    // This is because owner's dialog screen doesn't exist yet
+    // Owner got a single message with header + text + reply button
     const sent = port.getCallsForMethod('sendMessage');
     const toOwner = sent.find((c) => c.args[0] === 555);
     expect(toOwner).toBeTruthy();
@@ -118,75 +117,65 @@ describe('dialog', () => {
     expect((toOwner!.args[1] as string)).toContain('Подскажите, есть ли доставка?');
     // Button is in keyboard (opts.keyboard), not message text
     const opts = toOwner!.args[2] as { keyboard?: { inline_keyboard: { text: string }[][] } };
-    expect(opts.keyboard?.inline_keyboard.some((row) => row.some((btn) => btn.text === 'Ответить клиенту'))).toBe(true);
+    console.log('BUTTON TEXT:', opts.keyboard?.inline_keyboard.map(row => row.map(btn => btn.text)));
+    expect(opts.keyboard?.inline_keyboard.some((row) => row.some((btn) => btn.text === '✍️ Ответить'))).toBe(true);
 
-    // In single-screen dialog, no separate auto-reply - customer sees message in dialog screen
-    // Just verify dialog state is set
+    // Customer got auto-reply
+    expect(
+      sent.some((c) => c.args[0] === 42 && (c.args[1] as string).includes('Мастер скоро ответит'))
+    ).toBe(true);
 
-    // Dialog state is set
+    // Relay messages saved
+    const rows = await getDb().select().from(relayMessages);
+    expect(rows.length).toBeGreaterThanOrEqual(1);
+
+    // Dialog state is set (goes back to idle after message sent)
     const sessionRows = await getDb().select().from(sessions);
-    expect(sessionRows[0]!.state).toBe('customer.dialog');
+    expect(sessionRows[0]!.state).toBe('idle');
   });
 
-  it('owner replies in dialog, customer receives it in single screen', async () => {
+  it('owner replies via reply-to-message, customer receives it', async () => {
     const { tenantId } = await seedDemo(appSecret, new Date());
     await getDb().update(tenants).set({ ownerTelegramId: 555 }).where(eq(tenants.id, tenantId));
-
-    // Create a customer and active order for testing
-    const db = getDb();
-    const customerId = 'test-cust-dialog';
-    await db.insert(customers).values({
-      id: customerId,
-      tenantId,
-      telegramId: 42,
-      username: 'cust42',
-      firstName: 'C',
-      firstSeenAt: new Date(),
-      lastSeenAt: new Date(),
-    });
-    const orderId = 'test-order-dialog';
-    await db.insert(orders).values({
-      id: orderId,
-      tenantId,
-      customerId,
-      number: 1,
-      status: 'new',
-      items: [],
-      itemsTotalMinor: 1000,
-      deliveryFeeMinor: 0,
-      totalMinor: 1000,
-      prepaymentMinor: 500,
-      capacityUnits: 1,
-      dueDate: '2026-01-15',
-      fulfillment: 'pickup',
-      contactName: 'Test',
-      contactPhone: '+79990000000',
-      idempotencyKey: 'test-idem-' + orderId,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
 
     const port = new FakePort();
     const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
 
-    // Customer opens dialog and sends message
+    // Customer opens relay and sends message
     await bot.handleUpdate(cb(0, 42, 'rel:start', 9));
     await bot.handleUpdate(msg(1, 42, 'Подскажите, есть ли доставка?'));
 
-    // Owner opens dialog via the button (uses orderId and customerId directly)
-    await bot.handleUpdate(cb(2, 555, `adm:ord:dialog:${orderId}:${customerId}`, 99));
+    // Debug: check session state
+    const sessionRows = await getDb().select().from(sessions);
+    console.log('SESSION STATE AFTER MESSAGE:', sessionRows[0]?.state);
 
-    // Owner sends reply in dialog
-    await bot.handleUpdate(msg(3, 555, 'Да, есть, от 300 ₽'));
+    // Find the relay message to get owner message ID
+    const relayRows = await getDb().select().from(relayMessages).where(eq(relayMessages.tenantId, tenantId));
+    console.log('RELAY ROWS:', relayRows);
+    const relay = relayRows[0]!;
 
-    // Customer receives reply in their dialog screen (edited message via editMessageTextOrSend)
-    const edits = port.getCallsForMethod('editMessageTextOrSend');
-    const toCustomer = edits.find((c) => c.args[0] === 42 && (c.args[2] as string).includes('Да, есть, от 300 ₽'));
+    // Owner replies by replying to the relay message
+    await bot.handleUpdate({
+      update_id: 2,
+      message: {
+        message_id: 99,
+        date: 1,
+        chat: { id: 555, type: 'private' },
+        from: { id: 555, is_bot: false, first_name: 'O' },
+        text: 'Да, есть, от 300 ₽',
+        reply_to_message: { message_id: relay.ownerMessageId, chat: { id: 555 }, date: 1 },
+      },
+    } as never);
+
+    // Customer receives the reply
+    const copies = port.getCallsForMethod('copyMessage');
+    const toCustomer = copies.find((c) => c.args[0] === 42);
     expect(toCustomer).toBeTruthy();
 
-    // Owner's dialog screen updated (1 edit for the reply)
-    const ownerEdits = edits.filter((c) => c.args[0] === 555);
-    expect(ownerEdits.length).toBeGreaterThanOrEqual(1);
+    // Owner gets confirmation
+    const sent = port.getCallsForMethod('sendMessage');
+    const toOwner = sent.find((c) => c.args[0] === 555 && (c.args[1] as string).includes('Отправлено клиенту'));
+    expect(toOwner).toBeTruthy();
   });
 
   it('owner can block a client from the relay header', async () => {
@@ -217,7 +206,7 @@ describe('dialog', () => {
     const rows = await getDb().select().from(customers).where(eq(customers.id, 'cust-block'));
     expect(rows[0]!.isBlocked).toBe(true);
 
-    // Future message from blocked customer shows hint
+    // Future relay from this customer goes nowhere
     await bot.handleUpdate(msg(2, 42, 'Ещё вопрос'));
     const sentAfter = port.getCallsForMethod('sendMessage').filter((c) => c.args[0] === 555);
     expect(sentAfter).toHaveLength(0);
@@ -235,26 +224,7 @@ describe('dialog', () => {
     expect(port.getCallsForMethod('copyMessage')).toHaveLength(0);
     expect(port.getCallsForMethod('deleteMessage')).toHaveLength(1);
     const sent = port.getCallsForMethod('sendMessage').map((c) => c.args[1] as string);
-    expect(sent.some((t) => t.includes('Написать мастеру'))).toBe(true);
+    expect(sent.some((t) => t.includes('✍️ Написать мастеру'))).toBe(true);
     expect(tenantId).toBeTruthy();
-  });
-
-  it('customer closes dialog via back button, returns to menu', async () => {
-    const { tenantId } = await seedDemo(appSecret, new Date());
-    await getDb().update(tenants).set({ ownerTelegramId: 555 }).where(eq(tenants.id, tenantId));
-
-    const port = new FakePort();
-    const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
-
-    // Customer opens dialog
-    await bot.handleUpdate(cb(0, 42, 'rel:start', 9));
-    await bot.handleUpdate(msg(1, 42, 'Вопрос'));
-
-    // Customer clicks back (my:list)
-    await bot.handleUpdate(cb(2, 42, 'my:list', 10));
-
-    // Dialog state cleared
-    const sessionRows = await getDb().select().from(sessions);
-    expect(sessionRows[0]!.state).toBe('idle');
   });
 });

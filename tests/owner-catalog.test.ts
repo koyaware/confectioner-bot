@@ -182,7 +182,7 @@ describe('owner catalog editor', () => {
     expect((await listCategoriesAll(tenantId)).map((c) => c.title)).toContain('Сладости');
 
     const saved = port.getCallsForMethod('sendMessage').map((c) => c.args[1]);
-    expect(saved.some((t) => (t as string).includes('Сохранено'))).toBe(true);
+    expect(saved.some((t) => (t as string).includes('✅ Сохранено'))).toBe(true);
   });
 
   it('non-owner adm callback gets rejection and no state change', async () => {
@@ -242,8 +242,8 @@ describe('owner catalog editor', () => {
     } as never);
 
     const sent = port.getCallsForMethod('sendMessage').map((c) => c.args[1] as string);
-    expect(sent).toContain('Пришлите фото товара.');
-    expect(sent).not.toContain('Сохранено.');
+    expect(sent).toContain('📸 Пришлите фото товара.');
+    expect(sent).not.toContain('✅ ✅ Сохранено.');
   });
 
   it('empty category rename is rejected with guidance', async () => {
@@ -278,7 +278,7 @@ describe('owner catalog editor', () => {
     } as never);
 
     const sent = port.getCallsForMethod('sendMessage').map((c) => c.args[1] as string);
-    expect(sent).toContain('Название не подходит.');
+    expect(sent).toContain('❌ Название не подходит.');
     expect((await listCategoriesAll(tenantId))[0]!.title).toBe(cats[0]!.title);
   });
 });

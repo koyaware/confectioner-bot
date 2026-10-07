@@ -128,7 +128,7 @@ describe('owner order handling', () => {
 
     const rows = await getDb().select().from(orders);
     expect(rows[0]!.status).toBe('rejected');
-    expect(rows[0]!.rejectReason).toBe('Нет мест на эту дату');
+    expect(rows[0]!.rejectReason).toBe('❌ Нет мест на эту дату');
 
     const sent = port.getCallsForMethod('sendMessage');
     const toClient = sent.find((c) => c.args[0] === 42);
@@ -136,7 +136,7 @@ describe('owner order handling', () => {
 
     const cardEdits = port.getCallsForMethod('editMessageTextOrSend');
     const cardText = cardEdits[cardEdits.length - 1]!.args[2] as string;
-    expect(cardText).toContain('Причина отказа: Нет мест на эту дату');
+    expect(cardText).toContain('Причина отказа: ❌ Нет мест на эту дату');
     expect(cardText).toContain('Загрузка даты:');
   });
 

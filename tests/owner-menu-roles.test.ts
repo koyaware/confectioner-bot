@@ -60,7 +60,7 @@ describe('owner menu roles', () => {
 
     const sent = port.getCallsForMethod('sendMessage');
     expect(sent).toHaveLength(1);
-    expect(sent[0]!.args[1]).toBe('Меню владельца');
+    expect(sent[0]!.args[1]).toBe('⚙️ Меню владельца');
     const keyboard = JSON.stringify(sent[0]!.args[2]);
     expect(keyboard).toContain('adm:ord:list');
     expect(keyboard).toContain('adm:cat:list');
@@ -83,7 +83,7 @@ describe('owner menu roles', () => {
     await bot.handleUpdate(commandMsg(1, 555, '/menu'));
 
     const sent = port.getCallsForMethod('sendMessage');
-    expect(sent[0]!.args[1]).toBe('Меню владельца');
+    expect(sent[0]!.args[1]).toBe('⚙️ Меню владельца');
   });
 
   it('superadmin not owner sees customer menu', async () => {
@@ -95,6 +95,6 @@ describe('owner menu roles', () => {
     await bot.handleUpdate(commandMsg(1, 555, '/menu'));
 
     const sent = port.getCallsForMethod('sendMessage');
-    expect(sent[0]!.args[1]).toBe('Главное меню');
+    expect(sent[0]!.args[1]).toBe('🏠 Главное меню');
   });
 });

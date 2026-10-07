@@ -65,7 +65,7 @@ export async function buildOrderCardText(
   if (order.address) lines.push(`Адрес: ${escapeHtml(order.address)}`);
   lines.push(`Контакт: ${escapeHtml(order.contactName)}, ${escapeHtml(order.contactPhone)}`);
   if (order.comment) lines.push(`Комментарий: ${escapeHtml(order.comment)}`);
-  if (refs.length > 0) lines.push(`Референсы: ${refs.length} шт.`);
+  if (refs.length > 0) lines.push(`📎 Референсы: ${refs.length} шт.`);
   lines.push('');
   lines.push(
     `Итого: ${formatMinor(order.totalMinor, currency)}, предоплата ${formatMinor(order.prepaymentMinor, currency)}`
@@ -328,13 +328,33 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
 
     const rows = await getDb().select().from(orders).where(eq(orders.id, m[1]!)).limit(1);
     const status = rows[0]?.status ?? 'new';
-    await ctx.port.editMessageTextOrSend(chatId, messageId, card, {
+await ctx.port.editMessageTextOrSend(chatId, messageId, card, {
       keyboard: await orderCardKeyboard(m[1]!, status),
       parseMode: 'HTML',
     });
   });
 
-  
+  bot.callbackQuery(/^adm:ord:msg:([A-Za-z0-9_-]+)$/, async (ctx) => {
+    if (!canAccessOwner(ctx)) {
+      await ctx.port.answerCallback(ctx.callbackQuery.id, ru.ownerCatalog.notOwner);
+      return;
+    }
+    await ctx.port.answerCallback(ctx.callbackQuery.id);
+
+    const m = /^adm:ord:msg:([A-Za-z0-9_-]+)$/.exec(ctx.callbackQuery.data);
+    if (!m) return;
+
+    ctx.sessionState = 'owner.reply_to_customer';
+    ctx.session.ownerDraft = { kind: 'ord_msg', targetId: m[1] };
+
+    const chatId = ctx.callbackQuery.message?.chat.id;
+    const messageId = ctx.callbackQuery.message?.message_id;
+    if (chatId && messageId) {
+      await ctx.port.editMessageTextOrSend(chatId, messageId, '✍️ Напишите сообщение клиенту.', {
+        keyboard: { inline_keyboard: [[{ text: '❌ Отмена', callback_data: 'adm:ord:list' }]] },
+      });
+    }
+  });
 
   bot.callbackQuery(/^adm:ord:refs:(.+)$/, async (ctx) => {
     if (!canAccessOwner(ctx)) {

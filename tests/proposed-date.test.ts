@@ -157,7 +157,7 @@ describe('proposed date', () => {
     expect(rows[0]!.dueDate).toBe(newDate);
     expect(rows[0]!.status).toBe('awaiting_payment');
     const edits = port.getCallsForMethod('editMessageTextOrSend');
-    expect(edits[edits.length - 1]!.args[2]).toBe('Заказ не найден.');
+    expect(edits[edits.length - 1]!.args[2]).toBe('❌ Заказ не найден.');
     expect(tenantId).toBeTruthy();
   });
 });

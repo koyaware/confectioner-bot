@@ -8,7 +8,6 @@ import { and, desc, eq, notInArray } from 'drizzle-orm';
 import { TelegramError } from '../../telegram/port.js';
 import { trackFunnelEvent } from '../middleware/funnel.js';
 import { nanoid } from 'nanoid';
-import { registerDialogHandlers } from './dialog.js';
 
 const TERMINAL_STATUSES = ['rejected', 'cancelled', 'expired', 'completed'] as const;
 
@@ -21,9 +20,8 @@ async function relayToOwner(ctx: BotContextWithSession): Promise<void> {
   if (ctx.sessionState === 'owner.edit_field' || ctx.sessionState === 'owner.reply_to_customer')
     return;
 
-  // Customers reach the owner only through an explicit dialog state
-  // (rel:start / «Ответить мастеру»). Stray messages are removed with a hint.
-  if (ctx.sessionState !== 'relay.compose' && ctx.sessionState !== 'customer.dialog') {
+  // Stray customer messages (not in relay.compose) - delete with hint
+  if (ctx.sessionState !== 'relay.compose') {
     const messageId = ctx.message?.message_id;
     if (messageId && !canAccessOwner(ctx)) {
       try {
@@ -33,7 +31,7 @@ async function relayToOwner(ctx: BotContextWithSession): Promise<void> {
       }
       await ctx.port.sendMessage(ctx.chat!.id, ru.relay.strayHint, {
         keyboard: {
-          inline_keyboard: [[{ text: 'Написать мастеру', callback_data: 'rel:start' }]],
+          inline_keyboard: [[{ text: '✍️ Написать мастеру', callback_data: 'rel:start' }]],
         },
       });
     }
@@ -84,10 +82,10 @@ async function relayToOwner(ctx: BotContextWithSession): Promise<void> {
   const headerKbRows: { text: string; callback_data: string }[][] = [];
   if (activeOrders[0]) {
     headerKbRows.push([
-      { text: 'Ответить клиенту', callback_data: `adm:ord:dialog:${activeOrders[0].id}:${customer.id}` },
+      { text: '✍️ Ответить', callback_data: `adm:ord:msg:${activeOrders[0].id}` },
     ]);
   }
-  headerKbRows.push([{ text: 'Заблокировать', callback_data: `adm:relay:block:${customer.id}` }]);
+  headerKbRows.push([{ text: '🚫 Блокировать', callback_data: `adm:relay:block:${customer.id}` }]);
 
   const customerChatId = ctx.chat!.id;
   const text = ctx.message?.text;
@@ -146,10 +144,7 @@ async function relayToOwner(ctx: BotContextWithSession): Promise<void> {
 }
 
 export function registerRelayHandlers(bot: Bot<BotContextWithSession>): void {
-  // Register new dialog handlers
-  registerDialogHandlers(bot);
-
-  // Legacy block handler
+  // Block handler
   bot.callbackQuery(/^adm:relay:block:(.+)$/, async (ctx) => {
     if (!canAccessOwner(ctx)) {
       await ctx.port.answerCallback(ctx.callbackQuery.id, ru.ownerCatalog.notOwner);
@@ -173,7 +168,7 @@ export function registerRelayHandlers(bot: Bot<BotContextWithSession>): void {
     }
   });
 
-  // Legacy relay.compose (fallback)
+  // Start compose
   bot.callbackQuery(/^rel:start$/, async (ctx) => {
     await ctx.port.answerCallback(ctx.callbackQuery.id);
     ctx.sessionState = 'relay.compose';
@@ -183,7 +178,7 @@ export function registerRelayHandlers(bot: Bot<BotContextWithSession>): void {
     }
   });
 
-  // Handle legacy owner reply (reply to relay message)
+  // Handle owner reply (reply to relay message)
   bot.on('message', async (ctx, next) => {
     if (ctx.sessionState.startsWith('checkout.')) {
       await next();
@@ -193,7 +188,7 @@ export function registerRelayHandlers(bot: Bot<BotContextWithSession>): void {
       await next();
       return;
     }
-    if (canAccessOwner(ctx) && (ctx.sessionState === 'owner.edit_field' || ctx.sessionState === 'owner.reply_to_customer' || ctx.sessionState === 'owner.dialog')) {
+    if (canAccessOwner(ctx) && (ctx.sessionState === 'owner.edit_field' || ctx.sessionState === 'owner.reply_to_customer')) {
       await next();
       return;
     }
@@ -221,15 +216,35 @@ export function registerRelayHandlers(bot: Bot<BotContextWithSession>): void {
         const relay = rows[0];
         if (relay) {
           await ctx.port.copyMessage(relay.customerChatId, ctx.chat.id, ctx.message.message_id);
-          await ctx.port.sendMessage(ctx.chat.id, 'Отправлено клиенту.');
+          await ctx.port.sendMessage(ctx.chat.id, '✅ Отправлено клиенту.');
           return;
         }
       }
     }
 
-    // Stray customer messages (not in dialog) - delete with hint
-    if (!canAccessOwner(ctx) && ctx.sessionState !== 'customer.dialog') {
+    // Customer messages in relay.compose state
+    if (!canAccessOwner(ctx) && ctx.sessionState === 'relay.compose') {
       await relayToOwner(ctx);
+      return;
+    }
+    // Stray customer messages (not in relay.compose) - delete with hint
+    if (!canAccessOwner(ctx) && ctx.sessionState !== 'relay.compose') {
+      const messageId = ctx.message?.message_id;
+      const chatId = ctx.chat?.id;
+      if (messageId && chatId) {
+        try {
+          await ctx.port.deleteMessage(chatId, messageId);
+        } catch {
+          // already gone
+        }
+      }
+      if (chatId) {
+        await ctx.port.sendMessage(chatId, ru.relay.strayHint, {
+          keyboard: {
+            inline_keyboard: [[{ text: '✍️ Написать мастеру', callback_data: 'rel:start' }]],
+          },
+        });
+      }
       return;
     }
 

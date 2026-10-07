@@ -29,6 +29,7 @@ Changelog:
 - v1.22: добавлены callback `adm:set:feat:<name>` / `adm:set:featadd` и таблица `feature_flags` для per-tenant feature-флагов.
 - v1.23: добавлен `TelegramPort.deleteMessage`; callback `my:cancelreason:<orderId>:<code>` / `my:cancelskip:<orderId>`; поле `orders.cancelReason`.
 - v1.24: `serializeMiddleware` — строгая последовательность апдейтов одного чата (защита от гонок сессии при альбомах и быстрых тапах).
+- v1.25: Упрощен relay: удален сложный диалог с историей. Осталась простая схема — клиент пишет через `rel:start` (`relay.compose`), владелец отвечает reply на заголовок/копию. Кнопка `adm:ord:msg` включает `owner.reply_to_customer` на одно сообщение.
 
 Правила изменения этого файла: менять только append-only. Любое изменение контракта (схема БД, типы, callback-данные, джобы, статусы заказа) поднимает версию и записывается в changelog до написания кода, который от него зависит.
 

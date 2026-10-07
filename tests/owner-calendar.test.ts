@@ -65,7 +65,7 @@ describe('owner calendar', () => {
     expect(rows[0]!.capacity).toBe(5); // default preserved
 
     const edits = port.getCallsForMethod('editMessageTextOrSend');
-    expect(edits[edits.length - 1]!.args[2] as string).toContain('Закрыт');
+    expect(edits[edits.length - 1]!.args[2] as string).toContain('🔴 Закрыт');
   });
 
   it('owner sets capacity for a day', async () => {

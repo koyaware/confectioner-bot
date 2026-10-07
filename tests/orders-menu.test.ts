@@ -114,29 +114,27 @@ describe('owner orders callbacks', () => {
     expect(keyboard).toContain('adm:ord:list');
   });
 
-  it('adm:ord:msg opens dialog', async () => {
+  it('adm:ord:msg sets owner reply state', async () => {
     const tenantId = await seedTenantAndCustomer();
     const port = new FakePort();
     const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
 
     await bot.handleUpdate(cb(1, 555, 'adm:ord:msg:o1'));
 
-    // First time opening dialog - should send new message (no previous dialog to edit)
-    const sent = port.getCallsForMethod('sendMessage');
-    expect(sent.length).toBeGreaterThan(0);
-    expect(sent[0]!.args[1] as string).toContain('Диалог с');
+    const edits = port.getCallsForMethod('editMessageTextOrSend');
+    expect(edits.length).toBeGreaterThan(0);
+    expect(edits[0]!.args[2]).toBe('✍️ Напишите сообщение клиенту.');
 
     const rows = await getDb().select().from(sessions);
-    expect(rows[0]!.state).toBe('owner.dialog');
+    expect(rows[0]!.state).toBe('owner.reply_to_customer');
 
     const data = (
       typeof rows[0]!.data === 'string' ? JSON.parse(rows[0]!.data) : rows[0]!.data
     ) as {
-      ownerDraft: { kind: string; targetId: string; extra?: { customerId: string } };
+      ownerDraft: { kind: string; targetId: string };
     };
-    expect(data.ownerDraft.kind).toBe('ord_dialog');
+    expect(data.ownerDraft.kind).toBe('ord_msg');
     expect(data.ownerDraft.targetId).toBe('o1');
-    expect(data.ownerDraft.extra?.customerId).toBeTruthy();
   });
 
   it('adm:ord:refs sends stored reference photos to owner', async () => {
@@ -155,7 +153,7 @@ describe('owner orders callbacks', () => {
 
     await bot.handleUpdate(cb(1, 555, 'adm:ord:view:o1'));
     const edits = port.getCallsForMethod('editMessageTextOrSend');
-    expect(edits[0]!.args[2]).toContain('Референсы: 1 шт.');
+    expect(edits[0]!.args[2]).toContain('📎 Референсы: 1 шт.');
     expect(JSON.stringify(edits[0]!.args[3])).toContain('adm:ord:refs:o1');
 
     await bot.handleUpdate(cb(2, 555, 'adm:ord:refs:o1'));
@@ -196,6 +194,6 @@ describe('owner orders callbacks', () => {
     const rows = await getDb().select().from(orders);
     expect(rows.find((o) => o.id === 'o1')!.status).toBe('new');
     const edits = port.getCallsForMethod('editMessageTextOrSend');
-    expect(edits[0]!.args[2]).toBe('Заказ не найден.');
+    expect(edits[0]!.args[2]).toBe('❌ Заказ не найден.');
   });
 });

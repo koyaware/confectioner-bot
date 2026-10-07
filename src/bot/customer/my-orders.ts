@@ -113,7 +113,7 @@ export function registerMyOrdersHandlers(bot: Bot<BotContextWithSession>): void 
     lines.push(`Получение: ${found.order.fulfillment === 'delivery' ? 'доставка' : 'самовывоз'}`);
     lines.push(`Итого: ${formatMinor(found.order.totalMinor, ctx.tenant.currency)}`);
     if (refs.length > 0) {
-      lines.push(`Референсы: ${refs.length} шт.`);
+      lines.push(`📎 Референсы: ${refs.length} шт.`);
     }
 
     const kbRows: InlineKeyboard['inline_keyboard'] = [];

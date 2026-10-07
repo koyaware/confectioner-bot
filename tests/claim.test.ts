@@ -112,7 +112,7 @@ describe('owner claim', () => {
 
     const sentTexts = port.getCallsForMethod('sendMessage').map((c) => c.args[1] as string);
     expect(sentTexts.some((t) => t.includes('владелец'))).toBe(true);
-    expect(sentTexts.some((t) => t.includes('Меню владельца'))).toBe(true);
+    expect(sentTexts.some((t) => t.includes('⚙️ Меню владельца'))).toBe(true);
 
     const { customers, funnelEvents } = await import('../src/db/schema.js');
     expect(await getDb().select().from(customers)).toHaveLength(0);
@@ -131,7 +131,7 @@ describe('owner claim', () => {
     } as never);
 
     const sentTexts2 = port.getCallsForMethod('sendMessage').map((c) => c.args[1] as string);
-    expect(sentTexts2.some((t) => t.includes('Меню владельца'))).toBe(true);
+    expect(sentTexts2.some((t) => t.includes('⚙️ Меню владельца'))).toBe(true);
   });
 
   it('non-owner gets customer menu from /menu', async () => {
@@ -152,7 +152,7 @@ describe('owner claim', () => {
     } as never);
 
     const sentTexts = port.getCallsForMethod('sendMessage').map((c) => c.args[1] as string);
-    expect(sentTexts.some((t) => t.includes('Главное меню'))).toBe(true);
-    expect(sentTexts.some((t) => t.includes('Меню владельца'))).toBe(false);
+    expect(sentTexts.some((t) => t.includes('🏠 Главное меню'))).toBe(true);
+    expect(sentTexts.some((t) => t.includes('⚙️ Меню владельца'))).toBe(false);
   });
 });

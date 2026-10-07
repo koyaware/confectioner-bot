@@ -107,7 +107,7 @@ describe('my orders', () => {
     // user 43 cannot view order directly
     await bot.handleUpdate(cb(3, 'c3', 43, 10, `my:view:${order.id}`));
     const edits3 = port.getCallsForMethod('editMessageTextOrSend');
-    expect(edits3[2]!.args[2]).toBe('Заказ не найден.');
+    expect(edits3[2]!.args[2]).toBe('❌ Заказ не найден.');
   });
 
   it('customer can cancel own new order; owner is notified', async () => {
@@ -125,7 +125,7 @@ describe('my orders', () => {
 
     const rows = await getDb().select().from(orders);
     expect(rows[0]!.status).toBe('cancelled');
-    expect(rows[0]!.cancelReason).toBe('Поменялись планы');
+    expect(rows[0]!.cancelReason).toBe('📅 Поменялись планы');
 
     const sent = port.getCallsForMethod('sendMessage');
     expect(sent.some((c) => c.args[0] === 555)).toBe(true);
@@ -163,7 +163,7 @@ describe('my orders', () => {
 
     await bot.handleUpdate(cb(1, 'c1', 42, 10, `my:view:${order.id}`));
     const edits = port.getCallsForMethod('editMessageTextOrSend');
-    expect(edits[0]!.args[2]).toContain('Референсы: 1 шт.');
+    expect(edits[0]!.args[2]).toContain('📎 Референсы: 1 шт.');
     expect(JSON.stringify(edits[0]!.args[3])).toContain(`my:refs:${order.id}`);
 
     await bot.handleUpdate(cb(2, 'c2', 42, 10, `my:refs:${order.id}`));
@@ -199,7 +199,7 @@ describe('my orders', () => {
 
     await bot.handleUpdate(cb(1, 'c1', 42, 10, `my:view:${order.id}`));
     const edits = port.getCallsForMethod('editMessageTextOrSend');
-    expect(edits[0]!.args[2]).toBe('Заказ не найден.');
+    expect(edits[0]!.args[2]).toBe('❌ Заказ не найден.');
     expect(tenantId).toBeTruthy();
   });
 });

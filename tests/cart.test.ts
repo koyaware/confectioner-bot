@@ -67,7 +67,7 @@ describe('cart', () => {
 
     await bot.handleUpdate(cb(4, 'c4', 42, 10, addBtn));
     expect(port.getCallsForMethod('answerCallback').map((c) => c.args[1])).toContain(
-      'Добавлено в корзину.'
+      '✅ Добавлено в корзину.'
     );
 
     // cart persisted
