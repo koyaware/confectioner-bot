@@ -512,7 +512,7 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
             parseMode: 'HTML',
           });
         }
-        await notifyCustomer(ctx.port, rest, (n) => `Заказ №${n} готов!`);
+        await notifyCustomer(ctx.port, rest, (n) => `Заказ №${n} готов! Ожидайте, мастер скоро свяжется с вами для согласования выдачи.`);
         return;
       }
 

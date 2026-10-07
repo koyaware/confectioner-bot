@@ -7,7 +7,7 @@ import { orders, customers } from '../../db/schema.js';
 import { and, desc, eq, notInArray } from 'drizzle-orm';
 import { escapeHtml } from '../../domain/escape.js';
 import { trackFunnelEvent } from '../middleware/funnel.js';
-import { InlineKeyboard } from '../../telegram/port.js';
+import { InlineKeyboard as PortInlineKeyboard } from '../../telegram/port.js';
 import { nanoid } from 'nanoid';
 
 const MAX_HISTORY = 20;
@@ -49,7 +49,7 @@ function formatHistory(history: DialogMessage[]): string {
     .join('\n\n');
 }
 
-function dialogKeyboard(isOwner: boolean, orderId: string): InlineKeyboard {
+function dialogKeyboard(isOwner: boolean, orderId: string): PortInlineKeyboard {
   const backCallback = isOwner ? `adm:ord:view:${orderId}` : 'my:list';
   return {
     inline_keyboard: [
@@ -61,7 +61,7 @@ function dialogKeyboard(isOwner: boolean, orderId: string): InlineKeyboard {
 async function showDialogScreen(
   ctx: BotContextWithSession,
   text: string,
-  keyboard: InlineKeyboard,
+  keyboard: PortInlineKeyboard,
   isOwner: boolean,
   orderId: string
 ): Promise<number | null> {
@@ -112,6 +112,33 @@ function appendToDialog(
     history.push(message);
     if (history.length > MAX_HISTORY) history.shift();
   }
+}
+
+async function updateOwnerDialogScreen(
+  ctx: BotContextWithSession,
+  orderId: string,
+  customerId: string,
+  customer: { firstName?: string | null; username?: string | null },
+  order: { number: number }
+): Promise<void> {
+  const key = getDialogKey(orderId, customerId);
+  const dlg = getOwnerDialog(ctx, key);
+  const historyText = formatHistory(dlg.history);
+  const header = `💬 Диалог с ${customer.firstName ?? 'Гость'}${customer.username ? ` (@${customer.username})` : ''}, заказ №${order.number}`;
+  const text = `${header}\n\n${historyText}\n\n—\nНапишите сообщение:`;
+  await showDialogScreen(ctx, text, dialogKeyboard(true, orderId), true, orderId);
+}
+
+async function updateCustomerDialogScreen(
+  ctx: BotContextWithSession,
+  orderId: string,
+  orderNumber: number
+): Promise<void> {
+  const history = getCustomerDialog(ctx);
+  const historyText = formatHistory(history);
+  const header = `💬 Диалог по заказу №${orderNumber}`;
+  const text = `${header}\n\n${historyText}\n\n—\nНапишите сообщение мастеру:`;
+  await showDialogScreen(ctx, text, dialogKeyboard(false, orderId), false, orderId);
 }
 
 async function openOwnerDialog(
@@ -195,41 +222,65 @@ async function handleOwnerDialogMessage(ctx: BotContextWithSession): Promise<boo
     return false;
   }
 
+  // Add to both owner's and customer's history
   appendToDialog(ctx, orderId, customerId, message, true);
+  // Also add to customer's history if they have dialog open
+  // We'll update customer's screen below
 
-  // Send to customer
+  // Update owner's dialog screen
+  await updateOwnerDialogScreen(ctx, orderId, customerId, customer, order);
+
+  // Update customer's dialog screen (single-screen: edit their dialog message)
   const replyKb = { inline_keyboard: [[{ text: 'Ответить мастеру', callback_data: `rel:dialog:${orderId}` }]] };
-  let sentToCustomer = false;
   try {
-    if (message.type === 'text') {
-      await ctx.port.sendMessage(customer.telegramId, message.text, { keyboard: replyKb });
-      sentToCustomer = true;
-    } else if (message.type === 'photo') {
-      await ctx.port.sendPhoto(customer.telegramId, message.fileId!, message.text, { keyboard: replyKb });
-      sentToCustomer = true;
-    } else if (message.type === 'document') {
-      await ctx.port.sendDocument(customer.telegramId, message.fileId!, message.text, { keyboard: replyKb });
-      sentToCustomer = true;
+    // Send a notification to customer's chat, but also update their dialog screen
+    const customerChatId = customer.telegramId;
+    const history = getCustomerDialog(ctx);
+    // Add owner's message to customer's history
+    history.push(message);
+    if (history.length > MAX_HISTORY) history.shift();
+
+    const customerHistoryText = formatHistory(history);
+    const customerHeader = `💬 Диалог по заказу №${order.number}`;
+    const customerText = `${customerHeader}\n\n${customerHistoryText}\n\n—\nНапишите сообщение мастеру:`;
+
+    // Update customer's dialog screen if they have one open
+    if (customer.isBlocked || customer.botBlocked) {
+      // Can't send message
+      await ctx.port.sendMessage(ctx.chat!.id, '⚠️ Клиент заблокировал бота. Сообщение не доставлено.');
+    } else {
+      // Try to edit customer's dialog screen
+      const customerDialogMsgId = ctx.session.dialogMessageId;
+      let updated = false;
+      if (customerDialogMsgId) {
+        try {
+          await ctx.port.editMessageTextOrSend(customerChatId, customerDialogMsgId, customerText, {
+            keyboard: replyKb,
+            parseMode: 'HTML',
+          });
+          updated = true;
+        } catch {
+          // dialog message not found or can't edit
+        }
+      }
+      if (!updated) {
+        // Send new dialog message to customer
+        const sent = await ctx.port.sendMessage(customerChatId, customerText, {
+          keyboard: replyKb,
+          parseMode: 'HTML',
+        });
+        // Store the dialog message ID for future updates
+        ctx.session.dialogMessageId = sent.messageId;
+      }
     }
   } catch (e) {
     const err = e as { code?: string; description?: string };
     if (err.code === 'BLOCKED' || err.description?.includes('blocked')) {
       const db = getDb();
       await db.update(customers).set({ botBlocked: true }).where(eq(customers.id, customer.id));
+      await ctx.port.sendMessage(ctx.chat!.id, '⚠️ Клиент заблокировал бота.');
     }
-    // Log error but don't fail the handler
   }
-  if (!sentToCustomer) {
-    await ctx.port.sendMessage(ctx.chat!.id, '⚠️ Не удалось отправить сообщение клиенту (возможно, бот заблокирован).');
-  }
-
-  // Update owner's dialog screen
-  const key = getDialogKey(orderId, customerId);
-  const dlg = getOwnerDialog(ctx, key);
-  const historyText = formatHistory(dlg.history);
-  const header = `💬 Диалог с ${customer.firstName ?? 'Гость'}${customer.username ? ` (@${customer.username})` : ''}, заказ №${order.number}`;
-  const text = `${header}\n\n${historyText}\n\n—\nНапишите сообщение:`;
-  await showDialogScreen(ctx, text, dialogKeyboard(true, orderId), true, orderId);
 
   await trackFunnelEvent(ctx, 'free_text');
   return true;
@@ -281,7 +332,11 @@ async function handleCustomerDialogMessage(ctx: BotContextWithSession): Promise<
   const orderId = order?.id ?? '';
   appendToDialog(ctx, orderId, customer.id, message, false);
 
-  // Send to owner
+  // Update customer's dialog screen
+  const orderNumber = order?.number ?? 0;
+  await updateCustomerDialogScreen(ctx, orderId, orderNumber);
+
+  // Send to owner (notification with reply button)
   const ownerId = ctx.tenant.ownerTelegramId;
   if (ownerId) {
     const headerText = order
@@ -306,13 +361,6 @@ async function handleCustomerDialogMessage(ctx: BotContextWithSession): Promise<
       }
     }
   }
-
-  // Update customer's dialog screen
-  const history = getCustomerDialog(ctx);
-  const historyText = formatHistory(history);
-  const header = order ? `💬 Диалог по заказу №${order.number}` : `💬 Диалог с мастером`;
-  const text = `${header}\n\n${historyText}\n\n—\nНапишите сообщение мастеру:`;
-  await showDialogScreen(ctx, text, dialogKeyboard(false, orderId), false, orderId);
 
   await trackFunnelEvent(ctx, 'free_text');
   return true;
@@ -372,7 +420,7 @@ async function handleCustomerDialogStart(ctx: BotContextWithSession): Promise<bo
   const customer = customerRows[0]!;
   if (customer.isBlocked) return false;
 
-  // Find active order (optional - dialog can work without order)
+  // Find active order (optional)
   const activeOrders = await db
     .select({ id: orders.id, number: orders.number })
     .from(orders)
@@ -475,7 +523,6 @@ export function registerDialogHandlers(bot: Bot<BotContextWithSession>): void {
 
   // Back button handlers
   bot.callbackQuery(/^adm:ord:view:/, (ctx) => {
-    // This will be handled by order view handler, but we need to close dialog
     if (!ctx.callbackQuery?.data) return;
     const m = /^adm:ord:view:([A-Za-z0-9_-]+)$/.exec(ctx.callbackQuery.data);
     if (m && ctx.sessionState === 'owner.dialog') {
@@ -483,6 +530,11 @@ export function registerDialogHandlers(bot: Bot<BotContextWithSession>): void {
     }
   });
 
-  }
+  bot.callbackQuery(/^my:list$/, (ctx) => {
+    if (ctx.sessionState === 'customer.dialog') {
+      closeCustomerDialog(ctx);
+    }
+  });
+}
 
 export { openOwnerDialog, openCustomerDialog, closeOwnerDialog, closeCustomerDialog };

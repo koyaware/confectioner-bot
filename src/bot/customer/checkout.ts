@@ -620,7 +620,7 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
     await deleteUserMessage(ctx);
     const arr = ctx.session.checkout?.referenceFileIds ?? [];
     if (arr.length >= 5) {
-      await refreshPhotosScreen(ctx);
+      // Limit reached, silently ignore additional photos
       return;
     }
     arr.push({ fileId: photo.file_id, fileType: 'photo' });
@@ -638,7 +638,7 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
     await deleteUserMessage(ctx);
     const arr = ctx.session.checkout?.referenceFileIds ?? [];
     if (arr.length >= 5) {
-      await refreshPhotosScreen(ctx);
+      // Limit reached, silently ignore additional documents
       return;
     }
     arr.push({ fileId: doc.file_id, fileType: 'document' });
