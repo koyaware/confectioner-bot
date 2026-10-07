@@ -147,6 +147,50 @@ describe('middleware', () => {
       expect(nextCalled).toBe(false);
     });
 
+    it('answers dropped callbacks so the spinner does not hang', async () => {
+      const { antispamMiddleware } = await import('../src/bot/middleware/antispam.js');
+
+      const answered: string[] = [];
+      const ctx: any = {
+        from: { id: 123456 },
+        role: 'customer',
+        callbackQuery: { id: 'cb1' },
+        port: { answerCallback: async (id: string) => void answered.push(id) },
+        session: {
+          cart: { lines: [] },
+          antispam: {
+            windowStart: Math.floor(Date.now() / 1000),
+            count: 25,
+          },
+        },
+        next: () => Promise.resolve(),
+      };
+
+      let nextCalled = false;
+      await antispamMiddleware(ctx, () => {
+        nextCalled = true;
+        return Promise.resolve();
+      });
+
+      expect(nextCalled).toBe(false);
+      expect(answered).toEqual(['cb1']);
+    });
+
+    it('enforces 20/min then silence for 5 minutes', async () => {
+      const { evaluateAntispam } = await import('../src/bot/middleware/antispam.js');
+
+      let state = evaluateAntispam(undefined, 1000).next;
+      for (let i = 1; i < 20; i++) {
+        const decision = evaluateAntispam(state, 1000 + i);
+        expect(decision.allowed).toBe(true);
+        state = decision.next;
+      }
+      const blocked = evaluateAntispam(state, 1020);
+      expect(blocked.allowed).toBe(false);
+      expect(evaluateAntispam(blocked.next, 1020 + 299).allowed).toBe(false);
+      expect(evaluateAntispam(blocked.next, 1020 + 300).allowed).toBe(true);
+    });
+
     it('skips antispam for owners', async () => {
       const { antispamMiddleware } = await import('../src/bot/middleware/antispam.js');
 
