@@ -17,7 +17,6 @@ export const SETTINGS_FIELDS = [
   'paymentDeadlineHours',
   'deliveryFeeMinor',
   'digestHour',
-  'currency',
 ] as const;
 
 export type SettingsField = (typeof SETTINGS_FIELDS)[number];
@@ -71,13 +70,6 @@ export function validateSetting(
       const n = Number(trimmed.replace(/\s/g, '').replace(',', '.'));
       if (!Number.isFinite(n) || n < 0) return { ok: false };
       return { ok: true, value: Math.round(n * 100) };
-    }
-    case 'currency': {
-      const lower = trimmed.toLowerCase();
-      if (['₽', 'руб', 'рубль', 'rub', 'rur'].includes(lower)) return { ok: true, value: '₽' };
-      if (['₸', 'тенге', 'tenge', 'kzt'].includes(lower)) return { ok: true, value: '₸' };
-      if (['uzs', 'узс', 'сум', 'sum', 'uz'].includes(lower)) return { ok: true, value: 'UZS' };
-      return { ok: false };
     }
     default: {
       if (trimmed.length === 0 || trimmed.length > 1000) return { ok: false };

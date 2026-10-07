@@ -102,7 +102,7 @@ describe('my orders', () => {
     // user 43 does not own anything
     await bot.handleUpdate(cb(2, 'c2', 43, 10, 'my:list'));
     const edits2 = port.getCallsForMethod('editMessageTextOrSend');
-    expect(edits2[1]!.args[2]).toBe('У вас пока нет заказов.');
+    expect(edits2[1]!.args[2]).toBe('📋 У вас пока нет заказов.');
 
     // user 43 cannot view order directly
     await bot.handleUpdate(cb(3, 'c3', 43, 10, `my:view:${order.id}`));
@@ -145,7 +145,7 @@ describe('my orders', () => {
     await bot.handleUpdate(cb(3, 'c3', 42, 10, 'my:list'));
 
     const listEdits = port.getCallsForMethod('editMessageTextOrSend');
-    expect(listEdits[listEdits.length - 1]!.args[2]).toBe('У вас пока нет заказов.');
+    expect(listEdits[listEdits.length - 1]!.args[2]).toBe('📋 У вас пока нет заказов.');
   });
 
   it('customer can view stored reference photos', async () => {
