@@ -23,6 +23,9 @@ export class BotRunner {
         await this.startTenant(tenant.id, tenant.slug, tenant.botTokenEnc);
       } catch (error) {
         console.error(`Failed to start bot for tenant ${tenant.slug}:`, error);
+        void this.notifySuperadmin(
+          `Не удалось запустить бота для tenant ${tenant.slug}: ${error instanceof Error ? error.message : String(error)}`
+        );
       }
     }
   }
@@ -38,7 +41,7 @@ export class BotRunner {
 
     const botToken = decrypt(encryptedToken, APP_SECRET);
     const tenantBot = await import('./factory.js').then((m) =>
-      m.createTenantBot(botToken, tenantId, tenantSlug)
+      m.createTenantBot(botToken, tenantId, tenantSlug, undefined, this)
     );
 
     // Get bot info
@@ -67,6 +70,28 @@ export class BotRunner {
 
     this.bots.delete(tenantId);
     console.log(`Stopped bot for tenant ${tenantId}`);
+  }
+
+  /**
+   * Send a notification to superadmin via any running bot
+   */
+  async notifySuperadmin(text: string): Promise<void> {
+    const superadminId = parseInt(process.env.SUPERADMIN_TELEGRAM_ID || '0', 10);
+    if (!superadminId) {
+      return;
+    }
+
+    const [firstBot] = this.getAllBots();
+    if (!firstBot) {
+      console.error(text);
+      return;
+    }
+
+    try {
+      await firstBot.port.sendMessage(superadminId, text.slice(0, 4000));
+    } catch (error) {
+      console.error('Failed to notify superadmin:', error);
+    }
   }
 
   /**

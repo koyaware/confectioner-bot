@@ -38,6 +38,11 @@ async function main() {
       superadminTelegramId: config.superadminTelegramId,
     })
   );
+  scheduler.onJobFailed = async (job, error) => {
+    await runner.notifySuperadmin(
+      `Джоб ${job.type} провалился после ${job.attempts} попыток: ${error}`
+    );
+  };
 
   const shutdown = async () => {
     console.log('Shutting down...');

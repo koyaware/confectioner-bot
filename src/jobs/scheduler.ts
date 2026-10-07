@@ -17,6 +17,11 @@ export class JobScheduler {
   private isRunning = false;
 
   /**
+   * Optional callback to notify when a job permanently fails
+   */
+  public onJobFailed?: (job: Job, error: string) => Promise<void>;
+
+  /**
    * Register a job handler
    */
   registerHandler<T>(type: string, handler: JobHandler<T>): void {
@@ -171,6 +176,12 @@ export class JobScheduler {
       );
 
       // TODO: Notify superadmin of failed job
+      if (this.onJobFailed) {
+        void this.onJobFailed(
+          { ...job, status: 'failed', attempts: nextAttempt, lastError: errorMessage },
+          errorMessage
+        );
+      }
     }
   }
 
