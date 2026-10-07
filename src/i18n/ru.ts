@@ -52,9 +52,14 @@ export const ru = {
     timePrompt: 'К какому времени? Напишите, например «к 15:00». Можно пропустить.',
     fulfillmentPrompt: 'Как получите заказ?',
     addressPrompt: 'Адрес доставки.',
-    contactPrompt:
-      'Контакт для связи: имя и телефон (через запятую) или отправьте контакт Telegram.',
-    contactInvalid: 'Не понял. Напишите так: Иван, +79991234567',
+    contactPrompt: (phoneExample: string) =>
+      `Контакт для связи: имя и телефон (через запятую) или отправьте контакт Telegram. Например: Иван, ${phoneExample}`,
+    contactInvalid: (phoneExample: string) => `Не понял. Напишите так: Иван, ${phoneExample}`,
+    phoneExample: (currency: string) => {
+      if (currency === '₸') return '+77001234567';
+      if (currency === 'UZS') return '+998901234567';
+      return '+79991234567';
+    },
     commentPrompt: 'Надпись на торте или пожелания. Можно пропустить.',
     photosPrompt: 'Пришлите фото-референсы (до 5) или нажмите «Пропустить».',
     photosLimit: 'Максимум 5 файлов.',

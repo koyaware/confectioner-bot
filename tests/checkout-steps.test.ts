@@ -5,7 +5,8 @@ import { migrate } from '../src/db/migrate.js';
 import { seedDemo } from '../src/db/seed.js';
 import { createTenantBot } from '../src/bot/factory.js';
 import { FakePort } from '../src/telegram/fake-port.js';
-import { sessions } from '../src/db/schema.js';
+import { sessions, tenants } from '../src/db/schema.js';
+import { eq } from 'drizzle-orm';
 import { addDays, toIsoDate } from '../src/domain/dates.js';
 
 describe('checkout steps', () => {
@@ -206,5 +207,20 @@ describe('checkout steps', () => {
     await bot.handleUpdate(cb(31, 'c14', 42, 10, `chk:submit:${data.checkout.checkoutId}`));
     const { orders } = await import('../src/db/schema.js');
     expect(await getDb().select().from(orders)).toHaveLength(1);
+  });
+
+  it('contact prompt shows phone example for tenant currency', async () => {
+    const now = new Date();
+    const { tenantId } = await seedDemo(appSecret, now);
+    await getDb().update(tenants).set({ currency: 'UZS' }).where(eq(tenants.id, tenantId));
+    const port = new FakePort();
+    const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
+
+    await setupCartAndCheckout(port, bot);
+    await bot.handleUpdate(msg(20, 42, 'к 15:00'));
+    await bot.handleUpdate(cb(21, 'c8', 42, 10, 'chk:ful:pickup'));
+
+    const sent = port.getCallsForMethod('sendMessage');
+    expect(sent[sent.length - 1]!.args[1] as string).toContain('+998901234567');
   });
 });

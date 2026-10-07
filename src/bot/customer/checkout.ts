@@ -228,7 +228,11 @@ async function showCurrentStep(ctx: BotContextWithSession): Promise<void> {
     }
     case 'checkout.contact': {
       const kb = stepKeyboard();
-      await ctx.port.sendMessage(chatId, ru.checkout.contactPrompt, { keyboard: kb });
+      await ctx.port.sendMessage(
+        chatId,
+        ru.checkout.contactPrompt(ru.checkout.phoneExample(ctx.tenant.currency)),
+        { keyboard: kb }
+      );
       break;
     }
     case 'checkout.comment': {
@@ -524,7 +528,10 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
       case 'checkout.contact': {
         const parsed = parseContact(text);
         if (!parsed) {
-          await ctx.port.sendMessage(ctx.chat.id, ru.checkout.contactInvalid);
+          await ctx.port.sendMessage(
+            ctx.chat.id,
+            ru.checkout.contactInvalid(ru.checkout.phoneExample(ctx.tenant.currency))
+          );
           return;
         }
         ctx.session.checkout!.contactName = parsed.name;
