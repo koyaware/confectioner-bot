@@ -8,8 +8,8 @@ import { applyOrderEvent, getCustomerOrderNumber } from '../../services/orders.j
 import { sendPaymentCard } from '../customer/payment.js';
 import { InlineKeyboard, TelegramPort } from '../../telegram/port.js';
 import { getDb } from '../../db/client.js';
-import { customers, orders, orderItems } from '../../db/schema.js';
-import { eq, asc } from 'drizzle-orm';
+import { customers, orders, orderItems, orderAttachments } from '../../db/schema.js';
+import { and, asc, eq } from 'drizzle-orm';
 import { addDays } from '../../domain/dates.js';
 import { getDateAvailability } from '../../services/dates.js';
 
@@ -39,6 +39,11 @@ export async function buildOrderCardText(
 
   const items = await db.select().from(orderItems).where(eq(orderItems.orderId, orderId));
 
+  const refs = await db
+    .select()
+    .from(orderAttachments)
+    .where(and(eq(orderAttachments.orderId, orderId), eq(orderAttachments.kind, 'reference')));
+
   const lines: string[] = [];
   lines.push(`<b>Заказ №${order.number}</b>`);
   lines.push(`Статус: ${order.status}`);
@@ -57,6 +62,7 @@ export async function buildOrderCardText(
   if (order.address) lines.push(`Адрес: ${escapeHtml(order.address)}`);
   lines.push(`Контакт: ${escapeHtml(order.contactName)}, ${escapeHtml(order.contactPhone)}`);
   if (order.comment) lines.push(`Комментарий: ${escapeHtml(order.comment)}`);
+  if (refs.length > 0) lines.push(`Референсы: ${refs.length} шт.`);
   lines.push('');
   lines.push(
     `Итого: ${formatMinor(order.totalMinor, currency)}, предоплата ${formatMinor(order.prepaymentMinor, currency)}`
@@ -71,7 +77,7 @@ export async function buildOrderCardText(
   return lines.join('\n');
 }
 
-export function orderCardKeyboard(orderId: string, status: string): InlineKeyboard {
+export async function orderCardKeyboard(orderId: string, status: string): Promise<InlineKeyboard> {
   const rows: InlineKeyboard['inline_keyboard'] = [];
   if (status === 'new') {
     rows.push([{ text: 'Принять', callback_data: `adm:ord:accept:${orderId}` }]);
@@ -91,6 +97,13 @@ export function orderCardKeyboard(orderId: string, status: string): InlineKeyboa
   }
   if (['new', 'awaiting_payment', 'payment_review', 'confirmed', 'ready'].includes(status)) {
     rows.push([{ text: 'Написать клиенту', callback_data: `adm:ord:msg:${orderId}` }]);
+  }
+  const refs = await getDb()
+    .select()
+    .from(orderAttachments)
+    .where(and(eq(orderAttachments.orderId, orderId), eq(orderAttachments.kind, 'reference')));
+  if (refs.length > 0) {
+    rows.push([{ text: `Референсы (${refs.length})`, callback_data: `adm:ord:refs:${orderId}` }]);
   }
   rows.push([{ text: 'Назад', callback_data: 'adm:ord:list' }]);
   return { inline_keyboard: rows };
@@ -220,7 +233,7 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
     const rows = await getDb().select().from(orders).where(eq(orders.id, m[1]!)).limit(1);
     const status = rows[0]?.status ?? 'new';
     await ctx.port.editMessageText(chatId, messageId, card, {
-      keyboard: orderCardKeyboard(m[1]!, status),
+      keyboard: await orderCardKeyboard(m[1]!, status),
       parseMode: 'HTML',
     });
   });
@@ -244,6 +257,43 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
       await ctx.port.editMessageText(chatId, messageId, 'Напишите сообщение клиенту.', {
         keyboard: { inline_keyboard: [[{ text: 'Отмена', callback_data: 'adm:ord:list' }]] },
       });
+    }
+  });
+
+  bot.callbackQuery(/^adm:ord:refs:(.+)$/, async (ctx) => {
+    if (!canAccessOwner(ctx)) {
+      await ctx.port.answerCallback(ctx.callbackQuery.id, ru.ownerCatalog.notOwner);
+      return;
+    }
+    await ctx.port.answerCallback(ctx.callbackQuery.id);
+
+    const m = /^adm:ord:refs:(.+)$/.exec(ctx.callbackQuery.data);
+    if (!m) return;
+
+    const db = getDb();
+    const rows = await db.select().from(orders).where(eq(orders.id, m[1]!)).limit(1);
+    const order = rows[0];
+    if (!order || order.tenantId !== ctx.tenant.id) {
+      await ctx.port.answerCallback(ctx.callbackQuery.id, 'Заказ не найден.');
+      return;
+    }
+
+    const refs = await db
+      .select()
+      .from(orderAttachments)
+      .where(and(eq(orderAttachments.orderId, order.id), eq(orderAttachments.kind, 'reference')));
+
+    if (refs.length === 0) {
+      await ctx.port.answerCallback(ctx.callbackQuery.id, 'Референсов нет.');
+      return;
+    }
+
+    for (const ref of refs) {
+      if (ref.fileType === 'photo') {
+        await ctx.port.sendPhoto(ctx.callbackQuery.message!.chat.id, ref.fileId);
+      } else {
+        await ctx.port.sendDocument(ctx.callbackQuery.message!.chat.id, ref.fileId);
+      }
     }
   });
 
@@ -274,7 +324,7 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
         const card = await buildOrderCardText(rest, ctx.tenant.id, ctx.tenant.currency);
         if (card) {
           await ctx.port.editMessageText(chatId, messageId, card, {
-            keyboard: orderCardKeyboard(rest, result.value.status),
+            keyboard: await orderCardKeyboard(rest, result.value.status),
             parseMode: 'HTML',
           });
         }
@@ -338,7 +388,7 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
         const card = await buildOrderCardText(rest, ctx.tenant.id, ctx.tenant.currency);
         if (card) {
           await ctx.port.editMessageText(chatId, messageId, card, {
-            keyboard: orderCardKeyboard(rest, result.value.status),
+            keyboard: await orderCardKeyboard(rest, result.value.status),
             parseMode: 'HTML',
           });
         }
@@ -501,7 +551,7 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
         const card = await buildOrderCardText(orderId, ctx.tenant.id, ctx.tenant.currency);
         if (card) {
           await ctx.port.editMessageText(chatId, messageId, card, {
-            keyboard: orderCardKeyboard(orderId, result.value.status),
+            keyboard: await orderCardKeyboard(orderId, result.value.status),
             parseMode: 'HTML',
           });
         }

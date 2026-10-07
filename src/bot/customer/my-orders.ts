@@ -3,7 +3,7 @@ import { BotContextWithSession } from '../context.js';
 import { ru } from '../../i18n/ru.js';
 import { listCustomerOrders } from '../../services/orders.js';
 import { getDb } from '../../db/client.js';
-import { customers, orders, orderItems } from '../../db/schema.js';
+import { customers, orders, orderItems, orderAttachments } from '../../db/schema.js';
 import { and, eq } from 'drizzle-orm';
 import { formatMinor } from '../../lib/money.js';
 import { escapeHtml } from '../../domain/escape.js';
@@ -73,6 +73,12 @@ export function registerMyOrdersHandlers(bot: Bot<BotContextWithSession>): void 
     }
 
     const items = await db.select().from(orderItems).where(eq(orderItems.orderId, found.order.id));
+    const refs = await db
+      .select()
+      .from(orderAttachments)
+      .where(
+        and(eq(orderAttachments.orderId, found.order.id), eq(orderAttachments.kind, 'reference'))
+      );
     const lines: string[] = [];
     lines.push(
       `<b>Заказ №${(await getCustomerOrderNumber(found.order.id)) ?? found.order.number}</b>`
@@ -88,8 +94,16 @@ export function registerMyOrdersHandlers(bot: Bot<BotContextWithSession>): void 
     );
     lines.push(`Получение: ${found.order.fulfillment === 'delivery' ? 'доставка' : 'самовывоз'}`);
     lines.push(`Итого: ${formatMinor(found.order.totalMinor, ctx.tenant.currency)}`);
+    if (refs.length > 0) {
+      lines.push(`Референсы: ${refs.length} шт.`);
+    }
 
     const kbRows: InlineKeyboard['inline_keyboard'] = [];
+    if (refs.length > 0) {
+      kbRows.push([
+        { text: `Референсы (${refs.length})`, callback_data: `my:refs:${found.order.id}` },
+      ]);
+    }
     if (found.order.status === 'new' || found.order.status === 'awaiting_payment') {
       kbRows.push([{ text: 'Отменить заказ', callback_data: `my:cancel:${found.order.id}` }]);
     }
@@ -99,6 +113,46 @@ export function registerMyOrdersHandlers(bot: Bot<BotContextWithSession>): void 
       keyboard: { inline_keyboard: kbRows },
       parseMode: 'HTML',
     });
+  });
+
+  bot.callbackQuery(/^my:refs:(.+)$/, async (ctx) => {
+    await ctx.port.answerCallback(ctx.callbackQuery.id);
+
+    const m = /^my:refs:(.+)$/.exec(ctx.callbackQuery.data);
+    if (!m) return;
+
+    const chatId = ctx.callbackQuery.message?.chat.id;
+    if (!chatId) return;
+
+    const db = getDb();
+    const rows = await db
+      .select({ order: orders, customer: customers })
+      .from(orders)
+      .innerJoin(customers, eq(orders.customerId, customers.id))
+      .where(and(eq(orders.id, m[1]!), eq(customers.telegramId, ctx.from.id)))
+      .limit(1);
+    const found = rows[0];
+    if (!found) return;
+
+    const refs = await db
+      .select()
+      .from(orderAttachments)
+      .where(
+        and(eq(orderAttachments.orderId, found.order.id), eq(orderAttachments.kind, 'reference'))
+      );
+
+    if (refs.length === 0) {
+      await ctx.port.answerCallback(ctx.callbackQuery.id, 'Референсов нет.');
+      return;
+    }
+
+    for (const ref of refs) {
+      if (ref.fileType === 'photo') {
+        await ctx.port.sendPhoto(chatId, ref.fileId);
+      } else {
+        await ctx.port.sendDocument(chatId, ref.fileId);
+      }
+    }
   });
 
   bot.callbackQuery(/^my:cancel:(.+)$/, async (ctx) => {

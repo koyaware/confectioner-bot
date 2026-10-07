@@ -76,7 +76,7 @@ async function notifyOwnerOfOrder(ctx: BotContextWithSession, orderId: string): 
   const text = await buildOrderCardText(orderId, ctx.tenant.id, ctx.tenant.currency);
   if (!text) return;
   await ctx.port.sendMessage(ownerId, text, {
-    keyboard: orderCardKeyboard(orderId, 'new'),
+    keyboard: await orderCardKeyboard(orderId, 'new'),
     parseMode: 'HTML',
   });
 }

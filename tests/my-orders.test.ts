@@ -6,7 +6,7 @@ import { seedDemo } from '../src/db/seed.js';
 import { createTenantBot } from '../src/bot/factory.js';
 import { FakePort } from '../src/telegram/fake-port.js';
 import { createOrder } from '../src/services/orders.js';
-import { tenants, customers, orders } from '../src/db/schema.js';
+import { tenants, customers, orders, orderAttachments } from '../src/db/schema.js';
 import { eq } from 'drizzle-orm';
 import { addDays, toIsoDate } from '../src/domain/dates.js';
 
@@ -124,5 +124,30 @@ describe('my orders', () => {
 
     const edits = port.getCallsForMethod('editMessageText');
     expect(edits[1]!.args[2]).toBe('У вас пока нет заказов.');
+  });
+
+  it('customer can view stored reference photos', async () => {
+    const { tenantId, order } = await setup();
+    await getDb().insert(orderAttachments).values({
+      id: 'a1',
+      orderId: order.id,
+      kind: 'reference',
+      fileId: 'file-1',
+      fileType: 'photo',
+      createdAt: now,
+    });
+    const port = new FakePort();
+    const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
+
+    await bot.handleUpdate(cb(1, 'c1', 42, 10, `my:view:${order.id}`));
+    const edits = port.getCallsForMethod('editMessageText');
+    expect(edits[0]!.args[2]).toContain('Референсы: 1 шт.');
+    expect(JSON.stringify(edits[0]!.args[3])).toContain(`my:refs:${order.id}`);
+
+    await bot.handleUpdate(cb(2, 'c2', 42, 10, `my:refs:${order.id}`));
+    const photos = port.getCallsForMethod('sendPhoto');
+    expect(photos).toHaveLength(1);
+    expect(photos[0]!.args[0]).toBe(42);
+    expect(photos[0]!.args[1]).toBe('file-1');
   });
 });

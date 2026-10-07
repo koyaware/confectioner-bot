@@ -1,6 +1,6 @@
 # ТЗ: Telegram-бот приема заказов для кондитеров
 
-**Версия ядра: v1.16**
+**Версия ядра: v1.17**
 
 Changelog:
 
@@ -21,6 +21,7 @@ Changelog:
 - v1.14: перенесён пилот 6.5 в Stage 9.1, бот не готов к использованию до полного закрытия Stage 8.
 - v1.15: в контракты воздействия на карточку добавлены `cart:open:<lineId>` и `prd:qty:inc/dec:<lineId>`; add в корзину теперь отвечает toast-ом и остаётся в карточке кнопка «Перейти в корзину».
 - v1.16: подтверждён callback `adm:ord:datepage:<orderId>:<YYYY-MM>` для листания месяца при «Другой дате»; сообщения клиенту используют локальный номер заказа.
+- v1.17: добавлены callback `my:refs:<orderId>` и `adm:ord:refs:<orderId>` для просмотра референсов заказа.
 
 Правила изменения этого файла: менять только append-only. Любое изменение контракта (схема БД, типы, callback-данные, джобы, статусы заказа) поднимает версию и записывается в changelog до написания кода, который от него зависит.
 
@@ -696,6 +697,7 @@ export interface TelegramPort {
 | `my:list` / `my:view:<orderId>`                                                                         | мои заказы                                                           |
 | `nav:menu`                                                                                              | главное меню текущей роли                                            |
 | `my:cancel:<orderId>`                                                                                   | отмена клиентом (только `new`, `awaiting_payment`)                   |
+| `my:refs:<orderId>`                                                                                     | показать референсы своего заказа                                     |
 | `pay:sent:<orderId>`                                                                                    | «я оплатил», ждем чек                                                |
 | `faq:list` / `faq:view:<faqId>`                                                                         | FAQ                                                                  |
 | `rel:start`                                                                                             | «Написать мастеру»                                                   |
@@ -703,6 +705,7 @@ export interface TelegramPort {
 | `adm:ord:list`                                                                                          | список последних заказов владельца                                   |
 | `adm:ord:view:<orderId>`                                                                                | карточка заказа в режиме владельца                                   |
 | `adm:ord:msg:<orderId>`                                                                                 | написать клиенту                                                     |
+| `adm:ord:refs:<orderId>`                                                                                | показать референсы заказа владельцу                                  |
 | `adm:ord:reject:<orderId>` / `adm:ord:rr:<orderId>:<reasonCode>`                                        | отклонить, код причины                                               |
 | `adm:ord:date:<orderId>` / `adm:ord:pd:<orderId>:<YYYY-MM-DD>` / `adm:ord:datepage:<orderId>:<YYYY-MM>` | предложить дату; сетка; листание месяца                              |
 | `adm:ord:paid:<orderId>` / `adm:ord:badpay:<orderId>`                                                   | оплата верна, оплата неверна                                         |
