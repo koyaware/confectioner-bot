@@ -56,7 +56,9 @@ describe('createTenant', () => {
     expect(decrypt(row.botTokenEnc, appSecret)).toBe('123:abc');
     expect(row.claimCodeHash).toBe(hash(`claim_${result.value.claimCode}`));
     expect(row.claimCodeHash).not.toContain(result.value.claimCode);
-    expect(result.value.claimLink).toBe(`https://t.me/cakeshop_bot?start=claim_${result.value.claimCode}`);
+    expect(result.value.claimLink).toBe(
+      `https://t.me/cakeshop_bot?start=claim_${result.value.claimCode}`
+    );
   });
 
   it('sets claim expiry to 24 hours from creation', async () => {

@@ -138,13 +138,15 @@ describe('catalog flow', () => {
     const { bot } = createTenantBot('123:fake', tenantId, 'demo', port);
 
     // simulate an in-progress checkout state in DB
-    await getDb().insert(sessions).values({
-      tenantId,
-      telegramId: 42,
-      state: 'checkout.date',
-      data: JSON.stringify({ cart: { lines: [] } }),
-      updatedAt: new Date(),
-    });
+    await getDb()
+      .insert(sessions)
+      .values({
+        tenantId,
+        telegramId: 42,
+        state: 'checkout.date',
+        data: JSON.stringify({ cart: { lines: [] } }),
+        updatedAt: new Date(),
+      });
 
     await bot.handleUpdate(messageUpdate('/start'));
 

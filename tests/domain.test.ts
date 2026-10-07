@@ -5,8 +5,16 @@ import { escapeHtml } from '../src/domain/escape.js';
 
 const callbackArb = fc.oneof(
   fc.constant({ ns: 'cat' as const, action: 'list' as const }),
-  fc.record({ ns: fc.constant('cat' as const), action: fc.constant('open' as const), arg: fc.stringMatching(/^[A-Za-z0-9_-]{1,21}$/) }),
-  fc.record({ ns: fc.constant('prd' as const), action: fc.constant('open' as const), arg: fc.stringMatching(/^[A-Za-z0-9_-]{1,21}$/) })
+  fc.record({
+    ns: fc.constant('cat' as const),
+    action: fc.constant('open' as const),
+    arg: fc.stringMatching(/^[A-Za-z0-9_-]{1,21}$/),
+  }),
+  fc.record({
+    ns: fc.constant('prd' as const),
+    action: fc.constant('open' as const),
+    arg: fc.stringMatching(/^[A-Za-z0-9_-]{1,21}$/),
+  })
 );
 
 describe('callback codec', () => {

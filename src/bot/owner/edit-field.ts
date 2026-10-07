@@ -3,6 +3,16 @@ import { BotContextWithSession } from '../context.js';
 import { ru } from '../../i18n/ru.js';
 import * as editor from '../../services/catalog-editor.js';
 import { createFaq, updateFaq } from '../../services/faq.js';
+import {
+  validateSetting,
+  updateTenantSetting,
+  SettingsField,
+  SETTINGS_FIELDS,
+} from '../../services/settings.js';
+
+const tenantFieldCheck: Record<string, true> = Object.fromEntries(
+  SETTINGS_FIELDS.map((f) => [f, true])
+);
 
 function parsePriceRubles(s: string): number | null {
   const m = /^(\d+)([.,](\d{1,2}))?$/.exec(s.trim());
@@ -167,6 +177,21 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
           await updateFaq(ctx.tenant.id, draft.targetId, { answer: text });
         }
         await ctx.port.sendMessage(ctx.chat.id, ru.ownerCatalog.saved);
+        return;
+      }
+      case 'set_field': {
+        const field = draft.extra?.field;
+        if (field && field in tenantFieldCheck) {
+          const result = validateSetting(field as SettingsField, text);
+          if (!result.ok) {
+            ctx.sessionState = 'owner.edit_field';
+            ctx.session.ownerDraft = draft;
+            await ctx.port.sendMessage(ctx.chat.id, ru.ownerSettings.badValue);
+            return;
+          }
+          await updateTenantSetting(ctx.tenant.id, field as SettingsField, result.value);
+        }
+        await ctx.port.sendMessage(ctx.chat.id, ru.ownerSettings.saved);
         return;
       }
     }

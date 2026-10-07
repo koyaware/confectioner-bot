@@ -29,7 +29,7 @@ const callbackSchema = z.union([
   z.object({ ns: z.literal('faq'), action: z.literal('view'), arg: idSchema }),
   z.object({
     ns: z.literal('adm'),
-    area: z.enum(['cat', 'prd', 'faq']),
+    area: z.enum(['cat', 'prd', 'faq', 'set']),
     action: admActionSchema,
     arg: idSchema.optional(),
     arg2: z.string().min(1).max(32).optional(),
