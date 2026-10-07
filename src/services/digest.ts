@@ -5,12 +5,20 @@ import { and, eq, gte, inArray, lte } from 'drizzle-orm';
 import { createJob } from '../jobs/create.js';
 import { OrderStatus } from '../types.js';
 
+export interface DigestOrder {
+  id: string;
+  number: number;
+  status: string;
+}
+
 export interface DigestSummary {
   date: string;
   todayCount: number;
   tomorrowCount: number;
   awaitingDecisionCount: number;
   awaitingPaymentCount: number;
+  today: DigestOrder[];
+  tomorrow: DigestOrder[];
 }
 
 const ACTIVE_STATUSES: OrderStatus[] = [
@@ -24,7 +32,12 @@ const ACTIVE_STATUSES: OrderStatus[] = [
 export async function computeDigest(tenantId: string, dateIso: string): Promise<DigestSummary> {
   const db = getDb();
   const rows = await db
-    .select({ status: orders.status, dueDate: orders.dueDate })
+    .select({
+      id: orders.id,
+      number: orders.number,
+      status: orders.status,
+      dueDate: orders.dueDate,
+    })
     .from(orders)
     .where(
       and(
@@ -36,8 +49,14 @@ export async function computeDigest(tenantId: string, dateIso: string): Promise<
     );
 
   const tomorrow = addDays(dateIso, 1);
-  const todayCount = rows.filter((r) => r.dueDate === dateIso).length;
-  const tomorrowCount = rows.filter((r) => r.dueDate === tomorrow).length;
+  const today = rows
+    .filter((r) => r.dueDate === dateIso)
+    .map((r) => ({ id: r.id, number: r.number, status: r.status }));
+  const tomorrowRows = rows
+    .filter((r) => r.dueDate === tomorrow)
+    .map((r) => ({ id: r.id, number: r.number, status: r.status }));
+  const todayCount = today.length;
+  const tomorrowCount = tomorrowRows.length;
   const allActive = await db
     .select({ status: orders.status })
     .from(orders)
@@ -54,6 +73,8 @@ export async function computeDigest(tenantId: string, dateIso: string): Promise<
     tomorrowCount,
     awaitingDecisionCount,
     awaitingPaymentCount,
+    today,
+    tomorrow: tomorrowRows,
   };
 }
 
@@ -80,12 +101,15 @@ export async function ensureDailyDigestJobs(now: Date = new Date()): Promise<voi
 }
 
 export function formatDigest(summary: DigestSummary): string {
-  return [
+  const lines = [
     `<b>Сводка на ${summary.date}</b>`,
     '',
     `Заказов на сегодня: ${summary.todayCount}`,
+    ...summary.today.map((o) => `  • №${o.number} — ${o.status}`),
     `Заказов на завтра: ${summary.tomorrowCount}`,
+    ...summary.tomorrow.map((o) => `  • №${o.number} — ${o.status}`),
     `Без решения: ${summary.awaitingDecisionCount}`,
     `Ждут оплаты: ${summary.awaitingPaymentCount}`,
-  ].join('\n');
+  ];
+  return lines.join('\n');
 }

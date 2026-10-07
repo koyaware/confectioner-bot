@@ -99,6 +99,8 @@ describe('daily digest', () => {
     expect(d.tomorrowCount).toBe(1);
     expect(d.awaitingDecisionCount).toBe(1);
     expect(d.awaitingPaymentCount).toBe(1);
+    expect(d.today.map((o) => o.number)).toEqual([1]);
+    expect(d.tomorrow.map((o) => o.number)).toEqual([2]);
   });
 
   it('ensureDailyDigestJobs creates one deduped job for today', async () => {
@@ -113,6 +115,26 @@ describe('daily digest', () => {
 
   it('handler sends digest and is syntactically HTML formatted', async () => {
     const tenantId = await setup();
+    const db = getDb();
+    const { orders } = await import('../src/db/schema.js');
+    await db.insert(orders).values({
+      id: 'o1',
+      tenantId,
+      number: 1,
+      customerId: 'c1',
+      status: 'new',
+      dueDate: '2026-10-02',
+      fulfillment: 'pickup',
+      contactName: 'A',
+      contactPhone: '1',
+      itemsTotalMinor: 10000,
+      totalMinor: 10000,
+      prepaymentMinor: 5000,
+      capacityUnits: 1,
+      idempotencyKey: 'k1',
+      createdAt: now,
+      updatedAt: now,
+    });
     const port = new FakePort();
     const handler = createDailyDigestHandler({ getPort: () => port });
     const result = await handler({ tenantId, date: '2026-10-02' }, 'job1');
@@ -121,6 +143,8 @@ describe('daily digest', () => {
     expect(sent).toHaveLength(1);
     expect(sent[0]!.args[0]).toBe(555);
     expect(sent[0]!.args[1]).toContain('Сводка на 2026-10-02');
+    expect(sent[0]!.args[1]).toContain('№1');
+    expect(JSON.stringify(sent[0]!.args[2])).toContain('adm:ord:view:o1');
   });
 
   it('owner BLOCKED is terminal, not retried', async () => {

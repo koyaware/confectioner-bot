@@ -35,7 +35,11 @@ export function createDailyDigestHandler(ports: {
 
     const summary = await computeDigest(tenant.id, parsed.data.date);
     try {
+      const orderButtons = [...summary.today, ...summary.tomorrow]
+        .slice(0, 10)
+        .map((o) => [{ text: `Заказ №${o.number}`, callback_data: `adm:ord:view:${o.id}` }]);
       await port.sendMessage(tenant.ownerTelegramId, formatDigest(summary), {
+        keyboard: orderButtons.length > 0 ? { inline_keyboard: orderButtons } : undefined,
         parseMode: 'HTML',
       });
     } catch (error) {
