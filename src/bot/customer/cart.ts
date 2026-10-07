@@ -11,6 +11,9 @@ import { CartLine } from '../../types.js';
 import { nanoid } from 'nanoid';
 import { trackFunnelEvent } from '../middleware/funnel.js';
 import { resolveSelections, renderProductCard } from './product-card.js';
+import { getDateAvailability } from '../../services/dates.js';
+import { calendarKeyboard } from './checkout.js';
+import { addDays, toIsoDate } from '../../domain/dates.js';
 
 async function cartKeyboard(
   ctx: BotContextWithSession
@@ -208,6 +211,23 @@ export function registerCartHandlers(bot: Bot<BotContextWithSession>): void {
     };
     ctx.sessionState = 'checkout.date';
 
-    await ctx.port.sendMessage(ctx.callbackQuery.message!.chat.id, ru.checkout.startMsg);
+    const chatId = ctx.callbackQuery.message!.chat.id;
+    const today = toIsoDate(new Date(), ctx.tenant.timezone);
+    const monthStart = `${today.slice(0, 7)}-01`;
+    const monthEnd = addDays(addDays(monthStart, 32).slice(0, 8) + '01', -1);
+    const availability = await getDateAvailability(
+      ctx.tenant.id,
+      monthStart,
+      monthEnd,
+      ctx.session.cart,
+      new Date()
+    );
+    await ctx.port.sendMessage(chatId, `${ru.checkout.dateTitle}\n${ru.checkout.dateLegend}`, {
+      keyboard: calendarKeyboard(
+        availability,
+        Number(today.slice(0, 4)),
+        Number(today.slice(5, 7))
+      ),
+    });
   });
 }

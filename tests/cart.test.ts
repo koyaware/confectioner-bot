@@ -81,8 +81,12 @@ describe('cart', () => {
     expect(edits[edits.length - 1]!.args[2] as string).toContain('Итого');
 
     // inc then dec back, then dec removes line
-    const incBtn = JSON.stringify(edits[edits.length - 1]!.args[3]).match(/cart:inc:[A-Za-z0-9_-]+/);
-    const decBtn = JSON.stringify(edits[edits.length - 1]!.args[3]).match(/cart:dec:[A-Za-z0-9_-]+/);
+    const incBtn = JSON.stringify(edits[edits.length - 1]!.args[3]).match(
+      /cart:inc:[A-Za-z0-9_-]+/
+    );
+    const decBtn = JSON.stringify(edits[edits.length - 1]!.args[3]).match(
+      /cart:dec:[A-Za-z0-9_-]+/
+    );
     await bot.handleUpdate(cb(6, 'c6', 42, 10, incBtn![0]));
     await bot.handleUpdate(cb(7, 'c7', 42, 10, decBtn![0]));
     await bot.handleUpdate(cb(8, 'c8', 42, 10, decBtn![0]));

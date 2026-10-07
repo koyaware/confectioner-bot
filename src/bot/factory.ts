@@ -15,6 +15,7 @@ import { registerMenuHandler } from './owner/menu.js';
 import { registerOwnerCatalogHandlers } from './owner/catalog-editor.js';
 import { registerFaqHandlers } from './customer/faq.js';
 import { registerCartHandlers } from './customer/cart.js';
+import { registerCheckoutHandlers } from './customer/checkout.js';
 import { registerOwnerFaqHandlers } from './owner/faq-editor.js';
 import { registerEditFieldHandlers } from './owner/edit-field.js';
 import { registerSettingsHandlers } from './owner/settings.js';
@@ -108,6 +109,7 @@ export function createTenantBot(
   registerOwnerCatalogHandlers(bot);
   registerFaqHandlers(bot);
   registerCartHandlers(bot);
+  registerCheckoutHandlers(bot);
   registerOwnerFaqHandlers(bot);
   registerEditFieldHandlers(bot);
   registerSettingsHandlers(bot);
