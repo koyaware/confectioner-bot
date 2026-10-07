@@ -131,9 +131,16 @@ export function registerPaymentHandlers(bot: Bot<BotContextWithSession>): void {
       await next();
       return;
     }
-    const doc = ctx.message.document;
-    if (!doc) return;
-    await handleReceipt(ctx, doc.file_id, 'document');
+    await deleteUserMessage(ctx);
+    const screen = receiptScreen(ctx);
+    if (screen) {
+      await ctx.port.editMessageTextOrSend(
+        screen.chatId,
+        screen.messageId,
+        ru.payment.invalidReceipt,
+        {}
+      );
+    }
   });
 }
 

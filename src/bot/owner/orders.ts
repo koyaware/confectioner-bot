@@ -21,6 +21,18 @@ import { and, desc, eq, inArray } from 'drizzle-orm';
 import { addDays, toIsoDate } from '../../lib/time.js';
 import { getDateAvailability } from '../../services/dates.js';
 
+const OWNER_STATUS_LABELS: Record<string, string> = {
+  new: '🆕 Новый',
+  awaiting_payment: '💳 Ожидает оплаты',
+  payment_review: '📸 Чек на проверке',
+  confirmed: '✅ Подтверждён',
+  ready: '🎂 Готов',
+  completed: '✅ Завершён',
+  rejected: '❌ Отклонён',
+  cancelled: '🚫 Отменён',
+  expired: '⏰ Истёк',
+};
+
 export const REJECT_REASONS: Record<string, string> = ru.ownerOrders.rejectReasons;
 
 export async function buildOrderCardText(
@@ -49,7 +61,7 @@ export async function buildOrderCardText(
 
   const lines: string[] = [];
   lines.push(`<b>Заказ №${order.number}</b>`);
-  lines.push(`Статус: ${order.status}`);
+  lines.push(`Статус: ${OWNER_STATUS_LABELS[order.status] ?? order.status}`);
   lines.push('');
   for (const item of items) {
     const opts = item.optionsSnapshot.map((o) => o.title).join(', ');
@@ -162,7 +174,7 @@ export async function orderCardKeyboard(orderId: string, status: string): Promis
     rows.push([{ text: ru.ownerOrders.cancel, callback_data: `adm:ord:cancel:${orderId}` }]);
   }
   if (['new', 'awaiting_payment', 'payment_review', 'confirmed', 'ready'].includes(status)) {
-    rows.push([{ text: ru.ownerOrders.msg, callback_data: `adm:ord:msg:${orderId}` }]);
+    // msg button removed
   }
   const refs = await getDb()
     .select()
@@ -334,27 +346,7 @@ await ctx.port.editMessageTextOrSend(chatId, messageId, card, {
     });
   });
 
-  bot.callbackQuery(/^adm:ord:msg:([A-Za-z0-9_-]+)$/, async (ctx) => {
-    if (!canAccessOwner(ctx)) {
-      await ctx.port.answerCallback(ctx.callbackQuery.id, ru.ownerCatalog.notOwner);
-      return;
-    }
-    await ctx.port.answerCallback(ctx.callbackQuery.id);
-
-    const m = /^adm:ord:msg:([A-Za-z0-9_-]+)$/.exec(ctx.callbackQuery.data);
-    if (!m) return;
-
-    ctx.sessionState = 'owner.reply_to_customer';
-    ctx.session.ownerDraft = { kind: 'ord_msg', targetId: m[1] };
-
-    const chatId = ctx.callbackQuery.message?.chat.id;
-    const messageId = ctx.callbackQuery.message?.message_id;
-    if (chatId && messageId) {
-      await ctx.port.editMessageTextOrSend(chatId, messageId, '✍️ Напишите сообщение клиенту.', {
-        keyboard: { inline_keyboard: [[{ text: '❌ Отмена', callback_data: 'adm:ord:list' }]] },
-      });
-    }
-  });
+  
 
   bot.callbackQuery(/^adm:ord:refs:(.+)$/, async (ctx) => {
     if (!canAccessOwner(ctx)) {
@@ -526,7 +518,7 @@ await ctx.port.editMessageTextOrSend(chatId, messageId, card, {
             parseMode: 'HTML',
           });
         }
-        await notifyCustomer(ctx.port, rest, (n) => `Заказ №${n} завершён. Спасибо!`);
+        await notifyCustomer(ctx.port, rest, (n) => `✅ Заказ №${n} завершён! Спасибо за заказ, будем рады видеть вас снова! 🍰`);
         return;
       }
 

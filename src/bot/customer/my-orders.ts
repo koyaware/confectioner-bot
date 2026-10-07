@@ -17,27 +17,20 @@ import { sendPaymentCard } from './payment.js';
 import { customerMenuKeyboard } from '../owner/menu.js';
 
 const STATUS_LABELS: Record<string, string> = {
-  new: 'Новый',
-  awaiting_payment: 'Ожидает оплаты',
-  payment_review: 'Чек на проверке',
-  confirmed: 'Подтверждён',
-  ready: 'Готов',
-  completed: 'Завершён',
-  rejected: 'Отклонён',
-  cancelled: 'Отменён',
-  expired: 'Истёк',
+  new: '🆕 Новый',
+  awaiting_payment: '💳 Ожидает оплаты',
+  payment_review: '📸 Чек на проверке',
+  confirmed: '✅ Подтверждён',
+  ready: '🎂 Готов',
+  completed: '✅ Завершён',
+  rejected: '❌ Отклонён',
+  cancelled: '🚫 Отменён',
+  expired: '⏰ Истёк',
 };
 
 export function registerMyOrdersHandlers(bot: Bot<BotContextWithSession>): void {
   bot.callbackQuery(/^my:list$/, async (ctx) => {
     await ctx.port.answerCallback(ctx.callbackQuery.id);
-
-    // Clear dialog state if open
-    if (ctx.sessionState === 'customer.dialog') {
-      ctx.session.dialogHistory = undefined;
-      ctx.session.dialogMessageId = undefined;
-      ctx.sessionState = 'idle';
-    }
 
     const list = await listCustomerOrders(ctx.tenant.id, ctx.from.id);
     const rows: InlineKeyboard['inline_keyboard'] = list.map((o) => [
@@ -339,13 +332,14 @@ await ctx.port.editMessageTextOrSend(
         chatId,
         messageId,
         'Хорошо, ждём нового предложения от мастера.',
-        {}
+        { keyboard: { inline_keyboard: [[{ text: '🔙 Назад', callback_data: 'my:list' }]] } }
       );
       const ownerId = ctx.tenant.ownerTelegramId;
       if (ownerId) {
         await ctx.port.sendMessage(
           ownerId,
-          `Клиент отклонил предложенную дату по заказу №${found.order.number}.`
+          `🚫 Клиент отклонил предложенную дату по заказу №${found.order.number}.`,
+          { keyboard: { inline_keyboard: [[{ text: '👁 Перейти к заказу', callback_data: `adm:ord:view:${found.order.id}` }]] } }
         );
       }
       return;

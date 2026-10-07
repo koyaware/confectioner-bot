@@ -75,7 +75,7 @@ export async function renderProductCard(
       { text: '+', callback_data: `prd:qty:inc:${cartLine.lineId}` },
     ]);
   }
-  rows.push([{ text: 'Перейти в корзину', callback_data: 'cart:show' }]);
+  rows.push([{ text: ru.cart.goToCart, callback_data: 'cart:show' }]);
   rows.push([{ text: ru.catalog.back, callback_data: `cat:open:${product.categoryId}` }]);
 
   await ctx.port.editMessageTextOrSend(chatId, messageId, lines.join('\n'), {

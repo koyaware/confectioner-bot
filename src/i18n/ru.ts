@@ -3,8 +3,8 @@ export const ru = {
     paused: 'Магазин временно приостановлен.',
   },
   start: {
-    greeting: (shopName: string) => `Привет! Я бот магазина «${shopName}». Выберите раздел ниже.`,
-    buttonCatalog: 'Каталог',
+greeting: (shopName: string) => `Привет! Я бот магазина «${shopName}». Выберите раздел ниже.`,
+  buttonCatalog: '📦 Каталог',
     claimSuccess: (shopName: string) =>
       `Готово! Вы теперь владелец магазина «${shopName}». /menu покажет меню владельца.`,
     claimInvalid: 'Ссылка для привязки недействительна.',
@@ -55,6 +55,7 @@ export const ru = {
     clear: '🗑 Очистить',
     added: '✅ Добавлено в корзину.',
     addToCart: '🛒 В корзину',
+    goToCart: '🛒 Перейти в корзину',
   },
   checkout: {
     startMsg: '📅 Оформление заказа: выберите дату получения.',
@@ -116,7 +117,7 @@ export const ru = {
   },
   payment: {
     promptReceipt: '📎 Пришлите фото или файл чека.',
-    invalidReceipt: '❌ Нужно фото или файл чека. Текст, аудио или другой формат не подходят.',
+    invalidReceipt: '❌ Нужно фото чека. Файлы, текст, аудио или другие форматы не подходят.',
     receiptToOwner: (client: string, orderNumber: number, kind: string) =>
       `💳 Клиент ${client} прислал подтверждение оплаты (${kind}), заказ №${orderNumber}`,
     receiptSent: '✅ Чек отправлен мастеру на проверку.',

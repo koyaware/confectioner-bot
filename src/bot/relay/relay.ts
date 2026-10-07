@@ -17,7 +17,7 @@ async function relayToOwner(ctx: BotContextWithSession): Promise<void> {
   if (!ctx.from || canAccessOwner(ctx)) return;
   if (ctx.sessionState.startsWith('checkout.') || ctx.sessionState === 'payment.await_receipt')
     return;
-  if (ctx.sessionState === 'owner.edit_field' || ctx.sessionState === 'owner.reply_to_customer')
+  if (ctx.sessionState === 'owner.edit_field')
     return;
 
   // Stray customer messages (not in relay.compose) - delete with hint
@@ -188,7 +188,7 @@ export function registerRelayHandlers(bot: Bot<BotContextWithSession>): void {
       await next();
       return;
     }
-    if (canAccessOwner(ctx) && (ctx.sessionState === 'owner.edit_field' || ctx.sessionState === 'owner.reply_to_customer')) {
+    if (canAccessOwner(ctx) && ctx.sessionState === 'owner.edit_field') {
       await next();
       return;
     }
