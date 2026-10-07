@@ -3,6 +3,7 @@ import { jobs } from '../db/schema.js';
 import { eq, and, lte } from 'drizzle-orm';
 import { JobHandler, JobResult, Job } from './types.js';
 import { ensureDailyDigestJobs } from '../services/digest.js';
+import { ensureDailyBackupJob } from '../services/backup.js';
 
 const RETRY_DELAYS = [60_000, 300_000, 1_800_000]; // 60s, 300s, 1800s in milliseconds
 const POLL_INTERVAL = 10_000; // 10 seconds
@@ -69,6 +70,7 @@ export class JobScheduler {
 
     try {
       await ensureDailyDigestJobs(now);
+      await ensureDailyBackupJob(now);
 
       // Find pending jobs that are due
       const pendingJobs = await db

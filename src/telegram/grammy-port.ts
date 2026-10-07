@@ -103,6 +103,33 @@ export class GrammyPort implements TelegramPort {
     }
   }
 
+  async sendDocument(
+    chatId: number,
+    document: string | Buffer,
+    caption?: string,
+    opts?: SendOpts
+  ): Promise<SendMessageResult> {
+    try {
+      const keyboard = toGrammyKeyboard(opts?.keyboard);
+      const options: { reply_markup?: InlineKeyboard; parse_mode?: 'HTML'; caption?: string } = {};
+      if (keyboard) {
+        options.reply_markup = keyboard;
+      }
+      if (opts?.parseMode) {
+        options.parse_mode = opts.parseMode;
+      }
+      if (caption) {
+        options.caption = caption;
+      }
+
+      const documentInput = typeof document === 'string' ? document : new InputFile(document);
+      const message = await this.bot.api.sendDocument(chatId, documentInput, options);
+      return { messageId: message.message_id };
+    } catch (error) {
+      throw new TelegramError(fromGrammyError(error), 'Failed to send document', error);
+    }
+  }
+
   async editMessageText(
     chatId: number,
     messageId: number,

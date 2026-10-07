@@ -64,4 +64,14 @@ export interface TelegramPort {
    * Copy a message from one chat to another
    */
   copyMessage(toChatId: number, fromChatId: number, messageId: number): Promise<SendMessageResult>;
+
+  /**
+   * Send a document
+   */
+  sendDocument(
+    chatId: number,
+    document: string | Buffer,
+    caption?: string,
+    opts?: SendOpts
+  ): Promise<SendMessageResult>;
 }

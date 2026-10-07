@@ -9,6 +9,7 @@ import {
 } from './jobs/handlers/order-payment.js';
 import { createPickupReminderHandler } from './jobs/handlers/pickup-reminder.js';
 import { createDailyDigestHandler } from './jobs/handlers/daily-digest.js';
+import { createBackupHandler } from './jobs/handlers/backup.js';
 
 async function main() {
   const config = loadConfig();
@@ -30,6 +31,13 @@ async function main() {
   scheduler.registerHandler('order.expire', createPaymentExpireHandler(ports));
   scheduler.registerHandler('customer.pickup_reminder', createPickupReminderHandler(ports));
   scheduler.registerHandler('owner.daily_digest', createDailyDigestHandler(ports));
+  scheduler.registerHandler(
+    'backup.db',
+    createBackupHandler({
+      getPort: ports.getPort,
+      superadminTelegramId: config.superadminTelegramId,
+    })
+  );
 
   const shutdown = async () => {
     console.log('Shutting down...');

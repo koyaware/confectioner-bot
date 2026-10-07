@@ -47,7 +47,7 @@ export function closeDatabase(): void {
  * Creates a backup of the database
  * Returns the backup as a Buffer
  */
-export function backupDatabase(destinationPath: string): void {
+export async function backupDatabase(destinationPath: string): Promise<void> {
   const source = getSqliteDb();
-  void source.backup(destinationPath);
+  await source.backup(destinationPath);
 }

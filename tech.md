@@ -1,11 +1,12 @@
 # ТЗ: Telegram-бот приема заказов для кондитеров
 
-**Версия ядра: v1.2**
+**Версия ядра: v1.3**
 
 Changelog:
 - v1.0: первая редакция.
 - v1.1: `SessionData` дополнен полем `selections?: Record<string, string[]>` (productId -> выбранные optionId по группам) для выбора опций на карточке товара.
 - v1.2: добавлен callback `adm:relay:block:<customerId>` — блокировка клиента из сообщения-шапки relay.
+- v1.3: `TelegramPort` дополнен `sendDocument` для передачи файлов (бэкапы, документы).
 
 Правила изменения этого файла: менять только append-only. Любое изменение контракта (схема БД, типы, callback-данные, джобы, статусы заказа) поднимает версию и записывается в changelog до написания кода, который от него зависит.
 
@@ -485,6 +486,7 @@ export interface TelegramPort {
   editMessageText(chatId: number, messageId: number, text: string, opts?: SendOpts): Promise<void>;
   answerCallback(callbackQueryId: string, text?: string): Promise<void>;
   copyMessage(toChatId: number, fromChatId: number, messageId: number): Promise<{ messageId: number }>;
+  sendDocument(chatId: number, document: string | Buffer, caption?: string, opts?: SendOpts): Promise<{ messageId: number }>;
 }
 // SendOpts: { keyboard?: InlineKeyboard; parseMode: 'HTML' }. Ошибки: TelegramError { code: TelegramErrorCode }
 ```
