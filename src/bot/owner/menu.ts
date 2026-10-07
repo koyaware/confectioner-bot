@@ -1,11 +1,10 @@
 import { Bot } from 'grammy';
 import { BotContextWithSession } from '../context.js';
-import { ru } from '../../i18n/ru.js';
 import { canAccessOwner } from '../permissions.js';
 import { InlineKeyboard } from '../../telegram/port.js';
 
-export function ownerMenuKeyboard(): InlineKeyboard {
-  const s = ru.menu.ownerSections;
+export function ownerMenuKeyboard(ctx: BotContextWithSession): InlineKeyboard {
+  const s = ctx.t.menu.ownerSections;
   return {
     inline_keyboard: [
       [
@@ -28,15 +27,15 @@ export function ownerMenuKeyboard(): InlineKeyboard {
   };
 }
 
-export function customerMenuKeyboard(): InlineKeyboard {
+export function customerMenuKeyboard(ctx: BotContextWithSession): InlineKeyboard {
   return {
     inline_keyboard: [
-      [{ text: ru.start.buttonCatalog, callback_data: 'cat:list' }],
+      [{ text: ctx.t.start.buttonCatalog, callback_data: 'cat:list' }],
       [
-        { text: ru.cart.button, callback_data: 'cart:show' },
-        { text: ru.my.button, callback_data: 'my:list' },
+        { text: ctx.t.cart.button, callback_data: 'cart:show' },
+        { text: ctx.t.my.button, callback_data: 'my:list' },
       ],
-      [{ text: ru.faq.button, callback_data: 'faq:list' }],
+      [{ text: ctx.t.faq.button, callback_data: 'faq:list' }],
     ],
   };
 }
@@ -53,15 +52,15 @@ export function registerMenuHandler(bot: Bot<BotContextWithSession>): void {
     const isOwner = canAccessOwner(ctx);
 
     if (isOwner) {
-      await ctx.port.sendMessage(ctx.chat.id, ru.menu.ownerTitle, {
-        keyboard: ownerMenuKeyboard(),
+      await ctx.port.sendMessage(ctx.chat.id, ctx.t.menu.ownerTitle, {
+        keyboard: ownerMenuKeyboard(ctx),
         parseMode: 'HTML',
       });
       return;
     }
 
-    await ctx.port.sendMessage(ctx.chat.id, ru.menu.customerTitle, {
-      keyboard: customerMenuKeyboard(),
+    await ctx.port.sendMessage(ctx.chat.id, ctx.t.menu.customerTitle, {
+      keyboard: customerMenuKeyboard(ctx),
       parseMode: 'HTML',
     });
   });
@@ -75,35 +74,35 @@ export function registerMenuHandler(bot: Bot<BotContextWithSession>): void {
     if (!chatId || !messageId) return;
 
     if (canAccessOwner(ctx)) {
-      await ctx.port.editMessageTextOrSend(chatId, messageId, ru.menu.ownerTitle, {
-        keyboard: ownerMenuKeyboard(),
+      await ctx.port.editMessageTextOrSend(chatId, messageId, ctx.t.menu.ownerTitle, {
+        keyboard: ownerMenuKeyboard(ctx),
         parseMode: 'HTML',
       });
       return;
     }
 
-    await ctx.port.editMessageTextOrSend(chatId, messageId, ru.menu.customerTitle, {
-      keyboard: customerMenuKeyboard(),
+    await ctx.port.editMessageTextOrSend(chatId, messageId, ctx.t.menu.customerTitle, {
+      keyboard: customerMenuKeyboard(ctx),
       parseMode: 'HTML',
     });
   });
 
   bot.callbackQuery(/^adm:preview$/, async (ctx) => {
     if (!canAccessOwner(ctx)) {
-      await ctx.port.answerCallback(ctx.callbackQuery.id, ru.ownerCatalog.notOwner);
+      await ctx.port.answerCallback(ctx.callbackQuery.id, ctx.t.ownerCatalog.notOwner);
       return;
     }
     await ctx.port.answerCallback(ctx.callbackQuery.id);
 
-    const greeting = ctx.tenant.greetingText ?? ru.start.greeting(ctx.tenant.shopName);
+    const greeting = ctx.tenant.greetingText ?? ctx.t.start.greeting(ctx.tenant.shopName);
     const keyboard: InlineKeyboard = {
       inline_keyboard: [
-        [{ text: ru.start.buttonCatalog, callback_data: 'cat:list' }],
+        [{ text: ctx.t.start.buttonCatalog, callback_data: 'cat:list' }],
         [
-          { text: ru.cart.button, callback_data: 'cart:show' },
-          { text: ru.my.button, callback_data: 'my:list' },
+          { text: ctx.t.cart.button, callback_data: 'cart:show' },
+          { text: ctx.t.my.button, callback_data: 'my:list' },
         ],
-        [{ text: ru.faq.button, callback_data: 'faq:list' }],
+        [{ text: ctx.t.faq.button, callback_data: 'faq:list' }],
         [{ text: 'Назад', callback_data: 'adm:menu' }],
       ],
     };
@@ -120,7 +119,7 @@ export function registerMenuHandler(bot: Bot<BotContextWithSession>): void {
 
   bot.callbackQuery(/^adm:menu$/, async (ctx) => {
     if (!canAccessOwner(ctx)) {
-      await ctx.port.answerCallback(ctx.callbackQuery.id, ru.ownerCatalog.notOwner);
+      await ctx.port.answerCallback(ctx.callbackQuery.id, ctx.t.ownerCatalog.notOwner);
       return;
     }
     await ctx.port.answerCallback(ctx.callbackQuery.id);
@@ -129,9 +128,9 @@ export function registerMenuHandler(bot: Bot<BotContextWithSession>): void {
     const messageId = ctx.callbackQuery.message?.message_id;
     if (!chatId || !messageId) return;
 
-    await ctx.port.editMessageTextOrSend(chatId, messageId, ru.menu.ownerTitle, {
-      keyboard: ownerMenuKeyboard(),
-      parseMode: 'HTML',
-    });
+await ctx.port.editMessageTextOrSend(chatId, messageId, ctx.t.menu.ownerTitle, {
+        keyboard: ownerMenuKeyboard(ctx),
+        parseMode: 'HTML',
+      });
   });
 }

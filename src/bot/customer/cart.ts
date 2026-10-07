@@ -1,7 +1,6 @@
 import { Bot } from 'grammy';
 import { BotContextWithSession } from '../context.js';
 import { decodeCallback } from '../callbacks.js';
-import { ru } from '../../i18n/ru.js';
 import { escapeHtml } from '../../domain/escape.js';
 import { formatMinor } from '../../lib/money.js';
 import { getProductById, listProductOptions } from '../../services/catalog.js';
@@ -61,14 +60,14 @@ async function cartKeyboard(
   }
 
   if (lines.length === 0) {
-    return { text: ru.cart.empty, rows: [[{ text: 'В меню', callback_data: 'nav:menu' }]] };
+    return { text: ctx.t.cart.empty, rows: [[{ text: 'В меню', callback_data: 'nav:menu' }]] };
   }
 
   const order = priceOrder([lineTotal], 0, 0);
   texts.push('');
-  texts.push(`${ru.cart.total}: ${formatMinor(order.items, ctx.tenant.currency)}`);
-  rows.push([{ text: ru.cart.checkout, callback_data: 'chk:start' }]);
-  rows.push([{ text: ru.cart.clear, callback_data: 'cart:clear' }]);
+  texts.push(`${ctx.t.cart.total}: ${formatMinor(order.items, ctx.tenant.currency)}`);
+  rows.push([{ text: ctx.t.cart.checkout, callback_data: 'chk:start' }]);
+  rows.push([{ text: ctx.t.cart.clear, callback_data: 'cart:clear' }]);
   return { text: texts.join('\n'), rows };
 }
 
@@ -159,7 +158,7 @@ export function registerCartHandlers(bot: Bot<BotContextWithSession>): void {
   });
 
   bot.callbackQuery(/^prd:add:/, async (ctx) => {
-    await ctx.port.answerCallback(ctx.callbackQuery.id, ru.cart.added);
+    await ctx.port.answerCallback(ctx.callbackQuery.id, ctx.t.cart.added);
 
     const decoded = decodeCallback(ctx.callbackQuery.data);
     if (!decoded.ok) return;
@@ -258,7 +257,7 @@ export function registerCartHandlers(bot: Bot<BotContextWithSession>): void {
       const chatId = ctx.callbackQuery.message?.chat.id;
       const messageId = ctx.callbackQuery.message?.message_id;
       if (chatId && messageId) {
-        await ctx.port.editMessageTextOrSend(chatId, messageId, ru.cart.blocked, {});
+        await ctx.port.editMessageTextOrSend(chatId, messageId, ctx.t.cart.blocked, {});
       }
       return;
     }
@@ -267,7 +266,7 @@ export function registerCartHandlers(bot: Bot<BotContextWithSession>): void {
       const chatId = ctx.callbackQuery.message?.chat.id;
       const messageId = ctx.callbackQuery.message?.message_id;
       if (chatId && messageId) {
-        await ctx.port.editMessageTextOrSend(chatId, messageId, ru.cart.empty, {
+        await ctx.port.editMessageTextOrSend(chatId, messageId, ctx.t.cart.empty, {
           keyboard: { inline_keyboard: [[{ text: 'В меню', callback_data: 'nav:menu' }]] },
         });
       }
@@ -277,7 +276,7 @@ export function registerCartHandlers(bot: Bot<BotContextWithSession>): void {
     if (!ctx.tenant.acceptOrders) {
       const chatId = ctx.callbackQuery.message?.chat.id;
       if (chatId) {
-        await ctx.port.sendMessage(chatId, ctx.tenant.busyText ?? ru.checkout.busy, {
+        await ctx.port.sendMessage(chatId, ctx.tenant.busyText ?? ctx.t.checkout.busy, {
           keyboard: {
             inline_keyboard: [[{ text: 'Написать мастеру', callback_data: 'rel:start' }]],
           },
@@ -307,7 +306,7 @@ export function registerCartHandlers(bot: Bot<BotContextWithSession>): void {
     await ctx.port.editMessageTextOrSend(
       chatId,
       messageId,
-      `${ru.checkout.dateTitle}\n${ru.checkout.dateLegend}`,
+      `${ctx.t.checkout.dateTitle}\n${ctx.t.checkout.dateLegend}`,
       {
         keyboard: calendarKeyboard(
           availability,

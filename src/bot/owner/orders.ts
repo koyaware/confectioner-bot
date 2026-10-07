@@ -1,7 +1,6 @@
 import { Bot } from 'grammy';
 import { canAccessOwner } from '../permissions.js';
 import { BotContextWithSession } from '../context.js';
-import { ru } from '../../i18n/ru.js';
 import { escapeHtml } from '../../domain/escape.js';
 import { formatMinor } from '../../lib/money.js';
 import { applyOrderEvent, getCustomerOrderNumber } from '../../services/orders.js';
@@ -32,8 +31,6 @@ const OWNER_STATUS_LABELS: Record<string, string> = {
   cancelled: '🚫 Отменён',
   expired: '⏰ Истёк',
 };
-
-export const REJECT_REASONS: Record<string, string> = ru.ownerOrders.rejectReasons;
 
 export async function buildOrderCardText(
   orderId: string,
@@ -151,27 +148,27 @@ export async function loadOwnedOrder(
   return rows[0] ?? null;
 }
 
-export async function orderCardKeyboard(orderId: string, status: string): Promise<InlineKeyboard> {
+export async function orderCardKeyboard(ctx: BotContextWithSession, orderId: string, status: string): Promise<InlineKeyboard> {
   const rows: InlineKeyboard['inline_keyboard'] = [];
   if (status === 'new') {
-    rows.push([{ text: ru.ownerOrders.accept, callback_data: `adm:ord:accept:${orderId}` }]);
-    rows.push([{ text: ru.ownerOrders.reject, callback_data: `adm:ord:reject:${orderId}` }]);
-    rows.push([{ text: ru.ownerOrders.newDate, callback_data: `adm:ord:date:${orderId}` }]);
+    rows.push([{ text: ctx.t.ownerOrders.accept, callback_data: `adm:ord:accept:${orderId}` }]);
+    rows.push([{ text: ctx.t.ownerOrders.reject, callback_data: `adm:ord:reject:${orderId}` }]);
+    rows.push([{ text: ctx.t.ownerOrders.newDate, callback_data: `adm:ord:date:${orderId}` }]);
   }
   if (status === 'confirmed') {
-    rows.push([{ text: ru.ownerOrders.ready, callback_data: `adm:ord:ready:${orderId}` }]);
-    rows.push([{ text: ru.ownerOrders.cancel, callback_data: `adm:ord:cancel:${orderId}` }]);
+    rows.push([{ text: ctx.t.ownerOrders.ready, callback_data: `adm:ord:ready:${orderId}` }]);
+    rows.push([{ text: ctx.t.ownerOrders.cancel, callback_data: `adm:ord:cancel:${orderId}` }]);
   }
   if (status === 'ready') {
-    rows.push([{ text: ru.ownerOrders.done, callback_data: `adm:ord:done:${orderId}` }]);
-    rows.push([{ text: ru.ownerOrders.cancel, callback_data: `adm:ord:cancel:${orderId}` }]);
+    rows.push([{ text: ctx.t.ownerOrders.done, callback_data: `adm:ord:done:${orderId}` }]);
+    rows.push([{ text: ctx.t.ownerOrders.cancel, callback_data: `adm:ord:cancel:${orderId}` }]);
   }
   if (status === 'payment_review') {
-    rows.push([{ text: ru.ownerOrders.paid, callback_data: `adm:ord:paid:${orderId}` }]);
-    rows.push([{ text: ru.ownerOrders.badpay, callback_data: `adm:ord:badpay:${orderId}` }]);
+    rows.push([{ text: ctx.t.ownerOrders.paid, callback_data: `adm:ord:paid:${orderId}` }]);
+    rows.push([{ text: ctx.t.ownerOrders.badpay, callback_data: `adm:ord:badpay:${orderId}` }]);
   }
   if (status === 'payment_review' || status === 'awaiting_payment') {
-    rows.push([{ text: ru.ownerOrders.cancel, callback_data: `adm:ord:cancel:${orderId}` }]);
+    rows.push([{ text: ctx.t.ownerOrders.cancel, callback_data: `adm:ord:cancel:${orderId}` }]);
   }
   if (['new', 'awaiting_payment', 'payment_review', 'confirmed', 'ready'].includes(status)) {
     // msg button removed
@@ -182,10 +179,10 @@ export async function orderCardKeyboard(orderId: string, status: string): Promis
     .where(and(eq(orderAttachments.orderId, orderId), eq(orderAttachments.kind, 'reference')));
   if (refs.length > 0) {
     rows.push([
-      { text: `${ru.ownerOrders.refs} (${refs.length})`, callback_data: `adm:ord:refs:${orderId}` },
+      { text: `${ctx.t.ownerOrders.refs} (${refs.length})`, callback_data: `adm:ord:refs:${orderId}` },
     ]);
   }
-  rows.push([{ text: ru.common.back, callback_data: 'adm:ord:list' }]);
+  rows.push([{ text: ctx.t.common.back, callback_data: 'adm:ord:list' }]);
   return { inline_keyboard: rows };
 }
 
@@ -206,6 +203,7 @@ const OWNER_MONTH_NAMES = [
 const OWNER_WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 
 function orderDateKeyboard(
+  ctx: BotContextWithSession,
   availability: Record<string, { available: boolean }>,
   year: number,
   month: number,
@@ -246,14 +244,14 @@ function orderDateKeyboard(
       callback_data: `adm:ord:datepage:${orderId}:${addDays(firstDay, 33).slice(0, 7)}`,
     },
   ]);
-  rows.push([{ text: ru.common.back, callback_data: 'adm:ord:list' }]);
+  rows.push([{ text: ctx.t.common.back, callback_data: 'adm:ord:list' }]);
   return { inline_keyboard: rows };
 }
 
 export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
   bot.callbackQuery(/^adm:ord:list$/, async (ctx) => {
     if (!canAccessOwner(ctx)) {
-      await ctx.port.answerCallback(ctx.callbackQuery.id, ru.ownerCatalog.notOwner);
+      await ctx.port.answerCallback(ctx.callbackQuery.id, ctx.t.ownerCatalog.notOwner);
       return;
     }
     await ctx.port.answerCallback(ctx.callbackQuery.id);
@@ -272,7 +270,7 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
 
     if (rows.length === 0) {
       await ctx.port.editMessageTextOrSend(chatId, messageId, 'Заказов пока нет.', {
-        keyboard: { inline_keyboard: [[{ text: ru.common.back, callback_data: 'adm:menu' }]] },
+        keyboard: { inline_keyboard: [[{ text: ctx.t.common.back, callback_data: 'adm:menu' }]] },
       });
       return;
     }
@@ -310,7 +308,7 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
         }
       }
     }
-    keyboardRows.push([{ text: ru.common.back, callback_data: 'adm:menu' }]);
+    keyboardRows.push([{ text: ctx.t.common.back, callback_data: 'adm:menu' }]);
 
     await ctx.port.editMessageTextOrSend(chatId, messageId, lines.join('\n'), {
       keyboard: { inline_keyboard: keyboardRows },
@@ -320,7 +318,7 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
 
   bot.callbackQuery(/^adm:ord:view:([A-Za-z0-9_-]+)$/, async (ctx) => {
     if (!canAccessOwner(ctx)) {
-      await ctx.port.answerCallback(ctx.callbackQuery.id, ru.ownerCatalog.notOwner);
+      await ctx.port.answerCallback(ctx.callbackQuery.id, ctx.t.ownerCatalog.notOwner);
       return;
     }
     await ctx.port.answerCallback(ctx.callbackQuery.id);
@@ -334,14 +332,14 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
 
     const card = await buildOrderCardText(m[1]!, ctx.tenant.id, ctx.tenant.currency);
     if (!card) {
-      await ctx.port.editMessageTextOrSend(chatId, messageId, ru.my.notFound, {});
+      await ctx.port.editMessageTextOrSend(chatId, messageId, ctx.t.my.notFound, {});
       return;
     }
 
     const rows = await getDb().select().from(orders).where(eq(orders.id, m[1]!)).limit(1);
     const status = rows[0]?.status ?? 'new';
-await ctx.port.editMessageTextOrSend(chatId, messageId, card, {
-      keyboard: await orderCardKeyboard(m[1]!, status),
+    await ctx.port.editMessageTextOrSend(chatId, messageId, card, {
+      keyboard: await orderCardKeyboard(ctx, m[1]!, status),
       parseMode: 'HTML',
     });
   });
@@ -350,7 +348,7 @@ await ctx.port.editMessageTextOrSend(chatId, messageId, card, {
 
   bot.callbackQuery(/^adm:ord:refs:(.+)$/, async (ctx) => {
     if (!canAccessOwner(ctx)) {
-      await ctx.port.answerCallback(ctx.callbackQuery.id, ru.ownerCatalog.notOwner);
+      await ctx.port.answerCallback(ctx.callbackQuery.id, ctx.t.ownerCatalog.notOwner);
       return;
     }
     await ctx.port.answerCallback(ctx.callbackQuery.id);
@@ -366,7 +364,7 @@ await ctx.port.editMessageTextOrSend(chatId, messageId, card, {
     const rows = await db.select().from(orders).where(eq(orders.id, m[1]!)).limit(1);
     const order = rows[0];
     if (!order || order.tenantId !== ctx.tenant.id) {
-      await ctx.port.editMessageTextOrSend(chatId, messageId, ru.my.notFound, {});
+      await ctx.port.editMessageTextOrSend(chatId, messageId, ctx.t.my.notFound, {});
       return;
     }
 
@@ -385,7 +383,7 @@ await ctx.port.editMessageTextOrSend(chatId, messageId, card, {
       chatId,
       messageId,
       `Референсы заказа №${order.number} (${refs.length} шт.)`,
-      { keyboard: { inline_keyboard: [[{ text: ru.common.back, callback_data: `adm:ord:view:${order.id}` }]] } }
+      { keyboard: { inline_keyboard: [[{ text: ctx.t.common.back, callback_data: `adm:ord:view:${order.id}` }]] } }
     );
     for (const ref of refs) {
       if (ref.fileType === 'photo') {
@@ -403,7 +401,7 @@ await ctx.port.editMessageTextOrSend(chatId, messageId, card, {
     /^adm:ord:(accept|reject|rr|paid|badpay|ready|done|cancel|date|datepage|pd):/,
     async (ctx) => {
       if (!canAccessOwner(ctx)) {
-        await ctx.port.answerCallback(ctx.callbackQuery.id, ru.ownerCatalog.notOwner);
+        await ctx.port.answerCallback(ctx.callbackQuery.id, ctx.t.ownerCatalog.notOwner);
         return;
       }
       await ctx.port.answerCallback(ctx.callbackQuery.id);
@@ -423,7 +421,7 @@ await ctx.port.editMessageTextOrSend(chatId, messageId, card, {
       if (['accept', 'rr', 'paid', 'badpay', 'ready', 'done', 'cancel'].includes(action)) {
         const targetId = rest.split(':')[0]!;
         if (!(await loadOwnedOrder(ctx.tenant.id, targetId))) {
-          await ctx.port.editMessageTextOrSend(chatId, messageId, ru.my.notFound, {});
+          await ctx.port.editMessageTextOrSend(chatId, messageId, ctx.t.my.notFound, {});
           return;
         }
       }
@@ -434,7 +432,7 @@ await ctx.port.editMessageTextOrSend(chatId, messageId, card, {
         const card = await buildOrderCardText(rest, ctx.tenant.id, ctx.tenant.currency);
         if (card) {
           await ctx.port.editMessageTextOrSend(chatId, messageId, card, {
-            keyboard: await orderCardKeyboard(rest, result.value.status),
+            keyboard: await orderCardKeyboard(ctx, rest, result.value.status),
             parseMode: 'HTML',
           });
         }
@@ -448,7 +446,8 @@ await ctx.port.editMessageTextOrSend(chatId, messageId, card, {
 
       if (action === 'reject') {
         // show reason picker
-        const rows: InlineKeyboard['inline_keyboard'] = Object.entries(REJECT_REASONS).map(
+        const rejectReasons = ctx.t.ownerOrders.rejectReasons;
+        const rows: InlineKeyboard['inline_keyboard'] = Object.entries(rejectReasons).map(
           ([code, label]) => [{ text: label, callback_data: `adm:ord:rr:${rest}:${code}` }]
         );
         const card = await buildOrderCardText(rest, ctx.tenant.id, ctx.tenant.currency);
@@ -467,7 +466,7 @@ await ctx.port.editMessageTextOrSend(chatId, messageId, card, {
         const card = await buildOrderCardText(rest, ctx.tenant.id, ctx.tenant.currency);
         if (card) {
           await ctx.port.editMessageTextOrSend(chatId, messageId, card, {
-            keyboard: await orderCardKeyboard(rest, result.value.status),
+            keyboard: await orderCardKeyboard(ctx, rest, result.value.status),
             parseMode: 'HTML',
           });
         }
@@ -481,7 +480,7 @@ await ctx.port.editMessageTextOrSend(chatId, messageId, card, {
         const card = await buildOrderCardText(rest, ctx.tenant.id, ctx.tenant.currency);
         if (card) {
           await ctx.port.editMessageTextOrSend(chatId, messageId, card, {
-            keyboard: await orderCardKeyboard(rest, result.value.status),
+            keyboard: await orderCardKeyboard(ctx, rest, result.value.status),
             parseMode: 'HTML',
           });
         }
@@ -500,7 +499,7 @@ await ctx.port.editMessageTextOrSend(chatId, messageId, card, {
         const card = await buildOrderCardText(rest, ctx.tenant.id, ctx.tenant.currency);
         if (card) {
           await ctx.port.editMessageTextOrSend(chatId, messageId, card, {
-            keyboard: await orderCardKeyboard(rest, result.value.status),
+            keyboard: await orderCardKeyboard(ctx, rest, result.value.status),
             parseMode: 'HTML',
           });
         }
@@ -514,7 +513,7 @@ await ctx.port.editMessageTextOrSend(chatId, messageId, card, {
         const card = await buildOrderCardText(rest, ctx.tenant.id, ctx.tenant.currency);
         if (card) {
           await ctx.port.editMessageTextOrSend(chatId, messageId, card, {
-            keyboard: await orderCardKeyboard(rest, result.value.status),
+            keyboard: await orderCardKeyboard(ctx, rest, result.value.status),
             parseMode: 'HTML',
           });
         }
@@ -528,7 +527,7 @@ await ctx.port.editMessageTextOrSend(chatId, messageId, card, {
         const card = await buildOrderCardText(rest, ctx.tenant.id, ctx.tenant.currency);
         if (card) {
           await ctx.port.editMessageTextOrSend(chatId, messageId, card, {
-            keyboard: await orderCardKeyboard(rest, result.value.status),
+            keyboard: await orderCardKeyboard(ctx, rest, result.value.status),
             parseMode: 'HTML',
           });
         }
@@ -563,6 +562,7 @@ await ctx.port.editMessageTextOrSend(chatId, messageId, card, {
           new Date()
         );
         const kb = orderDateKeyboard(
+          ctx,
           avail,
           Number(ym.slice(0, 4)),
           Number(ym.slice(5, 7)),
@@ -604,6 +604,7 @@ await ctx.port.editMessageTextOrSend(chatId, messageId, card, {
         );
 
         const kb: InlineKeyboard = orderDateKeyboard(
+          ctx,
           avail,
           Number(monthStart.slice(0, 4)),
           Number(monthStart.slice(5, 7)),
@@ -680,7 +681,8 @@ await ctx.port.editMessageTextOrSend(chatId, messageId, card, {
 
       if (action === 'rr') {
         const [orderId, code] = rest.split(':');
-        const reason = REJECT_REASONS[code!];
+        const rejectReasons = ctx.t.ownerOrders.rejectReasons;
+        const reason = rejectReasons[code!];
         if (!orderId || !reason) return;
         const result = await applyOrderEvent(orderId, 'owner_reject', 'owner', new Date());
         if (!result.ok) return;
@@ -693,7 +695,7 @@ await ctx.port.editMessageTextOrSend(chatId, messageId, card, {
         const card = await buildOrderCardText(orderId, ctx.tenant.id, ctx.tenant.currency);
         if (card) {
           await ctx.port.editMessageTextOrSend(chatId, messageId, card, {
-            keyboard: await orderCardKeyboard(orderId, result.value.status),
+            keyboard: await orderCardKeyboard(ctx, orderId, result.value.status),
             parseMode: 'HTML',
           });
         }

@@ -3,7 +3,7 @@ import { BotContextWithSession } from '../context.js';
 import { getDb } from '../../db/client.js';
 import { tenants } from '../../db/schema.js';
 import { eq } from 'drizzle-orm';
-import { ru } from '../../i18n/ru.js';
+import { stringsFor } from '../../i18n/index.js';
 
 /**
  * Tenant middleware - loads tenant info from DB
@@ -30,7 +30,7 @@ export const tenantMiddleware: MiddlewareFn<BotContextWithSession> = async (ctx,
   if (tenant.status === 'paused' && !isSuperadmin) {
     try {
       if (ctx.chat) {
-        await ctx.port.sendMessage(ctx.chat.id, tenant.busyText ?? ru.tenant.paused);
+        await ctx.port.sendMessage(ctx.chat.id, tenant.busyText ?? stringsFor(tenant.language).tenant.paused);
       }
     } catch (sendError) {
       console.error('Failed to send paused notice:', sendError);
@@ -39,6 +39,7 @@ export const tenantMiddleware: MiddlewareFn<BotContextWithSession> = async (ctx,
   }
 
   // Update context with tenant data
+  ctx.t = stringsFor(tenant.language);
   ctx.tenant = {
     id: tenant.id,
     slug: tenant.slug,
@@ -46,6 +47,7 @@ export const tenantMiddleware: MiddlewareFn<BotContextWithSession> = async (ctx,
     ownerTelegramId: tenant.ownerTelegramId,
     shopName: tenant.shopName,
     currency: tenant.currency,
+    language: tenant.language ?? 'ru',
     timezone: tenant.timezone,
     status: tenant.status,
     acceptOrders: tenant.acceptOrders,

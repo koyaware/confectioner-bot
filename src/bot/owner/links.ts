@@ -1,7 +1,6 @@
 import { Bot } from 'grammy';
 import { canAccessOwner } from '../permissions.js';
 import { BotContextWithSession } from '../context.js';
-import { ru } from '../../i18n/ru.js';
 import { InlineKeyboard } from '../../telegram/port.js';
 import { listSources, deleteSource } from '../../services/sources.js';
 import QRCode from 'qrcode';
@@ -10,7 +9,7 @@ import { beginOwnerDraft } from './edit-field.js';
 export function registerLinksHandlers(bot: Bot<BotContextWithSession>): void {
   bot.callbackQuery(/^adm:src:/, async (ctx) => {
     if (!canAccessOwner(ctx)) {
-      await ctx.port.answerCallback(ctx.callbackQuery.id, ru.ownerCatalog.notOwner);
+      await ctx.port.answerCallback(ctx.callbackQuery.id, ctx.t.ownerCatalog.notOwner);
       return;
     }
     await ctx.port.answerCallback(ctx.callbackQuery.id);
@@ -25,12 +24,12 @@ export function registerLinksHandlers(bot: Bot<BotContextWithSession>): void {
       const rows: InlineKeyboard['inline_keyboard'] = items.map((s) => [
         { text: s.label, callback_data: `adm:src:view:${s.code}` },
       ]);
-      rows.push([{ text: ru.ownerLinks.add, callback_data: 'adm:src:add' }]);
+      rows.push([{ text: ctx.t.ownerLinks.add, callback_data: 'adm:src:add' }]);
       rows.push([{ text: 'Назад', callback_data: 'adm:menu' }]);
       await ctx.port.editMessageTextOrSend(
         chatId,
         messageId,
-        items.length > 0 ? ru.ownerLinks.title : ru.ownerLinks.empty,
+        items.length > 0 ? ctx.t.ownerLinks.title : ctx.t.ownerLinks.empty,
         { keyboard: { inline_keyboard: rows } }
       );
       return;
@@ -38,7 +37,7 @@ export function registerLinksHandlers(bot: Bot<BotContextWithSession>): void {
 
     if (data === 'adm:src:add') {
       beginOwnerDraft(ctx, { kind: 'src_add_label' });
-      await ctx.port.editMessageTextOrSend(chatId, messageId, ru.ownerLinks.promptLabel, {
+      await ctx.port.editMessageTextOrSend(chatId, messageId, ctx.t.ownerLinks.promptLabel, {
         keyboard: { inline_keyboard: [[{ text: 'Назад', callback_data: 'adm:menu' }]] },
       });
       return;
@@ -52,7 +51,7 @@ export function registerLinksHandlers(bot: Bot<BotContextWithSession>): void {
       await ctx.port.sendPhoto(chatId, qr, `${code}\n${link}`);
       await ctx.port.sendMessage(
         chatId,
-        `${ru.ownerLinks.linkCaption}\n\n${link}\n\nШапка профиля:\n${ru.ownerLinks.tplProfile(ctx.tenant.shopName, link)}\n\nЗакреп. комментарий:\n${ru.ownerLinks.tplComment(ctx.tenant.shopName, link)}\n\nАвтоответ директа:\n${ru.ownerLinks.tplAutoText(ctx.tenant.shopName, link)}`,
+        `${ctx.t.ownerLinks.linkCaption}\n\n${link}\n\nШапка профиля:\n${ctx.t.ownerLinks.tplProfile(ctx.tenant.shopName, link)}\n\nЗакреп. комментарий:\n${ctx.t.ownerLinks.tplComment(ctx.tenant.shopName, link)}\n\nАвтоответ директа:\n${ctx.t.ownerLinks.tplAutoText(ctx.tenant.shopName, link)}`,
         {
           keyboard: {
             inline_keyboard: [
@@ -72,9 +71,9 @@ export function registerLinksHandlers(bot: Bot<BotContextWithSession>): void {
       const rows: InlineKeyboard['inline_keyboard'] = items.map((s) => [
         { text: s.label, callback_data: `adm:src:view:${s.code}` },
       ]);
-      rows.push([{ text: ru.ownerLinks.add, callback_data: 'adm:src:add' }]);
+      rows.push([{ text: ctx.t.ownerLinks.add, callback_data: 'adm:src:add' }]);
       rows.push([{ text: 'Назад', callback_data: 'adm:menu' }]);
-      await ctx.port.editMessageTextOrSend(chatId, messageId, ru.ownerLinks.title, {
+      await ctx.port.editMessageTextOrSend(chatId, messageId, ctx.t.ownerLinks.title, {
         keyboard: { inline_keyboard: rows },
       });
       return;

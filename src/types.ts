@@ -3,6 +3,9 @@ export type Minor = number; // Integer, minor currency units
 export type IsoDate = string; // YYYY-MM-DD in tenant's timezone
 export type Result<T, E extends string> = { ok: true; value: T } | { ok: false; error: E };
 
+// Interface language of a tenant shop, independent of currency
+export type Lang = 'ru' | 'uz';
+
 export type OrderStatus =
   | 'new'
   | 'awaiting_payment'

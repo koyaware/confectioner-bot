@@ -1,6 +1,5 @@
 import { Bot } from 'grammy';
 import { BotContextWithSession } from './context.js';
-import { ru } from '../i18n/ru.js';
 import { getDb } from '../db/client.js';
 import { tenants, jobs } from '../db/schema.js';
 import { eq, sql } from 'drizzle-orm';
@@ -12,7 +11,7 @@ export function registerSuperadminCommands(
 ): void {
   bot.command('status', async (ctx) => {
     if (ctx.role !== 'superadmin') {
-      await ctx.port.sendMessage(ctx.chat.id, ru.admin.forbidden);
+      await ctx.port.sendMessage(ctx.chat.id, ctx.t.admin.forbidden);
       return;
     }
 
@@ -51,19 +50,19 @@ export function registerSuperadminCommands(
 
   bot.command('tenants', async (ctx) => {
     if (ctx.role !== 'superadmin') {
-      await ctx.port.sendMessage(ctx.chat.id, ru.admin.forbidden);
+      await ctx.port.sendMessage(ctx.chat.id, ctx.t.admin.forbidden);
       return;
     }
 
     const db = getDb();
     const rows = await db.select().from(tenants).limit(50);
     const lines = rows.map((t) => `• ${t.slug} — ${t.status} — ${t.shopName}`);
-    await ctx.port.sendMessage(ctx.chat.id, lines.join('\n') || ru.admin.noTenants);
+    await ctx.port.sendMessage(ctx.chat.id, lines.join('\n') || ctx.t.admin.noTenants);
   });
 
   bot.command('pause', async (ctx) => {
     if (ctx.role !== 'superadmin') {
-      await ctx.port.sendMessage(ctx.chat.id, ru.admin.forbidden);
+      await ctx.port.sendMessage(ctx.chat.id, ctx.t.admin.forbidden);
       return;
     }
 
@@ -77,7 +76,7 @@ export function registerSuperadminCommands(
     const row = await db.select().from(tenants).where(eq(tenants.slug, slug)).limit(1);
     const tenant = row[0];
     if (!tenant) {
-      await ctx.port.sendMessage(ctx.chat.id, ru.admin.tenantNotFound);
+      await ctx.port.sendMessage(ctx.chat.id, ctx.t.admin.tenantNotFound);
       return;
     }
 
@@ -90,7 +89,7 @@ export function registerSuperadminCommands(
 
   bot.command('resume', async (ctx) => {
     if (ctx.role !== 'superadmin') {
-      await ctx.port.sendMessage(ctx.chat.id, ru.admin.forbidden);
+      await ctx.port.sendMessage(ctx.chat.id, ctx.t.admin.forbidden);
       return;
     }
 
@@ -104,7 +103,7 @@ export function registerSuperadminCommands(
     const row = await db.select().from(tenants).where(eq(tenants.slug, slug)).limit(1);
     const tenant = row[0];
     if (!tenant) {
-      await ctx.port.sendMessage(ctx.chat.id, ru.admin.tenantNotFound);
+      await ctx.port.sendMessage(ctx.chat.id, ctx.t.admin.tenantNotFound);
       return;
     }
 

@@ -116,6 +116,11 @@ describe('middleware', () => {
       let replied = false;
       const ctx: any = {
         chat: { id: 42 },
+        t: {
+          common: {
+            error: '❌ Произошла ошибка. Попробуйте позже.',
+          },
+        },
         port: { sendMessage: async (...args: unknown[]) => void sent.push(args) },
         reply: async () => {
           replied = true;

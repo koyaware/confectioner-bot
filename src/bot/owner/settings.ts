@@ -2,7 +2,6 @@ import { Bot } from 'grammy';
 import { canAccessOwner } from '../permissions.js';
 import { BotContextWithSession } from '../context.js';
 import { decodeCallback } from '../callbacks.js';
-import { ru } from '../../i18n/ru.js';
 import { escapeHtml } from '../../domain/escape.js';
 import { SETTINGS_FIELDS, isSettingsField, SettingsField } from '../../services/settings.js';
 import { getDb } from '../../db/client.js';
@@ -32,7 +31,7 @@ const FIELD_LABELS: Record<SettingsField, string> = {
 export function registerSettingsHandlers(bot: Bot<BotContextWithSession>): void {
   bot.callbackQuery(/^adm:set:/, async (ctx) => {
     if (!canAccessOwner(ctx)) {
-      await ctx.port.answerCallback(ctx.callbackQuery.id, ru.ownerCatalog.notOwner);
+      await ctx.port.answerCallback(ctx.callbackQuery.id, ctx.t.ownerCatalog.notOwner);
       return;
     }
     await ctx.port.answerCallback(ctx.callbackQuery.id);
@@ -56,8 +55,8 @@ export function registerSettingsHandlers(bot: Bot<BotContextWithSession>): void 
           callback_data: 'adm:set:edit:toggle_accept',
         },
       ]);
-      rows.push([{ text: ru.common.back, callback_data: 'adm:menu' }]);
-      await ctx.port.editMessageTextOrSend(chatId, messageId, ru.ownerSettings.title, {
+      rows.push([{ text: ctx.t.common.back, callback_data: 'adm:menu' }]);
+      await ctx.port.editMessageTextOrSend(chatId, messageId, ctx.t.ownerSettings.title, {
         keyboard: { inline_keyboard: rows },
       });
       return;
@@ -91,7 +90,7 @@ export function registerSettingsHandlers(bot: Bot<BotContextWithSession>): void 
           nowAccept ? 'Приём заказов включён.' : 'Приём заказов выключен (режим «перегруз»).',
           {
             keyboard: {
-              inline_keyboard: [[{ text: ru.common.back, callback_data: 'adm:set:list' }]],
+              inline_keyboard: [[{ text: ctx.t.common.back, callback_data: 'adm:set:list' }]],
             },
           }
         );
@@ -119,10 +118,10 @@ export function registerSettingsHandlers(bot: Bot<BotContextWithSession>): void 
       await ctx.port.editMessageTextOrSend(
         chatId,
         messageId,
-        `${ru.ownerSettings.prompt}: ${FIELD_LABELS[arg]}\nТекущее значение: ${escapeHtml(currentText)}\n\n${ru.ownerSettings.hint}`,
+        `${ctx.t.ownerSettings.prompt}: ${FIELD_LABELS[arg]}\nТекущее значение: ${escapeHtml(currentText)}\n\n${ctx.t.ownerSettings.hint}`,
         {
           keyboard: {
-            inline_keyboard: [[{ text: ru.common.back, callback_data: 'adm:set:list' }]],
+            inline_keyboard: [[{ text: ctx.t.common.back, callback_data: 'adm:set:list' }]],
           },
         }
       );

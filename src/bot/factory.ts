@@ -82,6 +82,7 @@ export function createTenantBot(
       ownerTelegramId: null,
       shopName: '',
       currency: '₽',
+      language: 'ru',
       timezone: 'Europe/Moscow',
       status: 'active',
       acceptOrders: true,

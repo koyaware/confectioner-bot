@@ -1,7 +1,6 @@
 import { Bot } from 'grammy';
 import { canAccessOwner } from '../permissions.js';
 import { BotContextWithSession } from '../context.js';
-import { ru } from '../../i18n/ru.js';
 import { InlineKeyboard } from '../../telegram/port.js';
 import { computeStats } from '../../services/stats.js';
 import { formatMinor } from '../../lib/money.js';
@@ -19,21 +18,21 @@ const FUNNEL_LABELS: Record<string, string> = {
 };
 
 const ORDER_STATUS_LABELS: Record<string, string> = {
-  new: 'Новый',
-  awaiting_payment: 'Ожидает оплаты',
-  payment_review: 'Чек на проверке',
-  confirmed: 'Подтверждён',
-  ready: 'Готов',
-  completed: 'Завершён',
-  rejected: 'Отклонён',
-  cancelled: 'Отменён',
-  expired: 'Истёк',
+  new: '🆕 Новый',
+  awaiting_payment: '💳 Ожидает оплаты',
+  payment_review: '📸 Чек на проверке',
+  confirmed: '✅ Подтверждён',
+  ready: '🎂 Готов',
+  completed: '✅ Завершён',
+  rejected: '❌ Отклонён',
+  cancelled: '🚫 Отменён',
+  expired: '⏰ Истёк',
 };
 
 export function registerStatsHandlers(bot: Bot<BotContextWithSession>): void {
   bot.callbackQuery(/^adm:stats(:(7|30))?$/, async (ctx) => {
     if (!canAccessOwner(ctx)) {
-      await ctx.port.answerCallback(ctx.callbackQuery.id, ru.ownerCatalog.notOwner);
+      await ctx.port.answerCallback(ctx.callbackQuery.id, ctx.t.ownerCatalog.notOwner);
       return;
     }
     await ctx.port.answerCallback(ctx.callbackQuery.id);

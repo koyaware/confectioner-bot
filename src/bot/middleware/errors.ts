@@ -1,7 +1,6 @@
 import { MiddlewareFn } from 'grammy';
 import { BotContextWithSession } from '../context.js';
 import { TelegramError } from '../../telegram/port.js';
-import { ru } from '../../i18n/ru.js';
 
 function scrubSecrets(message: string): string {
   let out = message;
@@ -15,14 +14,14 @@ function scrubSecrets(message: string): string {
 async function notifyUser(ctx: BotContextWithSession): Promise<void> {
   if (ctx.port && ctx.chat) {
     try {
-      await ctx.port.sendMessage(ctx.chat.id, ru.common.error);
+      await ctx.port.sendMessage(ctx.chat.id, ctx.t.common.error);
       return;
     } catch (sendError) {
       console.error('Failed to send error message:', sendError);
     }
   }
   try {
-    await ctx.reply(ru.common.error);
+    await ctx.reply(ctx.t.common.error);
   } catch (sendError) {
     console.error('Failed to send error message:', sendError);
   }

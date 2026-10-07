@@ -1,6 +1,5 @@
 import { Bot } from 'grammy';
 import { BotContextWithSession } from '../context.js';
-import { ru } from '../../i18n/ru.js';
 import { getDateAvailability, DateAvailability } from '../../services/dates.js';
 import { createOrder, CreateOrderInput, getCustomerOrderNumber } from '../../services/orders.js';
 import { buildOrderCardText, orderCardKeyboard } from '../owner/orders.js';
@@ -63,7 +62,7 @@ async function notifyOwnerOfOrder(ctx: BotContextWithSession, orderId: string): 
   const text = await buildOrderCardText(orderId, ctx.tenant.id, ctx.tenant.currency);
   if (!text) return;
   const sent = await ctx.port.sendMessage(ownerId, text, {
-    keyboard: await orderCardKeyboard(orderId, 'new'),
+    keyboard: await orderCardKeyboard(ctx, orderId, 'new'),
     parseMode: 'HTML',
   });
   // Store the owner's order card message ID for later updates
@@ -135,7 +134,7 @@ async function showCalendar(ctx: BotContextWithSession, edit: boolean): Promise<
 
   const chatId = ctx.callbackQuery?.message?.chat.id ?? ctx.chat?.id;
   const messageId = ctx.callbackQuery?.message?.message_id;
-  const text = `${ru.checkout.dateTitle}\n${ru.checkout.dateLegend}`;
+  const text = `${ctx.t.checkout.dateTitle}\n${ctx.t.checkout.dateLegend}`;
 
   if (edit && chatId && messageId) {
     await ctx.port.editMessageTextOrSend(chatId, messageId, text, {
@@ -216,7 +215,7 @@ async function showCurrentStep(ctx: BotContextWithSession): Promise<void> {
 
   switch (state) {
     case 'checkout.time': {
-      await showScreen(ctx, ru.checkout.timePrompt, stepKeyboard({ skip: true }));
+      await showScreen(ctx, ctx.t.checkout.timePrompt, stepKeyboard({ skip: true }));
       break;
     }
     case 'checkout.fulfillment': {
@@ -228,23 +227,23 @@ async function showCurrentStep(ctx: BotContextWithSession): Promise<void> {
           [{ text: 'Отмена', callback_data: 'chk:cancel' }],
         ],
       };
-      await showScreen(ctx, ru.checkout.fulfillmentPrompt, kb);
+      await showScreen(ctx, ctx.t.checkout.fulfillmentPrompt, kb);
       break;
     }
     case 'checkout.address': {
-      await showScreen(ctx, ru.checkout.addressPrompt, stepKeyboard());
+      await showScreen(ctx, ctx.t.checkout.addressPrompt, stepKeyboard());
       break;
     }
     case 'checkout.contact': {
       await showScreen(
         ctx,
-        ru.checkout.contactPrompt(ru.checkout.phoneExample(ctx.tenant.currency)),
+        ctx.t.checkout.contactPrompt(ctx.t.checkout.phoneExample(ctx.tenant.currency)),
         stepKeyboard()
       );
       break;
     }
     case 'checkout.comment': {
-      await showScreen(ctx, ru.checkout.commentPrompt, stepKeyboard({ skip: true }));
+      await showScreen(ctx, ctx.t.checkout.commentPrompt, stepKeyboard({ skip: true }));
       break;
     }
     case 'checkout.photos': {
@@ -270,7 +269,7 @@ async function showCurrentStep(ctx: BotContextWithSession): Promise<void> {
 
 function photosPromptText(ctx: BotContextWithSession): string {
   const count = ctx.session.checkout?.referenceFileIds.length ?? 0;
-  const base = ru.checkout.photosPrompt;
+  const base = ctx.t.checkout.photosPrompt;
   if (count === 0) return base;
   if (count >= 5) return base + '\n\nПрикреплено: 5/5 (максимум).';
   return base + `\n\nПрикреплено: ${count}/5.`;
@@ -341,7 +340,7 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
     await ctx.port.editMessageTextOrSend(
       chatId,
       messageId,
-      `${ru.checkout.dateTitle}\n${ru.checkout.dateLegend}`,
+      `${ctx.t.checkout.dateTitle}\n${ctx.t.checkout.dateLegend}`,
       { keyboard: calendarKeyboard(availability, year, month) }
     );
   });
@@ -369,7 +368,7 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
       await ctx.port.editMessageTextOrSend(
         chatId,
         messageId,
-        `${ru.checkout.dateUnavailable}\n${ru.checkout.dateLegend}`,
+        `${ctx.t.checkout.dateUnavailable}\n${ctx.t.checkout.dateLegend}`,
         {
           keyboard: calendarKeyboard(avail, Number(iso.slice(0, 4)), Number(iso.slice(5, 7))),
         }
@@ -380,7 +379,7 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
     ctx.session.checkout = ctx.session.checkout ?? { checkoutId: nanoid(10), referenceFileIds: [] };
     ctx.session.checkout.dueDate = iso;
     ctx.sessionState = 'checkout.time';
-    await ctx.port.editMessageTextOrSend(chatId, messageId, `${ru.checkout.dateSelected}: ${iso}`);
+    await ctx.port.editMessageTextOrSend(chatId, messageId, `${ctx.t.checkout.dateSelected}: ${iso}`);
     await showCurrentStep(ctx);
   });
 
@@ -417,8 +416,8 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
     const chatId = ctx.callbackQuery.message?.chat.id;
     const messageId = ctx.callbackQuery.message?.message_id;
     if (chatId && messageId) {
-      await ctx.port.editMessageTextOrSend(chatId, messageId, ru.checkout.cancelled, {
-        keyboard: customerMenuKeyboard(),
+      await ctx.port.editMessageTextOrSend(chatId, messageId, ctx.t.checkout.cancelled, {
+        keyboard: customerMenuKeyboard(ctx),
       });
     }
   });
@@ -440,7 +439,7 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
 
     const draft = ctx.session.checkout;
     if (!draft || draft.checkoutId !== checkoutId) {
-      await ctx.port.editMessageTextOrSend(chatId, messageId, ru.checkout.staleSubmit, {});
+      await ctx.port.editMessageTextOrSend(chatId, messageId, ctx.t.checkout.staleSubmit, {});
       return;
     }
     if (
@@ -450,7 +449,7 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
       !draft.contactPhone ||
       (draft.fulfillment === 'delivery' && !draft.address?.trim())
     ) {
-      await ctx.port.editMessageTextOrSend(chatId, messageId, ru.checkout.incomplete, {});
+      await ctx.port.editMessageTextOrSend(chatId, messageId, ctx.t.checkout.incomplete, {});
       return;
     }
 
@@ -479,8 +478,8 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
         );
         const msg =
           result.error === 'CAPACITY_EXCEEDED'
-            ? ru.checkout.capacityExceeded
-            : ru.checkout.dateTaken;
+            ? ctx.t.checkout.capacityExceeded
+            : ctx.t.checkout.dateTaken;
         await ctx.port.editMessageTextOrSend(chatId, messageId, msg, {
           keyboard: calendarKeyboard(avail, Number(today.slice(0, 4)), Number(today.slice(5, 7))),
         });
@@ -488,16 +487,16 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
       }
       const text =
         result.error === 'PRODUCT_INACTIVE'
-          ? ru.checkout.productInactive
+          ? ctx.t.checkout.productInactive
           : result.error === 'TENANT_BUSY'
-            ? (ctx.tenant.busyText ?? ru.checkout.busy)
+            ? (ctx.tenant.busyText ?? ctx.t.checkout.busy)
             : result.error === 'BAD_QTY'
-              ? ru.checkout.badQty
+              ? ctx.t.checkout.badQty
               : result.error === 'BAD_ADDRESS' || result.error === 'BAD_OPTIONS'
-                ? ru.checkout.incomplete
+                ? ctx.t.checkout.incomplete
                 : result.error === 'CUSTOMER_BLOCKED'
-                  ? ru.cart.blocked
-                  : ru.checkout.emptyCart;
+                  ? ctx.t.cart.blocked
+                  : ctx.t.checkout.emptyCart;
       await ctx.port.editMessageTextOrSend(chatId, messageId, text, {});
       return;
     }
@@ -510,14 +509,14 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
     await ctx.port.editMessageTextOrSend(
       chatId,
       messageId,
-      `${ru.checkout.orderSent((await getCustomerOrderNumber(order.id)) ?? order.number)} ${ctx.tenant.replySlaText}`,
+      `${ctx.t.checkout.orderSent((await getCustomerOrderNumber(order.id)) ?? order.number)} ${ctx.tenant.replySlaText}`,
       {
         keyboard: {
           inline_keyboard: [
-            [{ text: ru.checkout.orderMore, callback_data: 'cat:list' }],
+            [{ text: ctx.t.checkout.orderMore, callback_data: 'cat:list' }],
             [
-              { text: ru.cart.button, callback_data: 'cart:show' },
-              { text: ru.my.button, callback_data: 'my:list' },
+              { text: ctx.t.cart.button, callback_data: 'cart:show' },
+              { text: ctx.t.my.button, callback_data: 'my:list' },
             ],
             [{ text: 'В меню', callback_data: 'nav:menu' }],
           ],
@@ -553,7 +552,7 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
         break;
       case 'checkout.address':
         if (!text) {
-          await showScreen(ctx, ru.checkout.addressPrompt, stepKeyboard());
+          await showScreen(ctx, ctx.t.checkout.addressPrompt, stepKeyboard());
           return;
         }
         ctx.session.checkout!.address = text;
@@ -565,7 +564,7 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
         if (!parsed) {
           await showScreen(
             ctx,
-            ru.checkout.contactInvalid(ru.checkout.phoneExample(ctx.tenant.currency)),
+            ctx.t.checkout.contactInvalid(ctx.t.checkout.phoneExample(ctx.tenant.currency)),
             stepKeyboard()
           );
           return;
@@ -573,7 +572,7 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
         if (!parsed.name) {
           await showScreen(
             ctx,
-            ru.checkout.contactNameMissing(ru.checkout.phoneExample(ctx.tenant.currency)),
+            ctx.t.checkout.contactNameMissing(ctx.t.checkout.phoneExample(ctx.tenant.currency)),
             stepKeyboard()
           );
           return;
@@ -586,7 +585,7 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
       }
       case 'checkout.comment':
         if (text.length > 500) {
-          await showScreen(ctx, ru.checkout.commentTooLong, stepKeyboard({ skip: true }));
+          await showScreen(ctx, ctx.t.checkout.commentTooLong, stepKeyboard({ skip: true }));
           return;
         }
         ctx.session.checkout!.comment = text || undefined;

@@ -115,10 +115,18 @@ describe('relay', () => {
     expect(toOwner).toBeTruthy();
     expect((toOwner!.args[1] as string)).toContain('cust42');
     expect((toOwner!.args[1] as string)).toContain('Подскажите, есть ли доставка?');
-    // Button is in keyboard (opts.keyboard), not message text
+    // Keyboard has only the block button; owner replies via Telegram reply (no write-to-client button)
     const opts = toOwner!.args[2] as { keyboard?: { inline_keyboard: { text: string }[][] } };
-    console.log('BUTTON TEXT:', opts.keyboard?.inline_keyboard.map(row => row.map(btn => btn.text)));
-    expect(opts.keyboard?.inline_keyboard.some((row) => row.some((btn) => btn.text === '✍️ Ответить'))).toBe(true);
+    expect(
+      opts.keyboard?.inline_keyboard.some((row) =>
+        row.some((btn) => btn.text === '🚫 Блокировать')
+      )
+    ).toBe(true);
+    expect(
+      opts.keyboard?.inline_keyboard.some((row) =>
+        row.some((btn) => btn.text === '✍️ Ответить')
+      )
+    ).toBe(false);
 
     // Customer got auto-reply
     expect(

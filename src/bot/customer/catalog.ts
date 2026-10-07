@@ -1,7 +1,6 @@
 import { Bot } from 'grammy';
 import { BotContextWithSession } from '../context.js';
 import { decodeCallback } from '../callbacks.js';
-import { ru } from '../../i18n/ru.js';
 import { escapeHtml } from '../../domain/escape.js';
 import {
   listActiveCategories,
@@ -28,7 +27,7 @@ export function registerCatalogHandlers(bot: Bot<BotContextWithSession>): void {
     if (decoded.value.ns === 'cat' && decoded.value.action === 'list') {
       await trackFunnelEvent(ctx, 'catalog_view');
       const cats = await listActiveCategories(ctx.tenant.id);
-      const text = cats.length > 0 ? ru.catalog.title : ru.catalog.categoriesEmpty;
+      const text = cats.length > 0 ? ctx.t.catalog.title : ctx.t.catalog.categoriesEmpty;
       const keyboard: InlineKeyboard = {
         inline_keyboard: [
           ...cats.map((c) => [{ text: c.title, callback_data: `cat:open:${c.id}` }]),
@@ -42,8 +41,8 @@ export function registerCatalogHandlers(bot: Bot<BotContextWithSession>): void {
     if (decoded.value.ns === 'cat' && decoded.value.action === 'open') {
       const category = await getCategoryIfActive(ctx.tenant.id, decoded.value.arg);
       if (!category) {
-        await ctx.port.editMessageTextOrSend(chatId, messageId, ru.catalog.categoriesEmpty, {
-          keyboard: { inline_keyboard: [[{ text: ru.catalog.back, callback_data: 'cat:list' }]] },
+        await ctx.port.editMessageTextOrSend(chatId, messageId, ctx.t.catalog.categoriesEmpty, {
+          keyboard: { inline_keyboard: [[{ text: ctx.t.catalog.back, callback_data: 'cat:list' }]] },
           parseMode: 'HTML',
         });
         return;
@@ -51,10 +50,10 @@ export function registerCatalogHandlers(bot: Bot<BotContextWithSession>): void {
       const prods = await listProducts(ctx.tenant.id, category.id);
       const text =
         prods.length > 0
-          ? `${ru.catalog.title}: ${escapeHtml(category.title)}`
-          : ru.catalog.productsEmpty;
+          ? `${ctx.t.catalog.title}: ${escapeHtml(category.title)}`
+          : ctx.t.catalog.productsEmpty;
       const rows = prods.map((p) => [{ text: p.title, callback_data: `prd:open:${p.id}` }]);
-      rows.push([{ text: ru.catalog.back, callback_data: 'cat:list' }]);
+      rows.push([{ text: ctx.t.catalog.back, callback_data: 'cat:list' }]);
       await ctx.port.editMessageTextOrSend(chatId, messageId, text, {
         keyboard: { inline_keyboard: rows },
         parseMode: 'HTML',
@@ -75,7 +74,7 @@ export function registerCatalogHandlers(bot: Bot<BotContextWithSession>): void {
 
     const product = await getProductIfOwned(ctx.tenant.id, decoded.value.arg);
     if (!product) {
-      await ctx.port.editMessageTextOrSend(chatId, messageId, ru.product.notFound, {
+      await ctx.port.editMessageTextOrSend(chatId, messageId, ctx.t.product.notFound, {
         keyboard: { inline_keyboard: [[{ text: 'В меню', callback_data: 'nav:menu' }]] },
         parseMode: 'HTML',
       });

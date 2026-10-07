@@ -1,6 +1,7 @@
 import { Context, SessionFlavor } from 'grammy';
 import { SessionData, SessionState } from '../types.js';
 import { TelegramPort } from '../telegram/port.js';
+import type { Strings } from '../i18n/index.js';
 
 export interface BotContext extends Context {
   tenant: {
@@ -10,6 +11,7 @@ export interface BotContext extends Context {
     ownerTelegramId: number | null;
     shopName: string;
     currency: string;
+    language: string;
     timezone: string;
     status: 'active' | 'paused';
     acceptOrders: boolean;
@@ -32,6 +34,8 @@ export interface BotContext extends Context {
   session: SessionData;
   sessionState: SessionState;
   port: TelegramPort;
+  /** Interface strings for the tenant language, set by tenantMiddleware (fallback 'ru'). */
+  t: Strings;
 }
 
 export type BotContextWithSession = BotContext & SessionFlavor<SessionData>;

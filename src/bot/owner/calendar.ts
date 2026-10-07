@@ -1,7 +1,6 @@
 import { Bot } from 'grammy';
 import { canAccessOwner } from '../permissions.js';
 import { BotContextWithSession } from '../context.js';
-import { ru } from '../../i18n/ru.js';
 import { InlineKeyboard } from '../../telegram/port.js';
 import { addDays, monthEndOf } from '../../lib/time.js';
 import { getCapacityForDate, setCapacityForDate } from '../../services/calendar.js';
@@ -64,7 +63,7 @@ function calendarGrid(year: number, month: number, marks: Map<string, string>): 
 export function registerCalendarHandlers(bot: Bot<BotContextWithSession>): void {
   bot.callbackQuery(/^adm:cal:/, async (ctx) => {
     if (!canAccessOwner(ctx)) {
-      await ctx.port.answerCallback(ctx.callbackQuery.id, ru.ownerCatalog.notOwner);
+      await ctx.port.answerCallback(ctx.callbackQuery.id, ctx.t.ownerCatalog.notOwner);
       return;
     }
     await ctx.port.answerCallback(ctx.callbackQuery.id);
@@ -95,7 +94,7 @@ export function registerCalendarHandlers(bot: Bot<BotContextWithSession>): void 
         );
       }
       const kb = calendarGrid(Number(today.slice(0, 4)), Number(today.slice(5, 7)), marks);
-      await ctx.port.editMessageTextOrSend(chatId, messageId, ru.ownerCalendar.title, {
+      await ctx.port.editMessageTextOrSend(chatId, messageId, ctx.t.ownerCalendar.title, {
         keyboard: kb,
       });
       return;
@@ -121,7 +120,7 @@ export function registerCalendarHandlers(bot: Bot<BotContextWithSession>): void 
         );
       }
       const kb = calendarGrid(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)), marks);
-      await ctx.port.editMessageTextOrSend(chatId, messageId, ru.ownerCalendar.title, {
+      await ctx.port.editMessageTextOrSend(chatId, messageId, ctx.t.ownerCalendar.title, {
         keyboard: kb,
       });
       return;
@@ -148,7 +147,7 @@ export function registerCalendarHandlers(bot: Bot<BotContextWithSession>): void 
     if (setcapMatch) {
       const date = setcapMatch[1]!;
       beginOwnerDraft(ctx, { kind: 'cal_capacity', targetId: date });
-      await ctx.port.editMessageTextOrSend(chatId, messageId, ru.ownerCalendar.promptCapacity, {
+      await ctx.port.editMessageTextOrSend(chatId, messageId, ctx.t.ownerCalendar.promptCapacity, {
         keyboard: { inline_keyboard: [[{ text: 'Назад', callback_data: `adm:cal:day:${date}` }]] },
       });
       return;
@@ -175,15 +174,15 @@ export async function showDateScreen(
   const rows: InlineKeyboard['inline_keyboard'] = [
     [
       {
-        text: closed ? ru.ownerCalendar.open : ru.ownerCalendar.close,
+        text: closed ? ctx.t.ownerCalendar.open : ctx.t.ownerCalendar.close,
         callback_data: `adm:cal:toggle:${date}`,
       },
     ],
-    [{ text: ru.ownerCalendar.setCapacity, callback_data: `adm:cal:setcap:${date}` }],
+    [{ text: ctx.t.ownerCalendar.setCapacity, callback_data: `adm:cal:setcap:${date}` }],
   ];
   const lines = [
     date,
-    closed ? ru.ownerCalendar.closed : ru.ownerCalendar.openDay,
+    closed ? ctx.t.ownerCalendar.closed : ctx.t.ownerCalendar.openDay,
     `Лимит: ${current}`,
   ];
   if (dayOrders.length > 0) {
@@ -193,7 +192,7 @@ export async function showDateScreen(
       rows.push([{ text: `Заказ №${o.number}`, callback_data: `adm:ord:view:${o.id}` }]);
     }
   }
-  rows.push([{ text: ru.catalog.back, callback_data: 'adm:cal:list' }]);
+  rows.push([{ text: ctx.t.catalog.back, callback_data: 'adm:cal:list' }]);
   await ctx.port.editMessageTextOrSend(chatId, messageId, lines.join('\n'), {
     keyboard: { inline_keyboard: rows },
   });

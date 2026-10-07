@@ -1,6 +1,5 @@
 import { Bot } from 'grammy';
 import { BotContextWithSession } from '../context.js';
-import { ru } from '../../i18n/ru.js';
 import { claimTenant } from '../../services/tenants.js';
 import { customerMenuKeyboard, ownerMenuKeyboard } from '../owner/menu.js';
 
@@ -18,32 +17,32 @@ export function registerStartHandler(bot: Bot<BotContextWithSession>): void {
     if (param && param.startsWith('claim_')) {
       const code = param.slice('claim_'.length);
       if (!/^[A-Za-z0-9_-]{1,64}$/.test(code)) {
-        await ctx.port.sendMessage(ctx.chat.id, ru.start.claimInvalid);
+        await ctx.port.sendMessage(ctx.chat.id, ctx.t.start.claimInvalid);
         return;
       }
       const result = await claimTenant(code, ctx.from!.id, new Date());
       if (result.ok) {
         ctx.role = 'owner';
         ctx.tenant.ownerTelegramId = ctx.from!.id;
-        await ctx.port.sendMessage(ctx.chat.id, ru.start.claimSuccess(result.value.shopName));
-        await ctx.port.sendMessage(ctx.chat.id, ru.menu.ownerTitle, {
-          keyboard: ownerMenuKeyboard(),
+        await ctx.port.sendMessage(ctx.chat.id, ctx.t.start.claimSuccess(result.value.shopName));
+        await ctx.port.sendMessage(ctx.chat.id, ctx.t.menu.ownerTitle, {
+          keyboard: ownerMenuKeyboard(ctx),
           parseMode: 'HTML',
         });
       } else if (result.error === 'EXPIRED') {
-        await ctx.port.sendMessage(ctx.chat.id, ru.start.claimExpired);
+        await ctx.port.sendMessage(ctx.chat.id, ctx.t.start.claimExpired);
       } else if (result.error === 'ALREADY_CLAIMED') {
-        await ctx.port.sendMessage(ctx.chat.id, ru.start.claimUsed);
+        await ctx.port.sendMessage(ctx.chat.id, ctx.t.start.claimUsed);
       } else {
-        await ctx.port.sendMessage(ctx.chat.id, ru.start.claimInvalid);
+        await ctx.port.sendMessage(ctx.chat.id, ctx.t.start.claimInvalid);
       }
       return;
     }
 
-    const greeting = ctx.tenant.greetingText ?? ru.start.greeting(ctx.tenant.shopName);
+    const greeting = ctx.tenant.greetingText ?? ctx.t.start.greeting(ctx.tenant.shopName);
 
     await ctx.port.sendMessage(ctx.chat.id, greeting, {
-      keyboard: customerMenuKeyboard(),
+      keyboard: customerMenuKeyboard(ctx),
       parseMode: 'HTML',
     });
   });

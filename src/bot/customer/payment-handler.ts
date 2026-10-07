@@ -1,6 +1,5 @@
 import { Bot } from 'grammy';
 import { BotContextWithSession } from '../context.js';
-import { ru } from '../../i18n/ru.js';
 import { getDb } from '../../db/client.js';
 import { customers, orders, orderAttachments, tenants } from '../../db/schema.js';
 import { eq, and } from 'drizzle-orm';
@@ -74,7 +73,7 @@ export function registerPaymentHandlers(bot: Bot<BotContextWithSession>): void {
       if (chatId) {
         await ctx.port.sendMessage(
           chatId,
-          order.status === 'payment_review' ? ru.payment.alreadyReview : ru.payment.notAwaiting
+          order.status === 'payment_review' ? ctx.t.payment.alreadyReview : ctx.t.payment.notAwaiting
         );
       }
       return;
@@ -96,7 +95,7 @@ export function registerPaymentHandlers(bot: Bot<BotContextWithSession>): void {
     const chatId = ctx.callbackQuery.message?.chat.id;
     const messageId = ctx.callbackQuery.message?.message_id;
     if (chatId && messageId) {
-      await ctx.port.editMessageTextOrSend(chatId, messageId, ru.payment.promptReceipt, {});
+      await ctx.port.editMessageTextOrSend(chatId, messageId, ctx.t.payment.promptReceipt, {});
     }
   });
 
@@ -111,7 +110,7 @@ export function registerPaymentHandlers(bot: Bot<BotContextWithSession>): void {
       await ctx.port.editMessageTextOrSend(
         screen.chatId,
         screen.messageId,
-        ru.payment.invalidReceipt,
+        ctx.t.payment.invalidReceipt,
         {}
       );
     }
@@ -138,7 +137,7 @@ export function registerPaymentHandlers(bot: Bot<BotContextWithSession>): void {
       await ctx.port.editMessageTextOrSend(
         screen.chatId,
         screen.messageId,
-        ru.payment.invalidReceipt,
+        ctx.t.payment.invalidReceipt,
         {}
       );
     }
@@ -183,7 +182,7 @@ async function handleReceipt(
       await ctx.port.editMessageTextOrSend(
         failedScreen.chatId,
         failedScreen.messageId,
-        ru.payment.failed,
+        ctx.t.payment.failed,
         {}
       );
     }
@@ -204,8 +203,8 @@ async function handleReceipt(
   const screen = receiptScreen(ctx);
   ctx.session.paymentScreenId = undefined;
   if (screen) {
-    await ctx.port.editMessageTextOrSend(screen.chatId, screen.messageId, ru.payment.receiptSent, {
-      keyboard: { inline_keyboard: [[{ text: ru.menu.customerTitle, callback_data: 'nav:menu' }]] },
+    await ctx.port.editMessageTextOrSend(screen.chatId, screen.messageId, ctx.t.payment.receiptSent, {
+      keyboard: { inline_keyboard: [[{ text: ctx.t.menu.customerTitle, callback_data: 'nav:menu' }]] },
     });
   }
 
@@ -239,12 +238,12 @@ async function handleReceipt(
       await ctx.port.sendPhoto(
         ownerId,
         receiptPhoto.file_id,
-        ru.payment.receiptToOwner(clientLabel, order.number, 'фото'),
+        ctx.t.payment.receiptToOwner(clientLabel, order.number, 'фото'),
         {
           keyboard: {
             inline_keyboard: [
-              [{ text: ru.ownerOrders.paid, callback_data: `adm:ord:paid:${order.id}` }],
-              [{ text: ru.ownerOrders.badpay, callback_data: `adm:ord:badpay:${order.id}` }],
+              [{ text: ctx.t.ownerOrders.paid, callback_data: `adm:ord:paid:${order.id}` }],
+              [{ text: ctx.t.ownerOrders.badpay, callback_data: `adm:ord:badpay:${order.id}` }],
             ],
           },
         }
@@ -253,12 +252,12 @@ async function handleReceipt(
       await ctx.port.sendDocument(
         ownerId,
         receiptDoc.file_id,
-        ru.payment.receiptToOwner(clientLabel, order.number, 'файл'),
+        ctx.t.payment.receiptToOwner(clientLabel, order.number, 'файл'),
         {
           keyboard: {
             inline_keyboard: [
-              [{ text: ru.ownerOrders.paid, callback_data: `adm:ord:paid:${order.id}` }],
-              [{ text: ru.ownerOrders.badpay, callback_data: `adm:ord:badpay:${order.id}` }],
+              [{ text: ctx.t.ownerOrders.paid, callback_data: `adm:ord:paid:${order.id}` }],
+              [{ text: ctx.t.ownerOrders.badpay, callback_data: `adm:ord:badpay:${order.id}` }],
             ],
           },
         }

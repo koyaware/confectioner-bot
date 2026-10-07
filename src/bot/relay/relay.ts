@@ -1,7 +1,6 @@
 import { Bot } from 'grammy';
 import { canAccessOwner } from '../permissions.js';
 import { BotContextWithSession } from '../context.js';
-import { ru } from '../../i18n/ru.js';
 import { getDb } from '../../db/client.js';
 import { customers, orders, relayMessages } from '../../db/schema.js';
 import { and, desc, eq, notInArray } from 'drizzle-orm';
@@ -29,7 +28,7 @@ async function relayToOwner(ctx: BotContextWithSession): Promise<void> {
       } catch {
         // already gone
       }
-      await ctx.port.sendMessage(ctx.chat!.id, ru.relay.strayHint, {
+      await ctx.port.sendMessage(ctx.chat!.id, ctx.t.relay.strayHint, {
         keyboard: {
           inline_keyboard: [[{ text: '✍️ Написать мастеру', callback_data: 'rel:start' }]],
         },
@@ -79,12 +78,8 @@ async function relayToOwner(ctx: BotContextWithSession): Promise<void> {
   const orderLabel = activeOrders[0] ? `, заказ №${activeOrders[0].number}` : '';
 
   const headerText = `${customer.firstName ?? 'Гость'}${customer.username ? ` (@${customer.username})` : ''}${orderLabel}`;
+  // Owner replies via Telegram reply on the header/copy (no write-to-client button).
   const headerKbRows: { text: string; callback_data: string }[][] = [];
-  if (activeOrders[0]) {
-    headerKbRows.push([
-      { text: '✍️ Ответить', callback_data: `adm:ord:msg:${activeOrders[0].id}` },
-    ]);
-  }
   headerKbRows.push([{ text: '🚫 Блокировать', callback_data: `adm:relay:block:${customer.id}` }]);
 
   const customerChatId = ctx.chat!.id;
@@ -135,7 +130,7 @@ async function relayToOwner(ctx: BotContextWithSession): Promise<void> {
 
   ctx.sessionState = 'idle';
   try {
-    await ctx.port.sendMessage(customerChatId, ru.relay.willAnswerSoon);
+    await ctx.port.sendMessage(customerChatId, ctx.t.relay.willAnswerSoon);
   } catch (e) {
     if (e instanceof TelegramError && e.code === 'BLOCKED') {
       await db.update(customers).set({ botBlocked: true }).where(eq(customers.id, customer.id));
@@ -147,7 +142,7 @@ export function registerRelayHandlers(bot: Bot<BotContextWithSession>): void {
   // Block handler
   bot.callbackQuery(/^adm:relay:block:(.+)$/, async (ctx) => {
     if (!canAccessOwner(ctx)) {
-      await ctx.port.answerCallback(ctx.callbackQuery.id, ru.ownerCatalog.notOwner);
+      await ctx.port.answerCallback(ctx.callbackQuery.id, ctx.t.ownerCatalog.notOwner);
       return;
     }
     await ctx.port.answerCallback(ctx.callbackQuery.id);
@@ -164,7 +159,7 @@ export function registerRelayHandlers(bot: Bot<BotContextWithSession>): void {
     const chatId = ctx.callbackQuery.message?.chat.id;
     const messageId = ctx.callbackQuery.message?.message_id;
     if (chatId && messageId) {
-      await ctx.port.editMessageTextOrSend(chatId, messageId, ru.relay.clientBlocked, {});
+      await ctx.port.editMessageTextOrSend(chatId, messageId, ctx.t.relay.clientBlocked, {});
     }
   });
 
@@ -174,7 +169,7 @@ export function registerRelayHandlers(bot: Bot<BotContextWithSession>): void {
     ctx.sessionState = 'relay.compose';
     const chatId = ctx.callbackQuery.message?.chat.id;
     if (chatId) {
-      await ctx.port.sendMessage(chatId, ru.relay.composePrompt);
+      await ctx.port.sendMessage(chatId, ctx.t.relay.composePrompt);
     }
   });
 
@@ -239,7 +234,7 @@ export function registerRelayHandlers(bot: Bot<BotContextWithSession>): void {
         }
       }
       if (chatId) {
-        await ctx.port.sendMessage(chatId, ru.relay.strayHint, {
+        await ctx.port.sendMessage(chatId, ctx.t.relay.strayHint, {
           keyboard: {
             inline_keyboard: [[{ text: '✍️ Написать мастеру', callback_data: 'rel:start' }]],
           },

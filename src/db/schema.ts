@@ -20,6 +20,7 @@ export const tenants = sqliteTable('tenants', {
   claimExpiresAt: ts('claim_expires_at'),
   shopName: text('shop_name').notNull(),
   currency: text('currency').notNull().default('₽'),
+  language: text('language').notNull().default('ru'),
   timezone: text('timezone').notNull().default('Europe/Moscow'),
   status: text('status', { enum: ['active', 'paused'] })
     .notNull()
