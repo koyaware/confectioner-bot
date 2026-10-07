@@ -32,6 +32,7 @@ export function registerMenuHandler(bot: Bot<BotContextWithSession>): void {
       inline_keyboard: [
         [{ text: ru.start.buttonCatalog, callback_data: 'cat:list' }],
         [{ text: ru.cart.button, callback_data: 'cart:show' }],
+        [{ text: ru.my.button, callback_data: 'my:list' }],
         [{ text: ru.faq.button, callback_data: 'faq:list' }],
       ],
     };

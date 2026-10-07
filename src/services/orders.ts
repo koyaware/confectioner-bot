@@ -412,3 +412,19 @@ export async function applyOrderEvent(
   const updated = await db.select().from(orders).where(eq(orders.id, orderId)).limit(1);
   return { ok: true, value: updated[0]! };
 }
+
+export async function listCustomerOrders(
+  tenantId: string,
+  telegramId: number,
+  limit = 20
+): Promise<(typeof orders.$inferSelect)[]> {
+  const db = getDb();
+  const rows = await db
+    .select({ order: orders })
+    .from(orders)
+    .innerJoin(customers, eq(orders.customerId, customers.id))
+    .where(and(eq(orders.tenantId, tenantId), eq(customers.telegramId, telegramId)))
+    .orderBy(orders.createdAt)
+    .limit(limit);
+  return rows.map((r) => r.order).reverse();
+}
