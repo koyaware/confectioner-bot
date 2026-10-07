@@ -1,22 +1,22 @@
 # Удаление магазина
 
-Команда:
+Сначала остановите процесс бота, затем выполните команду:
 
 ```bash
 set -a && source .env && set +a
-npm run tenant:delete -- --slug <slug>
+npm run tenant:delete -- --slug <slug> --confirm <slug>
 ```
 
-Если магазин ещё активен, нужно подтверждение:
+Если магазин ещё активен, дополнительно нужен флаг `--force`:
 
 ```bash
-npm run tenant:delete -- --slug <slug> --force
+npm run tenant:delete -- --slug <slug> --force --confirm <slug>
 ```
 
 Скрипт:
 
-1. Делает бэкап SQLite в `./backups/pre-delete-*.db`.
-2. Удаляет заказы, товары, клиентов, FAQ, источники, FAQ, сессии и джобы.
+1. Делает бэкап SQLite в `./backups/pre-delete-*.db` и проверяет его целостность.
+2. Удаляет заказы, товары, клиентов, FAQ, источники, сессии и джобы.
 3. Удаляет строку из `tenants`.
 
 Важно: после удаления данные нельзя восстановить без бэкапа.

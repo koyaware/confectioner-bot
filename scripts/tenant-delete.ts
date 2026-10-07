@@ -10,9 +10,15 @@ function arg(name: string): string | undefined {
 
 const slug = arg('slug');
 const force = process.argv.includes('--force');
+const confirm = arg('confirm');
 
 if (!slug) {
-  console.error('Usage: tsx scripts/tenant-delete.ts --slug <slug> [--force]');
+  console.error('Usage: tsx scripts/tenant-delete.ts --slug <slug> [--force] --confirm <slug>');
+  process.exit(1);
+}
+
+if (confirm !== slug) {
+  console.error('Refusing to delete: pass --confirm <slug> with the exact slug to confirm.');
   process.exit(1);
 }
 

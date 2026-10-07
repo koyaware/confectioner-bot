@@ -1,6 +1,7 @@
 import { getSqliteDb, backupDatabase } from '../db/client.js';
 import { mkdir } from 'fs/promises';
 import { join } from 'path';
+import Database from 'better-sqlite3';
 
 export interface DeleteTenantOptions {
   force?: boolean;
@@ -34,6 +35,16 @@ export async function deleteTenantBySlug(
   await mkdir(dir, { recursive: true });
   const backupPath = join(dir, `pre-delete-${tenant.slug}-${Date.now()}.db`);
   await backupDatabase(backupPath);
+
+  const integrityDb = new Database(backupPath, { readonly: true });
+  try {
+    const row = integrityDb.prepare('PRAGMA integrity_check').get() as { integrity_check: string };
+    if (row.integrity_check !== 'ok') {
+      throw new Error(`Backup integrity check failed for ${backupPath}`);
+    }
+  } finally {
+    integrityDb.close();
+  }
 
   const run = db.transaction(() => {
     db.prepare(
