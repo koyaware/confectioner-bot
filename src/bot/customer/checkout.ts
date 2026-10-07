@@ -148,11 +148,21 @@ async function showCalendar(ctx: BotContextWithSession, edit: boolean): Promise<
 
   if (edit && chatId && messageId) {
     await ctx.port.editMessageText(chatId, messageId, text, {
-      keyboard: calendarKeyboard(availability, year, month),
+      keyboard: {
+        inline_keyboard: [
+          ...calendarKeyboard(availability, year, month).inline_keyboard,
+          [{ text: 'Отмена', callback_data: 'chk:cancel' }],
+        ],
+      },
     });
   } else if (chatId) {
     await ctx.port.sendMessage(chatId, text, {
-      keyboard: calendarKeyboard(availability, year, month),
+      keyboard: {
+        inline_keyboard: [
+          ...calendarKeyboard(availability, year, month).inline_keyboard,
+          [{ text: 'Отмена', callback_data: 'chk:cancel' }],
+        ],
+      },
     });
   }
 }
