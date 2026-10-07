@@ -59,6 +59,8 @@ export const ru = {
     contactPrompt: (phoneExample: string) =>
       `Контакт для связи: имя и телефон (через запятую) или отправьте контакт Telegram. Например: Иван, ${phoneExample}`,
     contactInvalid: (phoneExample: string) => `Не понял. Напишите так: Иван, ${phoneExample}`,
+    contactNameMissing: (phoneExample: string) =>
+      `Телефон принят. Теперь напишите имя, например: Иван, ${phoneExample}`,
     phoneExample: (currency: string) => {
       if (currency === '₸') return '+77001234567';
       if (currency === 'UZS') return '+998901234567';

@@ -229,4 +229,23 @@ describe('checkout steps', () => {
     const sent = port.getCallsForMethod('sendMessage');
     expect(sent[sent.length - 1]!.args[1] as string).toContain('+998901234567');
   });
+
+  it('phone-only contact asks for a name instead of dead-ending', async () => {
+    const now = new Date();
+    const { tenantId } = await seedDemo(appSecret, now);
+    const port = new FakePort();
+    const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
+
+    await setupCartAndCheckout(port, bot);
+    await bot.handleUpdate(msg(20, 42, 'к 15:00'));
+    await bot.handleUpdate(cb(21, 'c8', 42, 10, 'chk:ful:pickup'));
+    await bot.handleUpdate(msg(22, 42, '+79991234567'));
+
+    const sent = port.getCallsForMethod('sendMessage');
+    expect(sent[sent.length - 1]!.args[1] as string).toContain('Теперь напишите имя');
+
+    const rows = await getDb().select().from(sessions);
+    expect(rows[0]!.state).toBe('checkout.contact');
+    expect(tenantId).toBeTruthy();
+  });
 });

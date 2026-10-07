@@ -542,6 +542,13 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
           );
           return;
         }
+        if (!parsed.name) {
+          await ctx.port.sendMessage(
+            ctx.chat.id,
+            ru.checkout.contactNameMissing(ru.checkout.phoneExample(ctx.tenant.currency))
+          );
+          return;
+        }
         ctx.session.checkout!.contactName = parsed.name;
         ctx.session.checkout!.contactPhone = parsed.phone;
         ctx.sessionState = 'checkout.comment';
