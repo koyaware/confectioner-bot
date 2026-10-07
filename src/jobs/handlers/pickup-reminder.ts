@@ -1,6 +1,7 @@
 import { JobHandler, JobResult } from '../types.js';
 import { getDb } from '../../db/client.js';
 import { customers, orders, tenants } from '../../db/schema.js';
+import { getCustomerOrderNumber } from '../../services/orders.js';
 import { eq } from 'drizzle-orm';
 import { TelegramError, TelegramPort } from '../../telegram/port.js';
 
@@ -40,7 +41,7 @@ export function createPickupReminderHandler(ports: {
     try {
       await port.sendMessage(
         customer.telegramId,
-        `Напоминание: заказ №${order.number} — ${order.dueDate}${order.dueTimeText ? `, ${order.dueTimeText}` : ''}. ${detail}.`
+        `Напоминание: заказ №${(await getCustomerOrderNumber(order.id)) ?? order.number} — ${order.dueDate}${order.dueTimeText ? `, ${order.dueTimeText}` : ''}. ${detail}.`
       );
     } catch (error) {
       if (error instanceof TelegramError && error.code === 'BLOCKED') {

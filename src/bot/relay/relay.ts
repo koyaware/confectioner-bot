@@ -46,7 +46,7 @@ async function relayToOwner(ctx: BotContextWithSession): Promise<void> {
 
   // Find active order for context
   const activeOrders = await db
-    .select({ number: orders.number })
+    .select({ id: orders.id, number: orders.number })
     .from(orders)
     .innerJoin(customers, eq(orders.customerId, customers.id))
     .where(
@@ -61,12 +61,15 @@ async function relayToOwner(ctx: BotContextWithSession): Promise<void> {
   const orderLabel = activeOrders[0] ? `, заказ №${activeOrders[0].number}` : '';
 
   const headerText = `${customer.firstName ?? 'Гость'}${customer.username ? ` (@${customer.username})` : ''}${orderLabel}`;
+  const headerKbRows: { text: string; callback_data: string }[][] = [];
+  if (activeOrders[0]) {
+    headerKbRows.push([
+      { text: 'Ответить клиенту', callback_data: `adm:ord:msg:${activeOrders[0].id}` },
+    ]);
+  }
+  headerKbRows.push([{ text: 'Заблокировать', callback_data: `adm:relay:block:${customer.id}` }]);
   const header = await ctx.port.sendMessage(ownerId, headerText, {
-    keyboard: {
-      inline_keyboard: [
-        [{ text: 'Заблокировать', callback_data: `adm:relay:block:${customer.id}` }],
-      ],
-    },
+    keyboard: { inline_keyboard: headerKbRows },
   });
   const customerChatId = ctx.chat!.id;
 
@@ -241,7 +244,33 @@ async function handleOwnerReply(ctx: BotContextWithSession): Promise<void> {
     const customer = customerRows[0];
     if (!customer) return;
 
-    await ctx.port.copyMessage(customer.telegramId, ctx.chat!.id, ctx.message!.message_id);
+    const msg = ctx.message;
+    const replyKb = {
+      inline_keyboard: [[{ text: 'Ответить мастеру', callback_data: 'rel:start' }]],
+    };
+    if (msg?.text) {
+      await ctx.port.sendMessage(customer.telegramId, msg.text, { keyboard: replyKb });
+    } else if (msg?.photo?.length) {
+      await ctx.port.sendPhoto(
+        customer.telegramId,
+        msg.photo[msg.photo.length - 1]!.file_id,
+        msg.caption,
+        { keyboard: replyKb }
+      );
+    } else if (msg?.document) {
+      await ctx.port.sendDocument(customer.telegramId, msg.document.file_id, msg.caption, {
+        keyboard: replyKb,
+      });
+    } else {
+      await ctx.port.copyMessage(customer.telegramId, ctx.chat!.id, msg!.message_id);
+    }
+
+    await ctx.port.sendMessage(ctx.chat!.id, 'Отправлено клиенту.', {
+      keyboard: {
+        inline_keyboard: [[{ text: 'Написать снова', callback_data: `adm:ord:msg:${orderId}` }]],
+      },
+    });
+
     ctx.sessionState = 'idle';
     ctx.session.ownerDraft = undefined;
     return;

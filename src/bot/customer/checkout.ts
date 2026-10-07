@@ -2,7 +2,7 @@ import { Bot } from 'grammy';
 import { BotContextWithSession } from '../context.js';
 import { ru } from '../../i18n/ru.js';
 import { getDateAvailability, DateAvailability } from '../../services/dates.js';
-import { createOrder, CreateOrderInput } from '../../services/orders.js';
+import { createOrder, CreateOrderInput, getCustomerOrderNumber } from '../../services/orders.js';
 import { buildOrderCardText, orderCardKeyboard } from '../owner/orders.js';
 import { getDb } from '../../db/client.js';
 import { customers } from '../../db/schema.js';
@@ -476,7 +476,7 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
     await ctx.port.editMessageText(
       chatId,
       messageId,
-      `${ru.checkout.orderSent(order.number)} ${ctx.tenant.replySlaText}`,
+      `${ru.checkout.orderSent((await getCustomerOrderNumber(order.id)) ?? order.number)} ${ctx.tenant.replySlaText}`,
       {}
     );
 

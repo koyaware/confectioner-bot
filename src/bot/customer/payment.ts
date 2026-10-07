@@ -4,7 +4,7 @@ import { ru } from '../../i18n/ru.js';
 import { getDb } from '../../db/client.js';
 import { customers, orders, orderAttachments, tenants } from '../../db/schema.js';
 import { eq, and } from 'drizzle-orm';
-import { applyOrderEvent } from '../../services/orders.js';
+import { applyOrderEvent, getCustomerOrderNumber } from '../../services/orders.js';
 import { formatMinor } from '../../lib/money.js';
 import { TelegramPort } from '../../telegram/port.js';
 import { nanoid } from 'nanoid';
@@ -29,8 +29,9 @@ export async function sendPaymentCard(
   const customer = customerRows[0];
   if (!customer || customer.botBlocked) return;
 
+  const customerNumber = (await getCustomerOrderNumber(orderId)) ?? order.number;
   const card =
-    `Заказ №${order.number} принят.\n\n` +
+    `Заказ №${customerNumber} принят.\n\n` +
     `Предоплата: ${formatMinor(order.prepaymentMinor, tenant.currency)}\n\n` +
     `${tenant.paymentText ?? 'Реквизиты уточняйте у мастера'}\n\n` +
     `Оплатите и нажмите «Я оплатил». Срок: до ${order.paymentDueAt ? new Date(order.paymentDueAt).toLocaleString('ru-RU') : '—'}`;
@@ -71,6 +72,14 @@ export function registerPaymentHandlers(bot: Bot<BotContextWithSession>): void {
         keyboard: { inline_keyboard: [] },
       });
     }
+  });
+
+  bot.on('message:text', async (ctx, next) => {
+    if (ctx.sessionState !== 'payment.await_receipt') {
+      await next();
+      return;
+    }
+    await ctx.port.sendMessage(ctx.chat.id, ru.payment.invalidReceipt);
   });
 
   bot.on('message:photo', async (ctx, next) => {
@@ -133,18 +142,24 @@ async function handleReceipt(
   if (!order) return;
 
   if (fileType === 'photo') {
-    await ctx.port.sendPhoto(ownerId, fileId, `Чек, заказ №${order.number}`, {
-      keyboard: {
-        inline_keyboard: [
-          [{ text: 'Оплата верна', callback_data: `adm:ord:paid:${orderId}` }],
-          [{ text: 'Оплата не пришла', callback_data: `adm:ord:badpay:${orderId}` }],
-        ],
-      },
-    });
-  } else {
-    await ctx.port.sendMessage(
+    await ctx.port.sendPhoto(
       ownerId,
-      `Чек (файл), заказ №${order.number}: пришлите фото чека для подтверждения`,
+      fileId,
+      `Клиент ${order.customerId} прислал подтверждение оплаты чеком/фото, заказ №${order.number}`,
+      {
+        keyboard: {
+          inline_keyboard: [
+            [{ text: 'Оплата верна', callback_data: `adm:ord:paid:${orderId}` }],
+            [{ text: 'Оплата не пришла', callback_data: `adm:ord:badpay:${orderId}` }],
+          ],
+        },
+      }
+    );
+  } else {
+    await ctx.port.sendDocument(
+      ownerId,
+      fileId,
+      `Клиент ${order.customerId} прислал подтверждение оплаты файлом, заказ №${order.number}`,
       {
         keyboard: {
           inline_keyboard: [

@@ -4,7 +4,7 @@ import { BotContextWithSession } from '../context.js';
 import { ru } from '../../i18n/ru.js';
 import { escapeHtml } from '../../domain/escape.js';
 import { formatMinor } from '../../lib/money.js';
-import { applyOrderEvent } from '../../services/orders.js';
+import { applyOrderEvent, getCustomerOrderNumber } from '../../services/orders.js';
 import { sendPaymentCard } from '../customer/payment.js';
 import { InlineKeyboard, TelegramPort } from '../../telegram/port.js';
 import { getDb } from '../../db/client.js';
@@ -367,7 +367,7 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
         if (cust && !cust.botBlocked) {
           await ctx.port.sendMessage(
             cust.telegramId,
-            `Мастер предлагает сдвинуть заказ №${order.number} на ${iso}. Подходит?`,
+            `Мастер предлагает сдвинуть заказ №${(await getCustomerOrderNumber(orderId)) ?? order.number} на ${iso}. Подходит?`,
             {
               keyboard: {
                 inline_keyboard: [
@@ -425,7 +425,8 @@ async function notifyCustomer(
     .limit(1);
   const customer = customerRows[0];
   if (!customer || customer.botBlocked) return;
-  await port.sendMessage(customer.telegramId, text(order.number, order.totalMinor), {
+  const customerNumber = (await getCustomerOrderNumber(orderId)) ?? order.number;
+  await port.sendMessage(customer.telegramId, text(customerNumber, order.totalMinor), {
     parseMode: 'HTML',
   });
 }

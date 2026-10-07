@@ -2,7 +2,7 @@ import { JobHandler, JobResult } from '../types.js';
 import { getDb } from '../../db/client.js';
 import { customers, orders, tenants } from '../../db/schema.js';
 import { eq } from 'drizzle-orm';
-import { applyOrderEvent } from '../../services/orders.js';
+import { applyOrderEvent, getCustomerOrderNumber } from '../../services/orders.js';
 import { TelegramPort, TelegramError } from '../../telegram/port.js';
 import { formatMinor } from '../../lib/money.js';
 
@@ -40,7 +40,7 @@ export function createPaymentReminderHandler(ports: PortResolver): JobHandler<{ 
     try {
       await port.sendMessage(
         customer.telegramId,
-        `Напоминаем: предоплата по заказу №${order.number} — ${formatMinor(order.prepaymentMinor, tenant.currency)}. Срок до ${order.paymentDueAt ? new Date(order.paymentDueAt).toLocaleString('ru-RU') : '—'}.`
+        `Напоминаем: предоплата по заказу №${(await getCustomerOrderNumber(order.id)) ?? order.number} — ${formatMinor(order.prepaymentMinor, tenant.currency)}. Срок до ${order.paymentDueAt ? new Date(order.paymentDueAt).toLocaleString('ru-RU') : '—'}.`
       );
     } catch (error) {
       if (error instanceof TelegramError && error.code === 'BLOCKED') {
@@ -71,7 +71,7 @@ export function createPaymentExpireHandler(ports: PortResolver): JobHandler<{ or
         try {
           await port.sendMessage(
             customer.telegramId,
-            `Заказ №${order.number} снят: предоплата не поступила вовремя.`
+            `Заказ №${(await getCustomerOrderNumber(order.id)) ?? order.number} снят: предоплата не поступила вовремя.`
           );
         } catch (error) {
           if (error instanceof TelegramError && error.code === 'BLOCKED') {

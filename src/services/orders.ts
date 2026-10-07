@@ -39,6 +39,21 @@ export type CreateOrderError =
   | 'TENANT_BUSY'
   | 'BAD_QTY';
 
+export async function getCustomerOrderNumber(orderId: string): Promise<number | null> {
+  const db = getDb();
+  const row = (await db.select().from(orders).where(eq(orders.id, orderId)).limit(1))[0];
+  if (!row) return null;
+
+  const rows = await db
+    .select({ id: orders.id })
+    .from(orders)
+    .where(and(eq(orders.customerId, row.customerId), eq(orders.tenantId, row.tenantId)))
+    .orderBy(orders.createdAt, orders.number);
+
+  const idx = rows.findIndex((r) => r.id === orderId);
+  return idx === -1 ? null : idx + 1;
+}
+
 export async function createOrder(
   input: CreateOrderInput
 ): Promise<Result<typeof orders.$inferSelect, CreateOrderError>> {

@@ -8,7 +8,7 @@ import { and, eq } from 'drizzle-orm';
 import { formatMinor } from '../../lib/money.js';
 import { escapeHtml } from '../../domain/escape.js';
 import { InlineKeyboard } from '../../telegram/port.js';
-import { applyOrderEvent } from '../../services/orders.js';
+import { applyOrderEvent, getCustomerOrderNumber } from '../../services/orders.js';
 import { getDateAvailability } from '../../services/dates.js';
 import { sendPaymentCard } from './payment.js';
 
@@ -74,7 +74,9 @@ export function registerMyOrdersHandlers(bot: Bot<BotContextWithSession>): void 
 
     const items = await db.select().from(orderItems).where(eq(orderItems.orderId, found.order.id));
     const lines: string[] = [];
-    lines.push(`<b>Заказ №${found.order.number}</b>`);
+    lines.push(
+      `<b>Заказ №${(await getCustomerOrderNumber(found.order.id)) ?? found.order.number}</b>`
+    );
     lines.push(`Статус: ${STATUS_LABELS[found.order.status] ?? found.order.status}`);
     for (const it of items) {
       lines.push(
@@ -131,7 +133,12 @@ export function registerMyOrdersHandlers(bot: Bot<BotContextWithSession>): void 
       return;
     }
 
-    await ctx.port.editMessageText(chatId, messageId, `Заказ №${found.order.number} отменён.`, {});
+    await ctx.port.editMessageText(
+      chatId,
+      messageId,
+      `Заказ №${(await getCustomerOrderNumber(found.order.id)) ?? found.order.number} отменён.`,
+      {}
+    );
 
     const ownerId = ctx.tenant.ownerTelegramId;
     if (ownerId) {
@@ -230,13 +237,16 @@ export function registerMyOrdersHandlers(bot: Bot<BotContextWithSession>): void 
     if (accepted.value.status === 'awaiting_payment') {
       await sendPaymentCard(ctx.port, ctx.tenant.id, found.order.id);
     } else {
-      await ctx.port.sendMessage(chatId, `Заказ №${found.order.number} принят в работу.`);
+      await ctx.port.sendMessage(
+        chatId,
+        `Заказ №${(await getCustomerOrderNumber(found.order.id)) ?? found.order.number} принят в работу.`
+      );
     }
 
     await ctx.port.editMessageText(
       chatId,
       messageId,
-      `Заказ №${found.order.number} перенесён на ${accepted.value.dueDate}.`,
+      `Заказ №${(await getCustomerOrderNumber(found.order.id)) ?? found.order.number} перенесён на ${accepted.value.dueDate}.`,
       {}
     );
   });
