@@ -4,7 +4,7 @@ import { and, eq, gte, sql, inArray, isNotNull } from 'drizzle-orm';
 
 export interface Stats {
   newCustomersTotal: number;
-  newCustomersBySource: { source: string; count: number }[];
+  newCustomersBySource: { source: string | null; count: number }[];
   funnel: { type: string; count: number }[];
   ordersByStatus: { status: string; count: number }[];
   revenueMinor: number;
@@ -27,7 +27,7 @@ export async function computeStats(tenantId: string, days: number, now: Date): P
 
   const newCustomersTotal = newCustomers.reduce((s, r) => s + Number(r.count), 0);
   const newCustomersBySource = newCustomers
-    .map((r) => ({ source: r.source ?? 'неизвестно', count: Number(r.count) }))
+    .map((r) => ({ source: r.source, count: Number(r.count) }))
     .sort((a, b) => b.count - a.count);
 
   const funnel = await db

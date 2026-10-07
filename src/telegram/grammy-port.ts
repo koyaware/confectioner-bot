@@ -217,6 +217,11 @@ export class GrammyPort implements TelegramPort {
     } catch (error) {
       const err = error as { description?: string; error_code?: number };
       const description = err?.description || '';
+      // Re-editing identical content is a no-op success, not an error
+      // (happens when tapping the already active period/filter button).
+      if (err?.error_code === 400 && description.includes('message is not modified')) {
+        return { messageId };
+      }
       // If message has no text (photo/document), delete and send new
       if (err?.error_code === 400 && description.includes('no text in the message')) {
         try {

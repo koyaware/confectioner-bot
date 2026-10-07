@@ -145,6 +145,70 @@ describe('stats', () => {
     expect(s30.newCustomersTotal).toBe(2);
   });
 
+  it('renders canonical order, hides free_text, localizes unknown source', async () => {
+    const { tenantId } = await seedDemo(appSecret, now);
+    const db = getDb();
+    const D = 86400000;
+    await db.insert(customers).values({
+      id: 'cx',
+      tenantId,
+      telegramId: 9,
+      source: null,
+      firstSeenAt: new Date(now.getTime() - D),
+      lastSeenAt: now,
+    });
+    await db.insert(funnelEvents).values([
+      { tenantId, customerId: 'cx', type: 'order_submit', at: new Date(now.getTime() - D) },
+      { tenantId, customerId: 'cx', type: 'free_text', at: new Date(now.getTime() - D) },
+      { tenantId, customerId: 'cx', type: 'start', at: new Date(now.getTime() - D) },
+    ]);
+    await getDb().update(tenants).set({ ownerTelegramId: 555 }).where(eq(tenants.id, tenantId));
+    const port = new FakePort();
+    const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
+
+    await bot.handleUpdate(cb(1, 'c1', 555, 10, 'adm:stats'));
+    const edits = port.getCallsForMethod('editMessageTextOrSend');
+    const text = edits[edits.length - 1]!.args[2] as string;
+    expect(text).toContain('без метки');
+    expect(text).not.toContain('неизвестно');
+    expect(text).not.toContain('Свободный вопрос');
+    const funnelStart = text.indexOf('Воронка:');
+    const startPos = text.indexOf('Старт', funnelStart);
+    const orderPos = text.indexOf('Заказ', funnelStart);
+    expect(startPos).toBeGreaterThan(-1);
+    expect(orderPos).toBeGreaterThan(-1);
+    expect(startPos).toBeLessThan(orderPos);
+  });
+
+  it('pluralizes bot-only line in Russian', async () => {
+    const { tenantId } = await seedDemo(appSecret, now);
+    const db = getDb();
+    const D = 86400000;
+    await db.insert(customers).values({
+      id: 'c1',
+      tenantId,
+      telegramId: 1,
+      source: null,
+      firstSeenAt: new Date(now.getTime() - D),
+      lastSeenAt: now,
+    });
+    await db.insert(funnelEvents).values({
+      tenantId,
+      customerId: 'c1',
+      type: 'catalog_view',
+      at: new Date(now.getTime() - D),
+    });
+    await getDb().update(tenants).set({ ownerTelegramId: 555 }).where(eq(tenants.id, tenantId));
+    const port = new FakePort();
+    const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
+
+    await bot.handleUpdate(cb(1, 'c1', 555, 10, 'adm:stats'));
+    const edits = port.getCallsForMethod('editMessageTextOrSend');
+    const text = edits[edits.length - 1]!.args[2] as string;
+    expect(text).toContain('1 обращение');
+    expect(text).not.toContain('1 клиентов');
+  });
+
   it('renders stats to owner and supports 30d button screen', async () => {
     const tenantId = await seed();
     await getDb().update(tenants).set({ ownerTelegramId: 555 }).where(eq(tenants.id, tenantId));

@@ -249,6 +249,7 @@ export const uz: Strings = {
     avgDecision: (minutes: number | null) =>
       minutes === null ? 'Egasi qarorigacha vaqt: —' : `Egasi qarorigacha vaqt: ${minutes} daq`,
     botOnly: (n: number) => `Egasiz bot ishladi: ${n} mijoz`,
+    unknownSource: 'belgisiz',
     days7: '📊 7 kun',
     days30: '📊 30 kun',
   },

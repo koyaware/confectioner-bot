@@ -20,21 +20,52 @@ export function registerStatsHandlers(bot: Bot<BotContextWithSession>): void {
 
     const stats = await computeStats(ctx.tenant.id, days, new Date());
 
+    const FUNNEL_ORDER = [
+      'start',
+      'catalog_view',
+      'product_view',
+      'cart_add',
+      'checkout_start',
+      'order_submit',
+      'faq_view',
+    ];
+    const STATUS_ORDER = [
+      'new',
+      'awaiting_payment',
+      'payment_review',
+      'confirmed',
+      'ready',
+      'completed',
+      'rejected',
+      'cancelled',
+      'expired',
+    ];
+    const orderIndex = (order: string[], value: string) => {
+      const i = order.indexOf(value);
+      return i === -1 ? order.length : i;
+    };
+
     const lines: string[] = [];
     lines.push(ctx.t.stats.title(days));
     lines.push('');
     lines.push(`${ctx.t.stats.newCustomers}: ${stats.newCustomersTotal}`);
     for (const s of stats.newCustomersBySource) {
-      lines.push(`  • ${escapeHtml(s.source)}: ${s.count}`);
+      lines.push(`  • ${escapeHtml(s.source ?? ctx.t.stats.unknownSource)}: ${s.count}`);
     }
     lines.push('');
     lines.push(ctx.t.stats.funnelTitle);
-    for (const f of stats.funnel) {
+    const funnel = [...stats.funnel]
+      .filter((f) => f.type !== 'free_text')
+      .sort((a, b) => orderIndex(FUNNEL_ORDER, a.type) - orderIndex(FUNNEL_ORDER, b.type));
+    for (const f of funnel) {
       lines.push(`  • ${ctx.t.funnel[f.type as keyof typeof ctx.t.funnel] ?? f.type}: ${f.count}`);
     }
     lines.push('');
     lines.push(ctx.t.stats.byStatusTitle);
-    for (const o of stats.ordersByStatus) {
+    const byStatus = [...stats.ordersByStatus].sort(
+      (a, b) => orderIndex(STATUS_ORDER, a.status) - orderIndex(STATUS_ORDER, b.status)
+    );
+    for (const o of byStatus) {
       lines.push(
         `  • ${ctx.t.orderStatuses[o.status as keyof typeof ctx.t.orderStatuses] ?? o.status}: ${o.count}`
       );
