@@ -199,11 +199,8 @@ describe('job scheduler', () => {
       expect(job[0]?.lastError).toBe('Simulated failure');
     });
 
-    it('marks job as failed after 3 attempts', async () => {
-      const attempts: number[] = [];
-
+    it('schedules the third retry after the third failure', async () => {
       scheduler.registerHandler('order.payment_reminder', async () => {
-        attempts.push(1);
         return { success: false, error: 'Simulated failure' };
       });
 
@@ -220,6 +217,38 @@ describe('job scheduler', () => {
       // Manually set attempts to 2
       await db.update(jobs).set({ attempts: 2 }).where(eq(jobs.id, id));
 
+      const before = Date.now();
+      scheduler.start();
+
+      // Wait for execution
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Third failure schedules the 1800s retry, job stays pending
+      const job = await db.select().from(jobs).where(eq(jobs.id, id)).limit(1);
+      expect(job[0]?.status).toBe('pending');
+      expect(job[0]?.attempts).toBe(3);
+      const delayMs = (job[0]?.runAt as Date).getTime() - before;
+      expect(delayMs).toBeGreaterThan(1700_000);
+    });
+
+    it('marks job as failed after the fourth failure', async () => {
+      scheduler.registerHandler('order.payment_reminder', async () => {
+        return { success: false, error: 'Simulated failure' };
+      });
+
+      const db = getDb();
+
+      // Create a job with 3 attempts already
+      const { id } = await createJob({
+        type: 'order.payment_reminder',
+        payload: { orderId: 'order-1' },
+        runAt: new Date(Date.now() - 1000),
+        dedupeKey: 'test:1',
+      });
+
+      // Manually set attempts to 3
+      await db.update(jobs).set({ attempts: 3 }).where(eq(jobs.id, id));
+
       scheduler.start();
 
       // Wait for execution
@@ -228,7 +257,7 @@ describe('job scheduler', () => {
       // Check job is marked as failed
       const job = await db.select().from(jobs).where(eq(jobs.id, id)).limit(1);
       expect(job[0]?.status).toBe('failed');
-      expect(job[0]?.attempts).toBe(3);
+      expect(job[0]?.attempts).toBe(4);
     });
 
     it('handles handler exceptions', async () => {

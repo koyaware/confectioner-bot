@@ -143,7 +143,7 @@ export class JobScheduler {
     const db = getDb();
     const nextAttempt = job.attempts + 1;
 
-    if (nextAttempt < RETRY_DELAYS.length) {
+    if (nextAttempt <= RETRY_DELAYS.length) {
       // Schedule retry
       const delay = RETRY_DELAYS[nextAttempt - 1] ?? RETRY_DELAYS[RETRY_DELAYS.length - 1]!;
       const nextRunAt = new Date(Date.now() + delay);
