@@ -309,12 +309,25 @@ export async function applyOrderEvent(
     'owner_cancel',
   ];
 
+  // Set paymentDueAt when entering awaiting_payment
+  let paymentDueAt = order.paymentDueAt;
+  if (result.value.status === 'awaiting_payment') {
+    const tenantRows = await db
+      .select({ hours: tenants.paymentDeadlineHours })
+      .from(tenants)
+      .where(eq(tenants.id, order.tenantId))
+      .limit(1);
+    const hours = tenantRows[0]?.hours ?? 24;
+    paymentDueAt = new Date(now.getTime() + hours * 3600_000);
+  }
+
   db.transaction((tx) => {
     tx.update(orders)
       .set({
         status: result.value.status,
         decidedAt: decidedEvents.includes(event) ? now : order.decidedAt,
         updatedAt: now,
+        paymentDueAt,
       })
       .where(eq(orders.id, orderId))
       .run();

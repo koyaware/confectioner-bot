@@ -4,6 +4,7 @@ import { ru } from '../../i18n/ru.js';
 import { escapeHtml } from '../../domain/escape.js';
 import { formatMinor } from '../../lib/money.js';
 import { applyOrderEvent } from '../../services/orders.js';
+import { sendPaymentCard } from '../customer/payment.js';
 import { InlineKeyboard, TelegramPort } from '../../telegram/port.js';
 import { getDb } from '../../db/client.js';
 import { customers, orders, orderItems } from '../../db/schema.js';
@@ -77,14 +78,14 @@ export function orderCardKeyboard(orderId: string, status: string): InlineKeyboa
 }
 
 export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
-  bot.callbackQuery(/^adm:ord:(accept|reject|rr):/, async (ctx) => {
+  bot.callbackQuery(/^adm:ord:(accept|reject|rr|paid|badpay):/, async (ctx) => {
     if (ctx.role !== 'owner') {
       await ctx.port.answerCallback(ctx.callbackQuery.id, ru.ownerCatalog.notOwner);
       return;
     }
     await ctx.port.answerCallback(ctx.callbackQuery.id);
 
-    const m = /^adm:ord:(accept|reject|rr):(.+)$/.exec(ctx.callbackQuery.data);
+    const m = /^adm:ord:(accept|reject|rr|paid|badpay):(.+)$/.exec(ctx.callbackQuery.data);
     if (!m) return;
     const action = m[1]!;
     const rest = m[2]!;
@@ -103,11 +104,11 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
           parseMode: 'HTML',
         });
       }
-      await notifyCustomer(ctx.port, rest, (n) =>
-        result.value.status === 'awaiting_payment'
-          ? `Заказ №${n} принят. ${ru.orderStatus.awaitingPayment}`
-          : `Заказ №${n} принят в работу. ${ru.orderStatus.confirmed}`
-      );
+      if (result.value.status === 'awaiting_payment') {
+        await sendPaymentCard(ctx.port, ctx.tenant.id, rest);
+      } else {
+        await notifyCustomer(ctx.port, rest, (n) => `Заказ №${n} принят в работу.`);
+      }
       return;
     }
 
@@ -123,6 +124,37 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
           parseMode: 'HTML',
         });
       }
+      return;
+    }
+
+    if (action === 'paid') {
+      const result = await applyOrderEvent(rest, 'payment_confirmed', 'owner', new Date());
+      if (!result.ok) return;
+      const card = await buildOrderCardText(rest, ctx.tenant.id, ctx.tenant.currency);
+      if (card) {
+        await ctx.port.editMessageText(chatId, messageId, card, {
+          parseMode: 'HTML',
+        });
+      }
+      await notifyCustomer(ctx.port, rest, () => 'Оплата подтверждена. Заказ в работе.');
+      return;
+    }
+
+    if (action === 'badpay') {
+      const result = await applyOrderEvent(rest, 'payment_rejected', 'owner', new Date());
+      if (!result.ok) return;
+      const card = await buildOrderCardText(rest, ctx.tenant.id, ctx.tenant.currency);
+      if (card) {
+        await ctx.port.editMessageText(chatId, messageId, card, {
+          parseMode: 'HTML',
+        });
+      }
+      await notifyCustomer(
+        ctx.port,
+        rest,
+        () =>
+          'Оплата не подтверждена. Нажмите «Я оплатил» в сообщении с реквизитами и пришлите другой чек.'
+      );
       return;
     }
 

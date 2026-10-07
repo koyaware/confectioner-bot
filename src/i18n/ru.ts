@@ -66,6 +66,11 @@ export const ru = {
     notFound: 'Вопрос не найден.',
     button: 'Вопросы и ответы',
   },
+  payment: {
+    promptReceipt: 'Пришлите фото или файл чека.',
+    receiptSent: 'Чек отправлен мастеру на проверку.',
+    failed: 'Не удалось принять чек. Попробуйте ещё раз.',
+  },
   orderStatus: {
     awaitingPayment: 'Ожидаем предоплату.',
     confirmed: 'Ваш заказ подтверждён.',
