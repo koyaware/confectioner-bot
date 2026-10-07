@@ -23,6 +23,7 @@ import { registerOrderHandlers } from './owner/orders.js';
 import { registerCalendarHandlers } from './owner/calendar.js';
 import { registerPaymentHandlers } from './customer/payment.js';
 import { registerMyOrdersHandlers } from './customer/my-orders.js';
+import { registerRelayHandlers } from './relay/relay.js';
 
 export interface TenantBot {
   tenantId: string;
@@ -121,6 +122,7 @@ export function createTenantBot(
   registerCalendarHandlers(bot);
   registerPaymentHandlers(bot);
   registerMyOrdersHandlers(bot);
+  registerRelayHandlers(bot);
 
   return {
     tenantId,
