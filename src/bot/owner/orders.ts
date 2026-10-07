@@ -78,6 +78,7 @@ export async function buildOrderCardText(
     lines.push(`Клиент: ${escapeHtml(customer.firstName ?? 'клиент')} (${link})`);
   }
   if (order.rejectReason) lines.push(`Причина отказа: ${escapeHtml(order.rejectReason)}`);
+  if (order.cancelReason) lines.push(`Причина отмены клиентом: ${escapeHtml(order.cancelReason)}`);
   if (order.proposedDate) lines.push(`Предложенная дата: ${order.proposedDate}`);
   const tenantRows = await db.select().from(tenants).where(eq(tenants.id, order.tenantId)).limit(1);
   const timezone = tenantRows[0]?.timezone ?? 'Europe/Moscow';

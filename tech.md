@@ -705,9 +705,9 @@ export interface TelegramPort {
 | `chk:submit:<checkoutId>`                                                                                   | отправить заказ (идемпотентно)                                                                    |
 | `my:list` / `my:view:<orderId>`                                                                             | мои заказы                                                                                        |
 | `nav:menu`                                                                                                  | главное меню текущей роли                                                                         |
-| `my:cancel:<orderId>`                                                                                   | открыть выбор причины отмены                                                  |
-| `my:cancelreason:<orderId>:<code>`                                                                       | отмена клиентом с причиной (`plans`/`date`/`price`/`other`)                   |
-| `my:cancelskip:<orderId>`                                                                               | отмена клиентом без причины                                                   |
+| `my:cancel:<orderId>`                                                                                       | открыть выбор причины отмены                                                                      |
+| `my:cancelreason:<orderId>:<code>`                                                                          | отмена клиентом с причиной (`plans`/`date`/`price`/`other`)                                       |
+| `my:cancelskip:<orderId>`                                                                                   | отмена клиентом без причины                                                                       |
 | `my:refs:<orderId>`                                                                                         | показать референсы своего заказа                                                                  |
 | `pay:sent:<orderId>`                                                                                        | «я оплатил», ждем чек                                                                             |
 | `faq:list` / `faq:view:<faqId>`                                                                             | FAQ                                                                                               |

@@ -116,9 +116,16 @@ describe('my orders', () => {
     const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
 
     await bot.handleUpdate(cb(1, 'c1', 42, 10, `my:cancel:${order.id}`));
+    let edits = port.getCallsForMethod('editMessageText');
+    const reasonBtn = JSON.stringify(edits[edits.length - 1]!.args[3]).match(
+      /my:cancelreason:[A-Za-z0-9_-]+:[a-z]+/
+    );
+    expect(reasonBtn).toBeTruthy();
+    await bot.handleUpdate(cb(2, 'c2', 42, 10, reasonBtn![0]));
 
     const rows = await getDb().select().from(orders);
     expect(rows[0]!.status).toBe('cancelled');
+    expect(rows[0]!.cancelReason).toBe('Поменялись планы');
 
     const sent = port.getCallsForMethod('sendMessage');
     expect(sent.some((c) => c.args[0] === 555)).toBe(true);
@@ -130,10 +137,15 @@ describe('my orders', () => {
     const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
 
     await bot.handleUpdate(cb(1, 'c1', 42, 10, `my:cancel:${order.id}`));
-    await bot.handleUpdate(cb(2, 'c2', 42, 10, 'my:list'));
+    let edits = port.getCallsForMethod('editMessageText');
+    const skipBtn = JSON.stringify(edits[edits.length - 1]!.args[3]).match(
+      /my:cancelskip:[A-Za-z0-9_-]+/
+    );
+    await bot.handleUpdate(cb(2, 'c2', 42, 10, skipBtn![0]));
+    await bot.handleUpdate(cb(3, 'c3', 42, 10, 'my:list'));
 
-    const edits = port.getCallsForMethod('editMessageText');
-    expect(edits[1]!.args[2]).toBe('У вас пока нет заказов.');
+    const listEdits = port.getCallsForMethod('editMessageText');
+    expect(listEdits[listEdits.length - 1]!.args[2]).toBe('У вас пока нет заказов.');
   });
 
   it('customer can view stored reference photos', async () => {

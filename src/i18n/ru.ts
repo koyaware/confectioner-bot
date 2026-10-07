@@ -103,6 +103,14 @@ export const ru = {
     cancelFailed: 'Заказ нельзя отменить в текущем статусе.',
     actionFailed: 'Не получилось выполнить действие.',
     button: 'Мои заказы',
+    cancelTitle: 'Почему отменяете заказ?',
+    cancelSkip: 'Пропустить',
+    cancelReasons: {
+      plans: 'Поменялись планы',
+      date: 'Нужна другая дата',
+      price: 'Дорого',
+      other: 'Другая причина',
+    } as Record<string, string>,
   },
   payment: {
     promptReceipt: 'Пришлите фото или файл чека.',

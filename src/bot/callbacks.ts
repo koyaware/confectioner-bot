@@ -42,6 +42,13 @@ const callbackSchema = z
     z.object({ ns: z.literal('chk'), action: z.literal('photos'), arg: z.literal('done') }),
     z.object({ ns: z.literal('my'), action: z.literal('list') }),
     z.object({ ns: z.literal('my'), action: z.enum(['view', 'cancel', 'refs']), arg: idSchema }),
+    z.object({
+      ns: z.literal('my'),
+      action: z.literal('cancelreason'),
+      arg: idSchema,
+      arg2: z.enum(['plans', 'date', 'price', 'other']),
+    }),
+    z.object({ ns: z.literal('my'), action: z.literal('cancelskip'), arg: idSchema }),
     z.object({ ns: z.literal('nav'), action: z.literal('menu') }),
     z.object({ ns: z.literal('pay'), action: z.literal('sent'), arg: idSchema }),
     z.object({ ns: z.literal('faq'), action: z.literal('list') }),
@@ -197,8 +204,11 @@ export function encodeCallback(c: Callback): string {
       return 'arg' in c && c.arg ? `cart:${c.action}:${c.arg}` : `cart:${c.action}`;
     case 'chk':
       return 'arg' in c && c.arg ? `chk:${c.action}:${c.arg}` : `chk:${c.action}`;
-    case 'my':
-      return c.action === 'list' ? 'my:list' : `my:${c.action}:${c.arg}`;
+    case 'my': {
+      if (c.action === 'list') return 'my:list';
+      const myBase = `my:${c.action}:${c.arg}`;
+      return 'arg2' in c && c.arg2 ? `${myBase}:${c.arg2}` : myBase;
+    }
     case 'nav':
       return 'nav:menu';
     case 'pay':
