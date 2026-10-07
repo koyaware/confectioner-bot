@@ -393,7 +393,7 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
       chatId,
       messageId,
       `Референсы заказа №${order.number} (${refs.length} шт.)`,
-      { keyboard: { inline_keyboard: [[{ text: ru.common.back, callback_data: 'adm:ord:list' }]] } }
+      { keyboard: { inline_keyboard: [[{ text: ru.common.back, callback_data: `adm:ord:view:${order.id}` }]] } }
     );
     for (const ref of refs) {
       if (ref.fileType === 'photo') {

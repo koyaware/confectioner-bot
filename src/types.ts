@@ -63,7 +63,9 @@ export type SessionState =
   | 'payment.await_receipt'
   | 'relay.compose'
   | 'owner.edit_field'
-  | 'owner.reply_to_customer';
+  | 'owner.reply_to_customer'
+  | 'owner.dialog'
+  | 'customer.dialog';
 
 export type SessionData = {
   cart: Cart;
@@ -73,6 +75,9 @@ export type SessionData = {
   paymentScreenId?: number;
   lastAutoReplyAt?: number; // unix seconds
   refsMessageIds?: number[]; // transient bot messages (refs) to delete on next navigation
+  dialogMessageId?: number; // customer side: the single dialog screen message
+  dialogHistory?: { who: 'owner' | 'customer'; text: string }[];
+  ownerDialogs?: Record<string, { messageId?: number; history: { who: 'owner' | 'customer'; text: string }[] }>;
   antispam?: { windowStart: number; count: number };
   selections?: Record<string, string[]>;
 };

@@ -49,6 +49,8 @@ const sessionStateSchema = z.enum([
   'relay.compose',
   'owner.edit_field',
   'owner.reply_to_customer',
+  'owner.dialog',
+  'customer.dialog',
 ]);
 
 const sessionDataSchema = z.object({
@@ -68,6 +70,21 @@ const sessionDataSchema = z.object({
   paymentScreenId: z.number().int().positive().optional(),
   lastAutoReplyAt: z.number().optional(),
   refsMessageIds: z.array(z.number()).optional(),
+  dialogMessageId: z.number().int().positive().optional(),
+  dialogHistory: z
+    .array(z.object({ who: z.enum(['owner', 'customer']), text: z.string().max(500) }))
+    .max(20)
+    .optional(),
+  ownerDialogs: z
+    .record(
+      z.object({
+        messageId: z.number().int().positive().optional(),
+        history: z
+          .array(z.object({ who: z.enum(['owner', 'customer']), text: z.string().max(500) }))
+          .max(20),
+      })
+    )
+    .optional(),
   antispam: z
     .object({
       windowStart: z.number(),
@@ -88,7 +105,7 @@ function parseStoredSession(raw: unknown): { session: SessionData; state: Sessio
   }
   const session = sessionDataSchema.safeParse(value);
   if (!session.success) return null;
-  return { session: session.data, state: 'idle' };
+  return { session: session.data, state: 'idle' as SessionState };
 }
 
 /**

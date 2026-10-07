@@ -68,7 +68,7 @@ export function registerStatsHandlers(bot: Bot<BotContextWithSession>): void {
     lines.push(
       `Время до решения владельца: ${stats.avgDecisionMinutes === null ? '—' : `${stats.avgDecisionMinutes} мин`}`
     );
-    lines.push(`Обрабатывал бот без владельца: ${stats.botOnlyInteractions}`);
+    lines.push(`Обрабатывал бот без владельца: ${stats.botOnlyInteractions} клиентов`);
 
     const chatId = ctx.callbackQuery.message?.chat.id;
     const messageId = ctx.callbackQuery.message?.message_id;

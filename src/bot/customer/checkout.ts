@@ -160,10 +160,14 @@ async function showScreen(
   const chatId = ctx.callbackQuery?.message?.chat.id ?? ctx.chat?.id;
   if (!chatId) return;
   const draft = ctx.session.checkout;
-  const screenId = draft?.screenMessageId;
+  let screenId = draft?.screenMessageId;
+  if (!screenId && ctx.callbackQuery?.message?.message_id) {
+    screenId = ctx.callbackQuery.message.message_id;
+  }
   if (screenId) {
     try {
       await ctx.port.editMessageText(chatId, screenId, text, { keyboard, parseMode });
+      if (draft) draft.screenMessageId = screenId;
       return;
     } catch {
       // screen message is gone (deleted); fall through and send a fresh one

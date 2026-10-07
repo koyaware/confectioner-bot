@@ -32,6 +32,13 @@ export function registerMyOrdersHandlers(bot: Bot<BotContextWithSession>): void 
   bot.callbackQuery(/^my:list$/, async (ctx) => {
     await ctx.port.answerCallback(ctx.callbackQuery.id);
 
+    // Clear dialog state if open
+    if (ctx.sessionState === 'customer.dialog') {
+      ctx.session.dialogHistory = undefined;
+      ctx.session.dialogMessageId = undefined;
+      ctx.sessionState = 'idle';
+    }
+
     const list = await listCustomerOrders(ctx.tenant.id, ctx.from.id);
     const rows: InlineKeyboard['inline_keyboard'] = list.map((o) => [
       {
@@ -166,11 +173,11 @@ export function registerMyOrdersHandlers(bot: Bot<BotContextWithSession>): void 
     }
 
     const sentIds: number[] = [];
-    await ctx.port.editMessageText(
+await ctx.port.editMessageText(
       chatId,
       messageId,
       `Референсы заказа №${(await getCustomerOrderNumber(found.order.id)) ?? found.order.number} (${refs.length} шт.)`,
-      { keyboard: { inline_keyboard: [[{ text: ru.catalog.back, callback_data: 'my:list' }]] } }
+      { keyboard: { inline_keyboard: [[{ text: ru.catalog.back, callback_data: `my:view:${found.order.id}` }]] } }
     );
     for (const ref of refs) {
       if (ref.fileType === 'photo') {
