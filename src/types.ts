@@ -47,6 +47,7 @@ export type CheckoutDraft = {
   contactPhone?: string;
   comment?: string;
   referenceFileIds: { fileId: string; fileType: 'photo' | 'document' }[];
+  screenMessageId?: number; // the single checkout screen message being edited
 };
 
 export type SessionState =
@@ -70,6 +71,7 @@ export type SessionData = {
   ownerDraft?: { kind: string; targetId?: string; extra?: Record<string, string> };
   paymentOrderId?: string;
   lastAutoReplyAt?: number; // unix seconds
+  refsMessageIds?: number[]; // transient bot messages (refs) to delete on next navigation
   antispam?: { windowStart: number; count: number };
   selections?: Record<string, string[]>;
 };

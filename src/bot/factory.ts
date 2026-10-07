@@ -9,6 +9,7 @@ import { roleMiddleware } from './middleware/role.js';
 import { sessionMiddleware } from './middleware/session.js';
 import { antispamMiddleware } from './middleware/antispam.js';
 import { funnelMiddleware } from './middleware/funnel.js';
+import { refsCleanupMiddleware } from './middleware/cleanup.js';
 import { errorMiddleware } from './middleware/errors.js';
 import { registerStartHandler } from './customer/start.js';
 import { registerCatalogHandlers } from './customer/catalog.js';
@@ -112,6 +113,7 @@ export function createTenantBot(
   bot.use(tenantMiddleware);
   bot.use(roleMiddleware);
   bot.use(sessionMiddleware);
+  bot.use(refsCleanupMiddleware);
   bot.use(antispamMiddleware);
   bot.use(funnelMiddleware);
 

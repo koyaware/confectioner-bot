@@ -124,10 +124,10 @@ describe('checkout steps', () => {
     expect(data.checkout.comment).toBe('С днём рождения!');
 
     // confirm screen shows summary and submit button with checkoutId
-    const sent = port.getCallsForMethod('sendMessage');
-    const confirmMsg = sent[sent.length - 1]!;
-    expect(confirmMsg.args[1] as string).toContain('Ваш заказ');
-    expect(JSON.stringify(confirmMsg.args[2])).toContain('chk:submit:');
+    const confirmEdits = port.getCallsForMethod('editMessageText');
+    const confirmMsg = confirmEdits[confirmEdits.length - 1]!;
+    expect(confirmMsg.args[2] as string).toContain('Ваш заказ');
+    expect(JSON.stringify(confirmMsg.args[3])).toContain('chk:submit:');
 
     // back from confirm goes to photos
     await bot.handleUpdate(cb(26, 'c10', 42, 10, 'chk:back'));
@@ -158,8 +158,8 @@ describe('checkout steps', () => {
     await bot.handleUpdate(cb(21, 'c8', 42, 10, 'chk:ful:pickup'));
 
     // contact prompt next, not address
-    const sent = port.getCallsForMethod('sendMessage');
-    expect(sent[sent.length - 1]!.args[1] as string).toContain('Контакт');
+    const contactEdits = port.getCallsForMethod('editMessageText');
+    expect(contactEdits[contactEdits.length - 1]!.args[2] as string).toContain('Контакт');
   });
 
   it('chk:submit creates order, clears cart and informs owner', async () => {
@@ -226,8 +226,8 @@ describe('checkout steps', () => {
     await bot.handleUpdate(msg(20, 42, 'к 15:00'));
     await bot.handleUpdate(cb(21, 'c8', 42, 10, 'chk:ful:pickup'));
 
-    const sent = port.getCallsForMethod('sendMessage');
-    expect(sent[sent.length - 1]!.args[1] as string).toContain('+998901234567');
+    const currencyEdits = port.getCallsForMethod('editMessageText');
+    expect(currencyEdits[currencyEdits.length - 1]!.args[2] as string).toContain('+998901234567');
   });
 
   it('phone-only contact asks for a name instead of dead-ending', async () => {
@@ -241,8 +241,8 @@ describe('checkout steps', () => {
     await bot.handleUpdate(cb(21, 'c8', 42, 10, 'chk:ful:pickup'));
     await bot.handleUpdate(msg(22, 42, '+79991234567'));
 
-    const sent = port.getCallsForMethod('sendMessage');
-    expect(sent[sent.length - 1]!.args[1] as string).toContain('Теперь напишите имя');
+    const nameEdits = port.getCallsForMethod('editMessageText');
+    expect(nameEdits[nameEdits.length - 1]!.args[2] as string).toContain('Теперь напишите имя');
 
     const rows = await getDb().select().from(sessions);
     expect(rows[0]!.state).toBe('checkout.contact');

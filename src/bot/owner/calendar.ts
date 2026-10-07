@@ -6,6 +6,9 @@ import { InlineKeyboard } from '../../telegram/port.js';
 import { addDays, monthEndOf } from '../../lib/time.js';
 import { getCapacityForDate, setCapacityForDate } from '../../services/calendar.js';
 import { getDateAvailability } from '../../services/dates.js';
+import { getDb } from '../../db/client.js';
+import { orders } from '../../db/schema.js';
+import { and, desc, eq } from 'drizzle-orm';
 
 const MONTH_NAMES = [
   'Январь',
@@ -125,26 +128,7 @@ export function registerCalendarHandlers(bot: Bot<BotContextWithSession>): void 
 
     const dayMatch = /^adm:cal:day:(\d{4}-\d{2}-\d{2})$/.exec(data);
     if (dayMatch) {
-      const date = dayMatch[1]!;
-      const info = await getCapacityForDate(ctx.tenant.id, date);
-      const current = info.isOverride ? info.capacity : ctx.tenant.defaultDailyCapacity;
-      const closed = info.isOverride ? info.isClosed : false;
-      const rows: InlineKeyboard['inline_keyboard'] = [
-        [
-          {
-            text: closed ? ru.ownerCalendar.open : ru.ownerCalendar.close,
-            callback_data: `adm:cal:toggle:${date}`,
-          },
-        ],
-        [{ text: ru.ownerCalendar.setCapacity, callback_data: `adm:cal:setcap:${date}` }],
-        [{ text: ru.catalog.back, callback_data: 'adm:cal:list' }],
-      ];
-      await ctx.port.editMessageText(
-        chatId,
-        messageId,
-        `${date}\n${closed ? ru.ownerCalendar.closed : ru.ownerCalendar.openDay}\nЛимит: ${current}`,
-        { keyboard: { inline_keyboard: rows } }
-      );
+      await showDateScreen(ctx, dayMatch[1]!, chatId, messageId);
       return;
     }
 
@@ -172,7 +156,7 @@ export function registerCalendarHandlers(bot: Bot<BotContextWithSession>): void 
   });
 }
 
-async function showDateScreen(
+export async function showDateScreen(
   ctx: BotContextWithSession,
   date: string,
   chatId: number,
@@ -181,6 +165,13 @@ async function showDateScreen(
   const info = await getCapacityForDate(ctx.tenant.id, date);
   const current = info.isOverride ? info.capacity : ctx.tenant.defaultDailyCapacity;
   const closed = info.isOverride ? info.isClosed : false;
+  const db = getDb();
+  const dayOrders = await db
+    .select({ id: orders.id, number: orders.number, status: orders.status })
+    .from(orders)
+    .where(and(eq(orders.tenantId, ctx.tenant.id), eq(orders.dueDate, date)))
+    .orderBy(desc(orders.createdAt))
+    .limit(10);
   const rows: InlineKeyboard['inline_keyboard'] = [
     [
       {
@@ -189,12 +180,21 @@ async function showDateScreen(
       },
     ],
     [{ text: ru.ownerCalendar.setCapacity, callback_data: `adm:cal:setcap:${date}` }],
-    [{ text: ru.catalog.back, callback_data: 'adm:cal:list' }],
   ];
-  await ctx.port.editMessageText(
-    chatId,
-    messageId,
-    `${date}\n${closed ? ru.ownerCalendar.closed : ru.ownerCalendar.openDay}\nЛимит: ${current}`,
-    { keyboard: { inline_keyboard: rows } }
-  );
+  const lines = [
+    date,
+    closed ? ru.ownerCalendar.closed : ru.ownerCalendar.openDay,
+    `Лимит: ${current}`,
+  ];
+  if (dayOrders.length > 0) {
+    lines.push('', 'Заказы:');
+    for (const o of dayOrders) {
+      lines.push(`• №${o.number} — ${o.status}`);
+      rows.push([{ text: `Заказ №${o.number}`, callback_data: `adm:ord:view:${o.id}` }]);
+    }
+  }
+  rows.push([{ text: ru.catalog.back, callback_data: 'adm:cal:list' }]);
+  await ctx.port.editMessageText(chatId, messageId, lines.join('\n'), {
+    keyboard: { inline_keyboard: rows },
+  });
 }

@@ -57,7 +57,16 @@ describe('relay', () => {
     const port = new FakePort();
     const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
 
-    // customer writes to bot
+    // customer opens a dialog, then writes to bot
+    await bot.handleUpdate({
+      update_id: 0,
+      callback_query: {
+        id: 'c0',
+        from: { id: 42, is_bot: false, first_name: 'C' },
+        message: { message_id: 9, date: 1, chat: { id: 42, type: 'private' } },
+        data: 'rel:start',
+      },
+    } as never);
     await bot.handleUpdate(msg(1, 42, 'Подскажите, есть ли доставка?'));
 
     // owner got a single combined message (header + text, no separate copy)
@@ -71,7 +80,7 @@ describe('relay', () => {
 
     // customer got auto-reply
     expect(
-      sent.some((c) => c.args[0] === 42 && (c.args[1] as string).includes('Передал мастеру'))
+      sent.some((c) => c.args[0] === 42 && (c.args[1] as string).includes('Мастер скоро ответит'))
     ).toBe(true);
 
     // relay messages saved
@@ -109,7 +118,7 @@ describe('relay', () => {
       telegramId: 42,
       firstSeenAt: new Date(),
       lastSeenAt: new Date(),
-    });
+});
 
     const port = new FakePort();
     const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
@@ -140,6 +149,15 @@ describe('relay', () => {
     const port = new FakePort();
     const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
 
+    await bot.handleUpdate({
+      update_id: 0,
+      callback_query: {
+        id: 'c0',
+        from: { id: 42, is_bot: false, first_name: 'C' },
+        message: { message_id: 9, date: 1, chat: { id: 42, type: 'private' } },
+        data: 'rel:start',
+      },
+    } as never);
     await bot.handleUpdate({
       update_id: 1,
       message: {
@@ -178,6 +196,21 @@ describe('relay', () => {
     const { sessions } = await import('../src/db/schema.js');
     const rows = await getDb().select().from(sessions);
     expect(rows[0]!.state).toBe('idle');
+    expect(tenantId).toBeTruthy();
+  });
+  it('stray customer text is removed with a hint, not relayed', async () => {
+    const { tenantId } = await seedDemo(appSecret, new Date());
+    await getDb().update(tenants).set({ ownerTelegramId: 555 }).where(eq(tenants.id, tenantId));
+
+    const port = new FakePort();
+    const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
+
+    await bot.handleUpdate(msg(1, 42, 'Просто текст'));
+
+    expect(port.getCallsForMethod('copyMessage')).toHaveLength(0);
+    expect(port.getCallsForMethod('deleteMessage')).toHaveLength(1);
+    const sent = port.getCallsForMethod('sendMessage').map((c) => c.args[1] as string);
+    expect(sent.some((t) => t.includes('Написать мастеру'))).toBe(true);
     expect(tenantId).toBeTruthy();
   });
 });

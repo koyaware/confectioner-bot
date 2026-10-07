@@ -303,12 +303,17 @@ export function registerCartHandlers(bot: Bot<BotContextWithSession>): void {
       ctx.session.cart,
       new Date()
     );
-    await ctx.port.sendMessage(chatId, `${ru.checkout.dateTitle}\n${ru.checkout.dateLegend}`, {
-      keyboard: calendarKeyboard(
-        availability,
-        Number(today.slice(0, 4)),
-        Number(today.slice(5, 7))
-      ),
-    });
+    const sent = await ctx.port.sendMessage(
+      chatId,
+      `${ru.checkout.dateTitle}\n${ru.checkout.dateLegend}`,
+      {
+        keyboard: calendarKeyboard(
+          availability,
+          Number(today.slice(0, 4)),
+          Number(today.slice(5, 7))
+        ),
+      }
+    );
+    ctx.session.checkout.screenMessageId = sent.messageId;
   });
 }

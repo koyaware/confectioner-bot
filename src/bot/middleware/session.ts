@@ -21,11 +21,12 @@ const checkoutSchema = z.object({
   referenceFileIds: z
     .array(
       z.object({
-        fileId: z.string().min(1).max(200),
+        fileId: z.string().min(1).max(500),
         fileType: z.enum(['photo', 'document']),
       })
     )
     .max(10),
+  screenMessageId: z.number().int().positive().optional(),
 });
 
 const ownerDraftSchema = z.object({
@@ -65,6 +66,7 @@ const sessionDataSchema = z.object({
   ownerDraft: ownerDraftSchema.optional(),
   paymentOrderId: z.string().optional(),
   lastAutoReplyAt: z.number().optional(),
+  refsMessageIds: z.array(z.number()).optional(),
   antispam: z
     .object({
       windowStart: z.number(),

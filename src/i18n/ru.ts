@@ -44,8 +44,7 @@ export const ru = {
     willAnswerSoon: 'Мастер скоро ответит.',
     sentToClient: 'Отправлено клиенту.',
     clientBlocked: 'Клиент заблокирован.',
-    forwarded: (replySlaText: string) =>
-      `Передал мастеру, ответ придет сюда, обычно ${replySlaText}.`,
+    strayHint: 'Чтобы написать мастеру, нажмите кнопку «Написать мастеру».',
   },
   cart: {
     empty: 'Корзина пуста.',
@@ -71,6 +70,7 @@ export const ru = {
     contactInvalid: (phoneExample: string) => `Не понял. Напишите так: Иван, ${phoneExample}`,
     contactNameMissing: (phoneExample: string) =>
       `Телефон принят. Теперь напишите имя, например: Иван, ${phoneExample}`,
+    orderMore: 'Заказать ещё',
     phoneExample: (currency: string) => {
       if (currency === '₸') return '+77001234567';
       if (currency === 'UZS') return '+998901234567';
@@ -95,6 +95,7 @@ export const ru = {
     empty: 'Частые вопросы пока не добавлены.',
     notFound: 'Вопрос не найден.',
     button: 'FAQ',
+    ask: 'Задать вопрос',
   },
   my: {
     listTitle: 'Ваши заказы',
@@ -165,6 +166,7 @@ export const ru = {
     setCapacity: 'Изменить лимит',
     promptCapacity: 'Введите лимит заказов на день (целое число >= 0).',
     badCapacity: 'Нужно целое неотрицательное число.',
+    savedLimit: 'Лимит сохранён.',
   },
   ownerFaq: {
     title: 'FAQ',

@@ -388,13 +388,17 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
       return;
     }
 
+    const sentIds: number[] = [];
     for (const ref of refs) {
       if (ref.fileType === 'photo') {
-        await ctx.port.sendPhoto(ctx.callbackQuery.message!.chat.id, ref.fileId);
+        const sent = await ctx.port.sendPhoto(ctx.callbackQuery.message!.chat.id, ref.fileId);
+        sentIds.push(sent.messageId);
       } else {
-        await ctx.port.sendDocument(ctx.callbackQuery.message!.chat.id, ref.fileId);
+        const sent = await ctx.port.sendDocument(ctx.callbackQuery.message!.chat.id, ref.fileId);
+        sentIds.push(sent.messageId);
       }
     }
+    ctx.session.refsMessageIds = [...(ctx.session.refsMessageIds ?? []), ...sentIds];
   });
 
   bot.callbackQuery(

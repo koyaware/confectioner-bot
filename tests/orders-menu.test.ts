@@ -160,6 +160,11 @@ describe('owner orders callbacks', () => {
     expect(photos).toHaveLength(1);
     expect(photos[0]!.args[0]).toBe(555);
     expect(photos[0]!.args[1]).toBe('file-1');
+
+    await bot.handleUpdate(cb(3, 555, 'adm:ord:list'));
+    const deleted = port.getCallsForMethod('deleteMessage');
+    expect(deleted).toHaveLength(1);
+    expect(deleted[0]!.args[0]).toBe(555);
   });
 
   it('rejects cross-tenant order mutation', async () => {

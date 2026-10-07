@@ -139,9 +139,7 @@ async function showCalendar(ctx: BotContextWithSession, edit: boolean): Promise<
       keyboard: calendarKeyboard(availability, year, month),
     });
   } else if (chatId) {
-    await ctx.port.sendMessage(chatId, text, {
-      keyboard: calendarKeyboard(availability, year, month),
-    });
+    await showScreen(ctx, text, calendarKeyboard(availability, year, month));
   }
 }
 
@@ -153,22 +151,65 @@ function stepKeyboard(opts?: { skip?: boolean; back?: boolean }): InlineKeyboard
   return { inline_keyboard: rows };
 }
 
+async function showScreen(
+  ctx: BotContextWithSession,
+  text: string,
+  keyboard: InlineKeyboard,
+  parseMode?: 'HTML'
+): Promise<void> {
+  const chatId = ctx.callbackQuery?.message?.chat.id ?? ctx.chat?.id;
+  if (!chatId) return;
+  const draft = ctx.session.checkout;
+  const screenId = draft?.screenMessageId;
+  if (screenId) {
+    try {
+      await ctx.port.editMessageText(chatId, screenId, text, { keyboard, parseMode });
+      return;
+    } catch {
+      // screen message is gone (deleted); fall through and send a fresh one
+    }
+  }
+  const sent = await ctx.port.sendMessage(chatId, text, { keyboard, parseMode });
+  if (draft) {
+    draft.screenMessageId = sent.messageId;
+  }
+}
+
+async function deleteUserMessage(ctx: BotContextWithSession): Promise<void> {
+  const messageId = ctx.message?.message_id;
+  const chatId = ctx.chat?.id;
+  if (!messageId || !chatId) return;
+  try {
+    await ctx.port.deleteMessage(chatId, messageId);
+  } catch {
+    // already gone
+  }
+}
+
+function photosKeyboard(): InlineKeyboard {
+  return {
+    inline_keyboard: [
+      [{ text: 'Готово', callback_data: 'chk:photos:done' }],
+      [{ text: 'Пропустить', callback_data: 'chk:skip' }],
+      [{ text: 'Назад', callback_data: 'chk:back' }],
+      [{ text: 'Отмена', callback_data: 'chk:cancel' }],
+    ],
+  };
+}
+
+async function refreshPhotosScreen(ctx: BotContextWithSession): Promise<void> {
+  await showScreen(ctx, photosPromptText(ctx), photosKeyboard());
+}
+
 async function showCurrentStep(ctx: BotContextWithSession): Promise<void> {
   const state = ctx.sessionState;
   const draft = ctx.session.checkout;
   const chatId = ctx.callbackQuery?.message?.chat.id ?? ctx.chat?.id;
-  const messageId = ctx.callbackQuery?.message?.message_id;
   if (!chatId) return;
 
   switch (state) {
     case 'checkout.time': {
-      const text = ru.checkout.timePrompt;
-      const kb = stepKeyboard({ skip: true });
-      if (messageId) {
-        await ctx.port.editMessageText(chatId, messageId, text, { keyboard: kb });
-      } else {
-        await ctx.port.sendMessage(chatId, text, { keyboard: kb });
-      }
+      await showScreen(ctx, ru.checkout.timePrompt, stepKeyboard({ skip: true }));
       break;
     }
     case 'checkout.fulfillment': {
@@ -180,44 +221,27 @@ async function showCurrentStep(ctx: BotContextWithSession): Promise<void> {
           [{ text: 'Отмена', callback_data: 'chk:cancel' }],
         ],
       };
-      if (messageId) {
-        await ctx.port.editMessageText(chatId, messageId, ru.checkout.fulfillmentPrompt, {
-          keyboard: kb,
-        });
-      } else {
-        await ctx.port.sendMessage(chatId, ru.checkout.fulfillmentPrompt, { keyboard: kb });
-      }
+      await showScreen(ctx, ru.checkout.fulfillmentPrompt, kb);
       break;
     }
     case 'checkout.address': {
-      const kb = stepKeyboard();
-      await ctx.port.sendMessage(chatId, ru.checkout.addressPrompt, { keyboard: kb });
+      await showScreen(ctx, ru.checkout.addressPrompt, stepKeyboard());
       break;
     }
     case 'checkout.contact': {
-      const kb = stepKeyboard();
-      await ctx.port.sendMessage(
-        chatId,
+      await showScreen(
+        ctx,
         ru.checkout.contactPrompt(ru.checkout.phoneExample(ctx.tenant.currency)),
-        { keyboard: kb }
+        stepKeyboard()
       );
       break;
     }
     case 'checkout.comment': {
-      const kb = stepKeyboard({ skip: true });
-      await ctx.port.sendMessage(chatId, ru.checkout.commentPrompt, { keyboard: kb });
+      await showScreen(ctx, ru.checkout.commentPrompt, stepKeyboard({ skip: true }));
       break;
     }
     case 'checkout.photos': {
-      const kb: InlineKeyboard = {
-        inline_keyboard: [
-          [{ text: 'Готово', callback_data: 'chk:photos:done' }],
-          [{ text: 'Пропустить', callback_data: 'chk:skip' }],
-          [{ text: 'Назад', callback_data: 'chk:back' }],
-          [{ text: 'Отмена', callback_data: 'chk:cancel' }],
-        ],
-      };
-      await ctx.port.sendMessage(chatId, ru.checkout.photosPrompt, { keyboard: kb });
+      await refreshPhotosScreen(ctx);
       break;
     }
     case 'checkout.confirm': {
@@ -229,12 +253,20 @@ async function showCurrentStep(ctx: BotContextWithSession): Promise<void> {
           [{ text: 'Отмена', callback_data: 'chk:cancel' }],
         ],
       };
-      await ctx.port.sendMessage(chatId, text, { keyboard: kb, parseMode: 'HTML' });
+      await showScreen(ctx, text, kb, 'HTML');
       break;
     }
     default:
       break;
   }
+}
+
+function photosPromptText(ctx: BotContextWithSession): string {
+  const count = ctx.session.checkout?.referenceFileIds.length ?? 0;
+  const base = ru.checkout.photosPrompt;
+  if (count === 0) return base;
+  if (count >= 5) return base + '\n\nПрикреплено: 5/5 (максимум).';
+  return base + `\n\nПрикреплено: ${count}/5.`;
 }
 
 async function buildConfirmText(ctx: BotContextWithSession): Promise<string> {
@@ -472,7 +504,18 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
       chatId,
       messageId,
       `${ru.checkout.orderSent((await getCustomerOrderNumber(order.id)) ?? order.number)} ${ctx.tenant.replySlaText}`,
-      {}
+      {
+        keyboard: {
+          inline_keyboard: [
+            [{ text: ru.checkout.orderMore, callback_data: 'cat:list' }],
+            [
+              { text: ru.cart.button, callback_data: 'cart:show' },
+              { text: ru.my.button, callback_data: 'my:list' },
+            ],
+            [{ text: 'В меню', callback_data: 'nav:menu' }],
+          ],
+        },
+      }
     );
 
     await notifyOwnerOfOrder(ctx, order.id);
@@ -489,6 +532,7 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
     }
 
     const text = ctx.message.text.trim();
+    await deleteUserMessage(ctx);
 
     switch (ctx.sessionState) {
       case 'checkout.time':
@@ -502,7 +546,7 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
         break;
       case 'checkout.address':
         if (!text) {
-          await ctx.port.sendMessage(ctx.chat.id, ru.checkout.addressPrompt);
+          await showScreen(ctx, ru.checkout.addressPrompt, stepKeyboard());
           return;
         }
         ctx.session.checkout!.address = text;
@@ -512,16 +556,18 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
       case 'checkout.contact': {
         const parsed = parseContact(text);
         if (!parsed) {
-          await ctx.port.sendMessage(
-            ctx.chat.id,
-            ru.checkout.contactInvalid(ru.checkout.phoneExample(ctx.tenant.currency))
+          await showScreen(
+            ctx,
+            ru.checkout.contactInvalid(ru.checkout.phoneExample(ctx.tenant.currency)),
+            stepKeyboard()
           );
           return;
         }
         if (!parsed.name) {
-          await ctx.port.sendMessage(
-            ctx.chat.id,
-            ru.checkout.contactNameMissing(ru.checkout.phoneExample(ctx.tenant.currency))
+          await showScreen(
+            ctx,
+            ru.checkout.contactNameMissing(ru.checkout.phoneExample(ctx.tenant.currency)),
+            stepKeyboard()
           );
           return;
         }
@@ -547,6 +593,7 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
       return;
     }
     const contact = ctx.message.contact;
+    await deleteUserMessage(ctx);
     if (contextHasPhone(contact)) {
       ctx.session.checkout!.contactName = `${contact.first_name}${contact.last_name ? ' ' + contact.last_name : ''}`;
       ctx.session.checkout!.contactPhone = contact.phone_number;
@@ -562,13 +609,15 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
     }
     const photo = ctx.message.photo[ctx.message.photo.length - 1];
     if (!photo) return;
+    await deleteUserMessage(ctx);
     const arr = ctx.session.checkout?.referenceFileIds ?? [];
     if (arr.length >= 5) {
-      await ctx.port.sendMessage(ctx.chat.id, ru.checkout.photosLimit);
+      await refreshPhotosScreen(ctx);
       return;
     }
     arr.push({ fileId: photo.file_id, fileType: 'photo' });
     ctx.session.checkout!.referenceFileIds = arr;
+    await refreshPhotosScreen(ctx);
   });
 
   bot.on('message:document', async (ctx, next) => {
@@ -578,13 +627,15 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
     }
     const doc = ctx.message.document;
     if (!doc) return;
+    await deleteUserMessage(ctx);
     const arr = ctx.session.checkout?.referenceFileIds ?? [];
     if (arr.length >= 5) {
-      await ctx.port.sendMessage(ctx.chat.id, ru.checkout.photosLimit);
+      await refreshPhotosScreen(ctx);
       return;
     }
     arr.push({ fileId: doc.file_id, fileType: 'document' });
     ctx.session.checkout!.referenceFileIds = arr;
+    await refreshPhotosScreen(ctx);
   });
 }
 

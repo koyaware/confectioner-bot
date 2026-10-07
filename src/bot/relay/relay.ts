@@ -9,7 +9,6 @@ import { TelegramError } from '../../telegram/port.js';
 import { trackFunnelEvent } from '../middleware/funnel.js';
 import { nanoid } from 'nanoid';
 
-const AUTO_REPLY_INTERVAL_S = 6 * 3600;
 const TERMINAL_STATUSES = ['rejected', 'cancelled', 'expired', 'completed'] as const;
 
 async function relayToOwner(ctx: BotContextWithSession): Promise<void> {
@@ -21,7 +20,25 @@ async function relayToOwner(ctx: BotContextWithSession): Promise<void> {
   if (ctx.sessionState === 'owner.edit_field' || ctx.sessionState === 'owner.reply_to_customer')
     return;
 
-  const wasCompose = ctx.sessionState === 'relay.compose';
+  // Customers reach the owner only through an explicit dialog state
+  // (rel:start / «Ответить мастеру»). Stray messages are removed with a hint.
+  if (ctx.sessionState !== 'relay.compose') {
+    const messageId = ctx.message?.message_id;
+    if (messageId && !canAccessOwner(ctx)) {
+      try {
+        await ctx.port.deleteMessage(ctx.chat!.id, messageId);
+      } catch {
+        // already gone
+      }
+      await ctx.port.sendMessage(ctx.chat!.id, ru.relay.strayHint, {
+        keyboard: {
+          inline_keyboard: [[{ text: 'Написать мастеру', callback_data: 'rel:start' }]],
+        },
+      });
+    }
+    return;
+  }
+
   const db = getDb();
   let customerRows = await db
     .select()
@@ -118,40 +135,12 @@ async function relayToOwner(ctx: BotContextWithSession): Promise<void> {
 
   await trackFunnelEvent(ctx, 'free_text');
 
-  if (wasCompose) {
-    ctx.sessionState = 'idle';
-    try {
-      await ctx.port.sendMessage(customerChatId, ru.relay.willAnswerSoon);
-    } catch (e) {
-      if (e instanceof TelegramError && e.code === 'BLOCKED') {
-        await db.update(customers).set({ botBlocked: true }).where(eq(customers.id, customer.id));
-      }
-    }
-    return;
-  }
-
-  // Auto-reply once per 6 hours
-  const nowS = Math.floor(Date.now() / 1000);
-  const shouldReply =
-    !customer.lastSeenAt ||
-    !ctx.session.lastAutoReplyAt ||
-    nowS - ctx.session.lastAutoReplyAt >= AUTO_REPLY_INTERVAL_S;
-  if (shouldReply) {
-    ctx.session.lastAutoReplyAt = nowS;
-    await db.update(customers).set({ lastSeenAt: new Date() }).where(eq(customers.id, customer.id));
-    try {
-      await ctx.port.sendMessage(customerChatId, ru.relay.forwarded(ctx.tenant.replySlaText), {
-        keyboard: {
-          inline_keyboard: [
-            [{ text: 'Каталог', callback_data: 'cat:list' }],
-            [{ text: 'Мои заказы', callback_data: 'my:list' }],
-          ],
-        },
-      });
-    } catch (e) {
-      if (e instanceof TelegramError && e.code === 'BLOCKED') {
-        await db.update(customers).set({ botBlocked: true }).where(eq(customers.id, customer.id));
-      }
+  ctx.sessionState = 'idle';
+  try {
+    await ctx.port.sendMessage(customerChatId, ru.relay.willAnswerSoon);
+  } catch (e) {
+    if (e instanceof TelegramError && e.code === 'BLOCKED') {
+      await db.update(customers).set({ botBlocked: true }).where(eq(customers.id, customer.id));
     }
   }
 }
