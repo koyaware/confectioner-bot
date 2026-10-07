@@ -36,3 +36,6 @@ coverage/
 # Temporary files
 tmp/
 temp/
+
+# Personal QA working copies (source of truth: docs/qa/bugs.xlsx)
+docs/qa/bugs.numbers
