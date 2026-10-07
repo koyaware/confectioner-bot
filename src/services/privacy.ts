@@ -1,6 +1,15 @@
 import { getDb } from '../db/client.js';
-import { customers, orders, sessions } from '../db/schema.js';
-import { and, eq } from 'drizzle-orm';
+import {
+  customers,
+  orders,
+  sessions,
+  funnelEvents,
+  relayMessages,
+  orderAttachments,
+} from '../db/schema.js';
+import { and, eq, inArray } from 'drizzle-orm';
+
+const PLACEHOLDER = '[удалено]';
 
 export async function eraseCustomerData(tenantId: string, telegramId: number): Promise<boolean> {
   const db = getDb();
@@ -19,21 +28,33 @@ export async function eraseCustomerData(tenantId: string, telegramId: number): P
   await db
     .update(customers)
     .set({
-      firstName: '[удалено]',
+      firstName: PLACEHOLDER,
       username: null,
-      phone: '[удалено]',
+      phone: PLACEHOLDER,
     })
     .where(eq(customers.id, customer.id));
+
+  const orderRows = await db
+    .select({ id: orders.id })
+    .from(orders)
+    .where(eq(orders.customerId, customer.id));
+  const orderIds = orderRows.map((o) => o.id);
 
   await db
     .update(orders)
     .set({
-      contactName: '[удалено]',
-      contactPhone: '[удалено]',
-      address: '[удалено]',
-      comment: '[удалено]',
+      contactName: PLACEHOLDER,
+      contactPhone: PLACEHOLDER,
+      address: PLACEHOLDER,
+      comment: PLACEHOLDER,
     })
     .where(eq(orders.customerId, customer.id));
+
+  if (orderIds.length > 0) {
+    await db.delete(orderAttachments).where(inArray(orderAttachments.orderId, orderIds));
+  }
+  await db.delete(funnelEvents).where(eq(funnelEvents.customerId, customer.id));
+  await db.delete(relayMessages).where(eq(relayMessages.customerId, customer.id));
 
   const rows = await db
     .select()
@@ -51,15 +72,16 @@ export async function eraseCustomerData(tenantId: string, telegramId: number): P
     }
     const checkout = data.checkout as Record<string, unknown> | undefined;
     if (checkout) {
-      checkout.contactName = '[удалено]';
-      checkout.contactPhone = '[удалено]';
-      checkout.address = '[удалено]';
-      checkout.comment = '[удалено]';
+      checkout.contactName = PLACEHOLDER;
+      checkout.contactPhone = PLACEHOLDER;
+      checkout.address = PLACEHOLDER;
+      checkout.comment = PLACEHOLDER;
       data.checkout = checkout;
     }
+    data.cart = { lines: [] };
     await db
       .update(sessions)
-      .set({ data: JSON.stringify(data) })
+      .set({ data })
       .where(and(eq(sessions.tenantId, tenantId), eq(sessions.telegramId, telegramId)));
   }
 

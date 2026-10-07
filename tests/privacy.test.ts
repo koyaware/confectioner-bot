@@ -106,6 +106,32 @@ describe('deleteme', () => {
 
   it('eraseCustomerData masks customer and order personal data', async () => {
     const tenantId = await seedTenantAndCustomer();
+    const db = getDb();
+    const { funnelEvents, relayMessages, orderAttachments } = await import('../src/db/schema.js');
+    await db.insert(funnelEvents).values({
+      tenantId,
+      customerId: 'c1',
+      type: 'catalog_view',
+      at: now,
+    });
+    await db.insert(relayMessages).values({
+      id: 'r1',
+      tenantId,
+      customerId: 'c1',
+      ownerChatId: 555,
+      ownerMessageId: 10,
+      customerChatId: 42,
+      createdAt: now,
+    });
+    await db.insert(orderAttachments).values({
+      id: 'a1',
+      orderId: 'o1',
+      kind: 'receipt',
+      fileId: 'file-1',
+      fileType: 'photo',
+      createdAt: now,
+    });
+
     const ok = await eraseCustomerData(tenantId, 42);
     expect(ok).toBe(true);
 
@@ -119,6 +145,10 @@ describe('deleteme', () => {
     expect(ord[0]!.contactPhone).toBe('[удалено]');
     expect(ord[0]!.address).toBe('[удалено]');
     expect(ord[0]!.comment).toBe('[удалено]');
+
+    expect(await getDb().select().from(funnelEvents)).toHaveLength(0);
+    expect(await getDb().select().from(relayMessages)).toHaveLength(0);
+    expect(await getDb().select().from(orderAttachments)).toHaveLength(0);
 
     const sess = await getDb().select().from(sessions);
     const data = typeof sess[0]!.data === 'string' ? JSON.parse(sess[0]!.data) : sess[0]!.data;
