@@ -159,7 +159,7 @@ async function relayToOwner(ctx: BotContextWithSession): Promise<void> {
 export function registerRelayHandlers(bot: Bot<BotContextWithSession>): void {
   bot.callbackQuery(/^adm:relay:block:(.+)$/, async (ctx) => {
     if (!canAccessOwner(ctx)) {
-      await ctx.port.answerCallback(ctx.callbackQuery.id, 'Только владелец.');
+      await ctx.port.answerCallback(ctx.callbackQuery.id, ru.ownerCatalog.notOwner);
       return;
     }
     await ctx.port.answerCallback(ctx.callbackQuery.id);

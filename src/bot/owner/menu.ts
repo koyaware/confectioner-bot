@@ -89,11 +89,8 @@ export function registerMenuHandler(bot: Bot<BotContextWithSession>): void {
   });
 
   bot.callbackQuery(/^adm:preview$/, async (ctx) => {
-    if (
-      ctx.role !== 'owner' &&
-      !(ctx.role === 'superadmin' && ctx.tenant.ownerTelegramId === ctx.from?.id)
-    ) {
-      await ctx.port.answerCallback(ctx.callbackQuery.id, 'Только владелец.');
+    if (!canAccessOwner(ctx)) {
+      await ctx.port.answerCallback(ctx.callbackQuery.id, ru.ownerCatalog.notOwner);
       return;
     }
     await ctx.port.answerCallback(ctx.callbackQuery.id);
@@ -122,11 +119,8 @@ export function registerMenuHandler(bot: Bot<BotContextWithSession>): void {
   });
 
   bot.callbackQuery(/^adm:menu$/, async (ctx) => {
-    if (
-      ctx.role !== 'owner' &&
-      !(ctx.role === 'superadmin' && ctx.tenant.ownerTelegramId === ctx.from?.id)
-    ) {
-      await ctx.port.answerCallback(ctx.callbackQuery.id, 'Только владелец.');
+    if (!canAccessOwner(ctx)) {
+      await ctx.port.answerCallback(ctx.callbackQuery.id, ru.ownerCatalog.notOwner);
       return;
     }
     await ctx.port.answerCallback(ctx.callbackQuery.id);
