@@ -54,6 +54,11 @@ export async function trackFunnelEvent(
 
   if (customerResults.length > 0 && customerResults[0]) {
     customerId = customerResults[0].id;
+    // First-touch attribution: backfill source if still empty.
+    const source = extractSource(ctx);
+    if (source && !customerResults[0].source) {
+      await db.update(customers).set({ source }).where(eq(customers.id, customerResults[0].id));
+    }
   } else {
     // Create customer
     customerId = nanoid();

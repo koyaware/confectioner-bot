@@ -18,19 +18,32 @@ export function suggestCode(label: string): string {
 
 export async function addSource(tenantId: string, label: string, code?: string) {
   const db = getDb();
-  const c0 = (code ?? suggestCode(label)).slice(0, 32);
-  const c = c0.startsWith('claim_') ? `s-${c0}` : c0;
-  const exists = await db
-    .select()
-    .from(sources)
-    .where(and(eq(sources.tenantId, tenantId), eq(sources.code, c)))
-    .limit(1);
-  const finalCode = exists.length > 0 ? `${c}-${Math.random().toString(36).slice(2, 5)}` : c;
-  if (finalCode.length > 32) {
-    return { ok: false as const, error: 'CODE_TOO_LONG' as const };
+  const raw = (code ?? suggestCode(label)).slice(0, 32);
+  const base = raw.startsWith('claim_') ? `s-${raw}`.slice(0, 32) : raw;
+
+  const taken = async (c: string): Promise<boolean> => {
+    const rows = await db
+      .select()
+      .from(sources)
+      .where(and(eq(sources.tenantId, tenantId), eq(sources.code, c)))
+      .limit(1);
+    return rows.length > 0;
+  };
+
+  if (!(await taken(base))) {
+    await db.insert(sources).values({ tenantId, code: base, label, createdAt: new Date() });
+    return { ok: true as const, code: base };
   }
-  await db.insert(sources).values({ tenantId, code: finalCode, label, createdAt: new Date() });
-  return { ok: true as const, code: finalCode };
+
+  for (let i = 0; i < 5; i++) {
+    const suffix = Math.random().toString(36).slice(2, 5);
+    const candidate = `${base.slice(0, 32 - suffix.length - 1)}-${suffix}`;
+    if (!(await taken(candidate))) {
+      await db.insert(sources).values({ tenantId, code: candidate, label, createdAt: new Date() });
+      return { ok: true as const, code: candidate };
+    }
+  }
+  return { ok: false as const, error: 'CODE_TOO_LONG' as const };
 }
 
 export async function deleteSource(tenantId: string, code: string) {

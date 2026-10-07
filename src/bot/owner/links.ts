@@ -49,10 +49,18 @@ export function registerLinksHandlers(bot: Bot<BotContextWithSession>): void {
       const code = viewMatch[1]!;
       const link = `https://t.me/${ctx.tenant.botUsername}?start=${code}`;
       const qr = await QRCode.toBuffer(link, { width: 320 });
-      await ctx.port.sendPhoto(chatId, qr, ru.ownerLinks.qrHint);
+      await ctx.port.sendPhoto(chatId, qr, `${code}\n${link}`);
       await ctx.port.sendMessage(
         chatId,
-        `${ru.ownerLinks.linkCaption}\n\n${link}\n\nШапка профиля:\n${ru.ownerLinks.tplProfile(ctx.tenant.shopName, link)}\n\nЗакреп. комментарий:\n${ru.ownerLinks.tplComment(ctx.tenant.shopName, link)}\n\nАвтоответ директа:\n${ru.ownerLinks.tplAutoText(ctx.tenant.shopName, link)}`
+        `${ru.ownerLinks.linkCaption}\n\n${link}\n\nШапка профиля:\n${ru.ownerLinks.tplProfile(ctx.tenant.shopName, link)}\n\nЗакреп. комментарий:\n${ru.ownerLinks.tplComment(ctx.tenant.shopName, link)}\n\nАвтоответ директа:\n${ru.ownerLinks.tplAutoText(ctx.tenant.shopName, link)}`,
+        {
+          keyboard: {
+            inline_keyboard: [
+              [{ text: 'Удалить', callback_data: `adm:src:del:${code}` }],
+              [{ text: 'Назад', callback_data: 'adm:src:list' }],
+            ],
+          },
+        }
       );
       return;
     }

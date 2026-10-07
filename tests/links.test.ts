@@ -80,7 +80,47 @@ describe('links', () => {
     expect(photos).toHaveLength(1);
 
     const sent = port.getCallsForMethod('sendMessage');
-    const textMsg = sent.find((c) => (c.args[1] as string).includes('https://t.me/demo_bot?start='));
+    const textMsg = sent.find((c) =>
+      (c.args[1] as string).includes('https://t.me/demo_bot?start=')
+    );
     expect(textMsg).toBeTruthy();
+    const detailKb = JSON.stringify(textMsg!.args[2]);
+    expect(detailKb).toContain(`adm:src:del:${rows[0]!.code}`);
+    expect(detailKb).toContain('adm:src:list');
+  });
+
+  it('backfills source on later start with code', async () => {
+    const { tenantId } = await seedDemo(appSecret, new Date());
+    const port = new FakePort();
+    const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
+
+    await bot.handleUpdate({
+      update_id: 1,
+      message: {
+        message_id: 1,
+        date: 1,
+        chat: { id: 43, type: 'private' },
+        from: { id: 43, is_bot: false, first_name: 'C' },
+        text: '/start',
+        entities: [{ type: 'bot_command', offset: 0, length: 6 }],
+      },
+    } as never);
+    await bot.handleUpdate({
+      update_id: 2,
+      message: {
+        message_id: 2,
+        date: 1,
+        chat: { id: 43, type: 'private' },
+        from: { id: 43, is_bot: false, first_name: 'C' },
+        text: '/start reels',
+        entities: [{ type: 'bot_command', offset: 0, length: 6 }],
+      },
+    } as never);
+
+    const { customers } = await import('../src/db/schema.js');
+    const rows = await getDb().select().from(customers);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.source).toBe('reels');
+    expect(tenantId).toBeTruthy();
   });
 });
