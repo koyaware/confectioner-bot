@@ -1,6 +1,6 @@
 # ТЗ: Telegram-бот приема заказов для кондитеров
 
-**Версия ядра: v1.6**
+**Версия ядра: v1.7**
 
 Changelog:
 - v1.0: первая редакция.
@@ -10,6 +10,7 @@ Changelog:
 - v1.4: в roadmap добавлена стадия 7 — кастомизация per-tenant фич / feature flags.
 - v1.5: добавлена задача 6.6 — функциональность удаления заказчика из tenant.
 - v1.6: добавлены задачи 6.6–6.11 по UX/визуалу/производительности/навигации, удаление tenant перенесено в 6.12.
+- v1.7: добавлены в контракт owner-меню заказов callback `adm:ord:list`, `adm:ord:view:<orderId>` и подтвержден `adm:ord:msg:<orderId>`.
 
 Правила изменения этого файла: менять только append-only. Любое изменение контракта (схема БД, типы, callback-данные, джобы, статусы заказа) поднимает версию и записывается в changelog до написания кода, который от него зависит.
 
@@ -521,11 +522,13 @@ export interface TelegramPort {
 | `faq:list` / `faq:view:<faqId>` | FAQ |
 | `rel:start` | «Написать мастеру» |
 | `adm:ord:accept:<orderId>` | принять |
+| `adm:ord:list` | список последних заказов владельца |
+| `adm:ord:view:<orderId>` | карточка заказа в режиме владельца |
+| `adm:ord:msg:<orderId>` | написать клиенту |
 | `adm:ord:reject:<orderId>` / `adm:ord:rr:<orderId>:<reasonCode>` | отклонить, код причины |
 | `adm:ord:date:<orderId>` / `adm:ord:pd:<orderId>:<YYYY-MM-DD>` | предложить дату |
 | `adm:ord:paid:<orderId>` / `adm:ord:badpay:<orderId>` | оплата верна, оплата неверна |
 | `adm:ord:ready:<orderId>` / `adm:ord:done:<orderId>` / `adm:ord:cancel:<orderId>` | статусы |
-| `adm:ord:msg:<orderId>` | написать клиенту |
 | `pd:yes:<orderId>` / `pd:no:<orderId>` | клиент принимает или отклоняет предложенную дату |
 | `adm:cat:*`, `adm:prd:*`, `adm:faq:*`, `adm:set:*`, `adm:cal:*`, `adm:src:*` | редакторы владельца |
 | `adm:relay:block:<customerId>` | блокировка клиента из relay-шапки |

@@ -9,7 +9,7 @@ import { sendPaymentCard } from '../customer/payment.js';
 import { InlineKeyboard, TelegramPort } from '../../telegram/port.js';
 import { getDb } from '../../db/client.js';
 import { customers, orders, orderItems } from '../../db/schema.js';
-import { eq } from 'drizzle-orm';
+import { eq, asc } from 'drizzle-orm';
 import { addDays } from '../../domain/dates.js';
 import { getDateAvailability } from '../../services/dates.js';
 
@@ -89,10 +89,103 @@ export function orderCardKeyboard(orderId: string, status: string): InlineKeyboa
   if (status === 'payment_review' || status === 'awaiting_payment') {
     rows.push([{ text: 'Отменить', callback_data: `adm:ord:cancel:${orderId}` }]);
   }
+  if (['new', 'awaiting_payment', 'payment_review', 'confirmed', 'ready'].includes(status)) {
+    rows.push([{ text: 'Написать клиенту', callback_data: `adm:ord:msg:${orderId}` }]);
+  }
+  rows.push([{ text: 'Назад', callback_data: 'adm:ord:list' }]);
   return { inline_keyboard: rows };
 }
 
 export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
+  bot.callbackQuery(/^adm:ord:list$/, async (ctx) => {
+    if (!canAccessOwner(ctx)) {
+      await ctx.port.answerCallback(ctx.callbackQuery.id, ru.ownerCatalog.notOwner);
+      return;
+    }
+    await ctx.port.answerCallback(ctx.callbackQuery.id);
+
+    const chatId = ctx.callbackQuery.message?.chat.id;
+    const messageId = ctx.callbackQuery.message?.message_id;
+    if (!chatId || !messageId) return;
+
+    const db = getDb();
+    const rows = await db
+      .select()
+      .from(orders)
+      .where(eq(orders.tenantId, ctx.tenant.id))
+      .orderBy(asc(orders.createdAt))
+      .limit(30);
+
+    if (rows.length === 0) {
+      await ctx.port.editMessageText(chatId, messageId, 'Заказов пока нет.', {
+        keyboard: { inline_keyboard: [[{ text: 'Назад', callback_data: 'adm:menu' }]] },
+      });
+      return;
+    }
+
+    const keyboardRows: InlineKeyboard['inline_keyboard'] = rows.slice(-15).map((order) => [
+      {
+        text: `№${order.number} ${order.status} · ${order.dueDate}`,
+        callback_data: `adm:ord:view:${order.id}`,
+      },
+    ]);
+    keyboardRows.push([{ text: 'Назад', callback_data: 'adm:menu' }]);
+
+    await ctx.port.editMessageText(chatId, messageId, 'Последние заказы:', {
+      keyboard: { inline_keyboard: keyboardRows },
+    });
+  });
+
+  bot.callbackQuery(/^adm:ord:view:([A-Za-z0-9_-]+)$/, async (ctx) => {
+    if (!canAccessOwner(ctx)) {
+      await ctx.port.answerCallback(ctx.callbackQuery.id, ru.ownerCatalog.notOwner);
+      return;
+    }
+    await ctx.port.answerCallback(ctx.callbackQuery.id);
+
+    const m = /^adm:ord:view:([A-Za-z0-9_-]+)$/.exec(ctx.callbackQuery.data);
+    if (!m) return;
+
+    const chatId = ctx.callbackQuery.message?.chat.id;
+    const messageId = ctx.callbackQuery.message?.message_id;
+    if (!chatId || !messageId) return;
+
+    const card = await buildOrderCardText(m[1]!, ctx.tenant.id, ctx.tenant.currency);
+    if (!card) {
+      await ctx.port.answerCallback(ctx.callbackQuery.id, 'Заказ не найден.');
+      return;
+    }
+
+    const rows = await getDb().select().from(orders).where(eq(orders.id, m[1]!)).limit(1);
+    const status = rows[0]?.status ?? 'new';
+    await ctx.port.editMessageText(chatId, messageId, card, {
+      keyboard: orderCardKeyboard(m[1]!, status),
+      parseMode: 'HTML',
+    });
+  });
+
+  bot.callbackQuery(/^adm:ord:msg:([A-Za-z0-9_-]+)$/, async (ctx) => {
+    if (!canAccessOwner(ctx)) {
+      await ctx.port.answerCallback(ctx.callbackQuery.id, ru.ownerCatalog.notOwner);
+      return;
+    }
+    await ctx.port.answerCallback(ctx.callbackQuery.id);
+
+    const m = /^adm:ord:msg:([A-Za-z0-9_-]+)$/.exec(ctx.callbackQuery.data);
+    if (!m) return;
+
+    ctx.sessionState = 'owner.reply_to_customer';
+    ctx.session.ownerDraft = { kind: 'ord_msg', targetId: m[1] };
+
+    const chatId = ctx.callbackQuery.message?.chat.id;
+    const messageId = ctx.callbackQuery.message?.message_id;
+    if (chatId && messageId) {
+      await ctx.port.editMessageText(chatId, messageId, 'Напишите сообщение клиенту.', {
+        keyboard: { inline_keyboard: [[{ text: 'Отмена', callback_data: 'adm:ord:list' }]] },
+      });
+    }
+  });
+
   bot.callbackQuery(
     /^adm:ord:(accept|reject|rr|paid|badpay|ready|done|cancel|date|pd):/,
     async (ctx) => {

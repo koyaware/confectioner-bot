@@ -14,7 +14,7 @@ const TERMINAL_STATUSES = ['rejected', 'cancelled', 'expired', 'completed'] as c
 async function relayToOwner(ctx: BotContextWithSession): Promise<void> {
   const ownerId = ctx.tenant.ownerTelegramId;
   if (!ownerId) return;
-  if (!ctx.from || ctx.role === 'owner') return;
+  if (!ctx.from || canAccessOwner(ctx)) return;
   if (ctx.sessionState.startsWith('checkout.') || ctx.sessionState === 'payment.await_receipt')
     return;
   if (ctx.sessionState === 'owner.edit_field' || ctx.sessionState === 'owner.reply_to_customer')
@@ -168,7 +168,7 @@ export function registerRelayHandlers(bot: Bot<BotContextWithSession>): void {
       await next();
       return;
     }
-    if (ctx.role === 'owner' && ctx.sessionState === 'owner.edit_field') {
+    if (canAccessOwner(ctx) && ctx.sessionState === 'owner.edit_field') {
       await next();
       return;
     }
@@ -176,7 +176,7 @@ export function registerRelayHandlers(bot: Bot<BotContextWithSession>): void {
       await next();
       return;
     }
-    if (ctx.role === 'owner') {
+    if (canAccessOwner(ctx)) {
       await handleOwnerReply(ctx);
       return;
     }
@@ -188,11 +188,11 @@ export function registerRelayHandlers(bot: Bot<BotContextWithSession>): void {
       await next();
       return;
     }
-    if (ctx.role === 'owner' && ctx.sessionState === 'owner.edit_field') {
+    if (canAccessOwner(ctx) && ctx.sessionState === 'owner.edit_field') {
       await next();
       return;
     }
-    if (ctx.role === 'owner') {
+    if (canAccessOwner(ctx)) {
       await handleOwnerReply(ctx);
       return;
     }
@@ -204,11 +204,11 @@ export function registerRelayHandlers(bot: Bot<BotContextWithSession>): void {
       await next();
       return;
     }
-    if (ctx.role === 'owner' && ctx.sessionState === 'owner.edit_field') {
+    if (canAccessOwner(ctx) && ctx.sessionState === 'owner.edit_field') {
       await next();
       return;
     }
-    if (ctx.role === 'owner') {
+    if (canAccessOwner(ctx)) {
       await handleOwnerReply(ctx);
       return;
     }
@@ -217,6 +217,36 @@ export function registerRelayHandlers(bot: Bot<BotContextWithSession>): void {
 }
 
 async function handleOwnerReply(ctx: BotContextWithSession): Promise<void> {
+  if (
+    ctx.sessionState === 'owner.reply_to_customer' &&
+    ctx.session.ownerDraft?.kind === 'ord_msg'
+  ) {
+    const orderId = ctx.session.ownerDraft.targetId;
+    if (!orderId) return;
+
+    const db = getDb();
+    const orderRows = await db
+      .select()
+      .from(orders)
+      .where(and(eq(orders.id, orderId), eq(orders.tenantId, ctx.tenant.id)))
+      .limit(1);
+    const order = orderRows[0];
+    if (!order) return;
+
+    const customerRows = await db
+      .select()
+      .from(customers)
+      .where(eq(customers.id, order.customerId))
+      .limit(1);
+    const customer = customerRows[0];
+    if (!customer) return;
+
+    await ctx.port.copyMessage(customer.telegramId, ctx.chat!.id, ctx.message!.message_id);
+    ctx.sessionState = 'idle';
+    ctx.session.ownerDraft = undefined;
+    return;
+  }
+
   const reply = ctx.message?.reply_to_message;
   if (!reply) return;
 
