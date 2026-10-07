@@ -1,6 +1,6 @@
 import { getDb } from '../db/client.js';
 import { customers, orders, funnelEvents } from '../db/schema.js';
-import { and, eq, gte, sql, inArray } from 'drizzle-orm';
+import { and, eq, gte, sql, inArray, isNotNull } from 'drizzle-orm';
 
 export interface Stats {
   newCustomersTotal: number;
@@ -13,6 +13,8 @@ export interface Stats {
   botOnlyInteractions: number;
 }
 
+const REVENUE_STATUSES = ['confirmed', 'ready', 'completed'] as const;
+
 export async function computeStats(tenantId: string, days: number, now: Date): Promise<Stats> {
   const db = getDb();
   const from = new Date(now.getTime() - days * 24 * 3600_000);
@@ -23,9 +25,9 @@ export async function computeStats(tenantId: string, days: number, now: Date): P
     .where(and(eq(customers.tenantId, tenantId), gte(customers.firstSeenAt, from)))
     .groupBy(customers.source);
 
-  const newCustomersTotal = newCustomers.reduce((s, r) => s + r.count, 0);
+  const newCustomersTotal = newCustomers.reduce((s, r) => s + Number(r.count), 0);
   const newCustomersBySource = newCustomers
-    .map((r) => ({ source: r.source ?? 'неизвестно', count: r.count }))
+    .map((r) => ({ source: r.source ?? 'неизвестно', count: Number(r.count) }))
     .sort((a, b) => b.count - a.count);
 
   const funnel = await db
@@ -34,30 +36,31 @@ export async function computeStats(tenantId: string, days: number, now: Date): P
     .where(and(eq(funnelEvents.tenantId, tenantId), gte(funnelEvents.at, from)))
     .groupBy(funnelEvents.type);
 
+  // Current snapshot: all orders by status, so old active orders don't vanish.
   const ordersByStatus = await db
     .select({ status: orders.status, count: sql<number>`count(*)` })
     .from(orders)
-    .where(and(eq(orders.tenantId, tenantId), gte(orders.createdAt, from)))
+    .where(eq(orders.tenantId, tenantId))
     .groupBy(orders.status);
 
-  const confirmed = await db
-    .select({ total: orders.totalMinor })
+  // Revenue and decision time: orders decided inside the window.
+  const decided = await db
+    .select({
+      total: orders.totalMinor,
+      status: orders.status,
+      createdAt: orders.createdAt,
+      decidedAt: orders.decidedAt,
+    })
     .from(orders)
     .where(
-      and(
-        eq(orders.tenantId, tenantId),
-        gte(orders.createdAt, from),
-        inArray(orders.status, ['confirmed', 'ready', 'completed'])
-      )
+      and(eq(orders.tenantId, tenantId), isNotNull(orders.decidedAt), gte(orders.decidedAt, from))
     );
-  const revenueMinor = confirmed.reduce((s, r) => s + r.total, 0);
-  const confirmedOrders = confirmed.length;
-
-  const decided = await db
-    .select({ createdAt: orders.createdAt, decidedAt: orders.decidedAt })
-    .from(orders)
-    .where(and(eq(orders.tenantId, tenantId), gte(orders.createdAt, from)));
-  const decidedDeltas = decided
+  const revenueRows = decided.filter((o) =>
+    (REVENUE_STATUSES as readonly string[]).includes(o.status)
+  );
+  const revenueMinor = revenueRows.reduce((s, r) => s + r.total, 0);
+  const confirmedOrders = revenueRows.length;
+  const decidedDeltas = revenueRows
     .filter((o) => o.decidedAt !== null)
     .map((o) => (o.decidedAt!.getTime() - o.createdAt.getTime()) / 60000);
   const avgDecisionMinutes =
@@ -65,57 +68,47 @@ export async function computeStats(tenantId: string, days: number, now: Date): P
       ? Math.round(decidedDeltas.reduce((a, b) => a + b, 0) / decidedDeltas.length)
       : null;
 
-  // Customers who viewed catalog/faq without any free_text in the period
-  const views = await db
-    .selectDistinct({ customerId: funnelEvents.customerId })
+  // Bot-only: catalog/faq views with no free_text at or after the view.
+  // Single query, computed in memory.
+  const events = await db
+    .select({
+      customerId: funnelEvents.customerId,
+      type: funnelEvents.type,
+      at: funnelEvents.at,
+    })
     .from(funnelEvents)
     .where(
       and(
         eq(funnelEvents.tenantId, tenantId),
         gte(funnelEvents.at, from),
-        inArray(funnelEvents.type, ['catalog_view', 'faq_view'])
+        inArray(funnelEvents.type, ['catalog_view', 'faq_view', 'free_text'])
       )
     );
-  const freed = new Set<string>();
-  for (const v of views) {
-    const had = await db
-      .select({ id: funnelEvents.id })
-      .from(funnelEvents)
-      .where(
-        and(
-          eq(funnelEvents.tenantId, tenantId),
-          eq(funnelEvents.customerId, v.customerId),
-          gte(funnelEvents.at, from),
-          inArray(funnelEvents.type, ['free_text'])
-        )
-      )
-      .limit(1);
-    if (had.length === 0) {
-      freed.add(v.customerId);
+  const freeTextAt = new Map<string, number[]>();
+  const views: { customerId: string; at: number }[] = [];
+  for (const e of events) {
+    const at = new Date(e.at).getTime();
+    if (e.type === 'free_text') {
+      const arr = freeTextAt.get(e.customerId) ?? [];
+      arr.push(at);
+      freeTextAt.set(e.customerId, arr);
+    } else {
+      views.push({ customerId: e.customerId, at });
     }
   }
-  // count of catalog_view+faq_view events from those customers
   let botOnlyInteractions = 0;
-  for (const id of freed) {
-    const rows = await db
-      .select({ type: funnelEvents.type })
-      .from(funnelEvents)
-      .where(
-        and(
-          eq(funnelEvents.tenantId, tenantId),
-          eq(funnelEvents.customerId, id),
-          gte(funnelEvents.at, from),
-          inArray(funnelEvents.type, ['catalog_view', 'faq_view'])
-        )
-      );
-    botOnlyInteractions += rows.length;
+  for (const v of views) {
+    const texts = freeTextAt.get(v.customerId) ?? [];
+    if (!texts.some((t) => t >= v.at)) {
+      botOnlyInteractions++;
+    }
   }
 
   return {
     newCustomersTotal,
     newCustomersBySource,
-    funnel: funnel.map((f) => ({ type: f.type, count: f.count })),
-    ordersByStatus: ordersByStatus.map((o) => ({ status: o.status, count: o.count })),
+    funnel: funnel.map((f) => ({ type: f.type, count: Number(f.count) })),
+    ordersByStatus: ordersByStatus.map((o) => ({ status: o.status, count: Number(o.count) })),
     revenueMinor,
     confirmedOrders,
     avgDecisionMinutes,
