@@ -16,9 +16,16 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "seed": "tsx scripts/seed.ts",
-    "tenant:create": "tsx scripts/tenant-create.ts"
+    "tenant:create": "tsx scripts/tenant-create.ts",
+    "load:sim": "tsx scripts/load-sim.ts"
   },
-  "keywords": ["telegram", "bot", "orders", "confectioner", "grammY"],
+  "keywords": [
+    "telegram",
+    "bot",
+    "orders",
+    "confectioner",
+    "grammY"
+  ],
   "author": "",
   "license": "MIT",
   "engines": {
