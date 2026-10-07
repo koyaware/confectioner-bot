@@ -14,7 +14,9 @@
     "format:check": "prettier --check \"src/**/*.ts\"",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "seed": "tsx scripts/seed.ts",
+    "tenant:create": "tsx scripts/tenant-create.ts"
   },
   "keywords": ["telegram", "bot", "orders", "confectioner", "grammY"],
   "author": "",

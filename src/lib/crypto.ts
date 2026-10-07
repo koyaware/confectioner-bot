@@ -3,7 +3,6 @@ import { createCipheriv, createDecipheriv, randomBytes, createHash } from 'crypt
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 16;
 const TAG_LENGTH = 16;
-const SALT_LENGTH = 32;
 
 /**
  * Derives a 32-byte key from APP_SECRET
@@ -59,5 +58,5 @@ export function hash(value: string): string {
  * Generates a random string suitable for claim codes
  */
 export function generateClaimCode(): string {
-  return randomBytes(SALT_LENGTH).toString('base64url');
+  return randomBytes(16).toString('base64url');
 }
