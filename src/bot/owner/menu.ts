@@ -3,6 +3,7 @@ import { BotContextWithSession } from '../context.js';
 import { canAccessOwner } from '../permissions.js';
 import { InlineKeyboard } from '../../telegram/port.js';
 import { clearContactKeyboard } from '../customer/contact-keyboard.js';
+import { escapeHtml } from '../../domain/escape.js';
 
 export function ownerMenuKeyboard(ctx: BotContextWithSession): InlineKeyboard {
   const s = ctx.t.menu.ownerSections;
@@ -98,7 +99,9 @@ export function registerMenuHandler(bot: Bot<BotContextWithSession>): void {
     }
     await ctx.port.answerCallback(ctx.callbackQuery.id);
 
-    const greeting = ctx.tenant.greetingText ?? ctx.t.start.greeting(ctx.tenant.shopName);
+    const greeting = ctx.tenant.greetingText
+      ? escapeHtml(ctx.tenant.greetingText)
+      : ctx.t.start.greeting(escapeHtml(ctx.tenant.shopName));
     const keyboard: InlineKeyboard = {
       inline_keyboard: [
         [{ text: ctx.t.start.buttonCatalog, callback_data: 'cat:list' }],

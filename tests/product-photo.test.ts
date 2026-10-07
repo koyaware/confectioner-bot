@@ -80,11 +80,30 @@ describe('product photo on card', () => {
       .where(eq(productOptions.productId, product.id));
     const other = optionRows.find((o) => o.groupTitle === optionRows[0]!.groupTitle);
     expect(other).toBeTruthy();
-    await bot.handleUpdate(cb(2, 'c2', 42, 1, `prd:opt:${product.id}:${other!.id}`));
+    // Toggle arrives from the photo screen: the callback message carries photo.
+    await bot.handleUpdate({
+      update_id: 2,
+      callback_query: {
+        id: 'c2',
+        from: { id: 42, is_bot: false, first_name: 'C' },
+        message: {
+          message_id: 1,
+          date: 1,
+          chat: { id: 42, type: 'private' },
+          photo: [{ file_id: 'photo-file-1', file_unique_id: 'u1', width: 10, height: 10 }],
+        },
+        data: `prd:opt:${product.id}:${other!.id}`,
+      },
+    } as never);
+    // Photo screen swaps media in place: one edit call, no delete+resend.
+    const mediaEdits = port.getCallsForMethod('editMessageMedia');
+    expect(mediaEdits).toHaveLength(1);
+    expect(mediaEdits[0]!.args[2]).toBe('photo-file-1');
+    expect(String(mediaEdits[0]!.args[3])).toContain(product.title);
     const photos2 = port.getCallsForMethod('sendPhoto');
-    expect(photos2).toHaveLength(2);
+    expect(photos2).toHaveLength(1);
     const deleted2 = port.getCallsForMethod('deleteMessage');
-    expect(deleted2.some((c) => c.args[1] === 1)).toBe(true);
+    expect(deleted2.some((c) => c.args[1] === 1)).toBe(false);
   });
 
   it('card without photo stays a text screen', async () => {

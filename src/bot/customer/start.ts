@@ -2,6 +2,7 @@ import { Bot } from 'grammy';
 import { BotContextWithSession } from '../context.js';
 import { claimTenant } from '../../services/tenants.js';
 import { customerMenuKeyboard, ownerMenuKeyboard } from '../owner/menu.js';
+import { escapeHtml } from '../../domain/escape.js';
 import { clearContactKeyboard } from './contact-keyboard.js';
 
 export function registerStartHandler(bot: Bot<BotContextWithSession>): void {
@@ -41,7 +42,9 @@ export function registerStartHandler(bot: Bot<BotContextWithSession>): void {
       return;
     }
 
-    const greeting = ctx.tenant.greetingText ?? ctx.t.start.greeting(ctx.tenant.shopName);
+    const greeting = ctx.tenant.greetingText
+      ? escapeHtml(ctx.tenant.greetingText)
+      : ctx.t.start.greeting(escapeHtml(ctx.tenant.shopName));
 
     await ctx.port.sendMessage(ctx.chat.id, greeting, {
       keyboard: customerMenuKeyboard(ctx),

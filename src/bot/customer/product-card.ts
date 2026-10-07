@@ -1,5 +1,6 @@
 import { BotContextWithSession } from '../context.js';
 import { escapeHtml } from '../../domain/escape.js';
+import { truncateText } from '../../domain/truncate.js';
 import { formatMinor } from '../../lib/money.js';
 import { getProductById, listProductOptions } from '../../services/catalog.js';
 import { priceLine } from '../../domain/pricing.js';
@@ -79,13 +80,23 @@ export async function renderProductCard(
 
   const keyboard = { inline_keyboard: rows };
   if (product.photoFileId) {
-    // Photo screen replaces the text screen so the chat keeps a single message.
+    const caption = truncateText(lines.join('\n'), 1024);
+    const screen = ctx.callbackQuery?.message;
+    if (screen && 'photo' in screen) {
+      // Already a photo screen: swap media in place (one API call).
+      await ctx.port.editMessageMedia(chatId, messageId, product.photoFileId, caption, {
+        keyboard,
+        parseMode: 'HTML',
+      });
+      return;
+    }
+    // Text screen becomes a photo screen so the chat keeps a single message.
     try {
       await ctx.port.deleteMessage(chatId, messageId);
     } catch {
       // already gone
     }
-    await ctx.port.sendPhoto(chatId, product.photoFileId, lines.join('\n'), {
+    await ctx.port.sendPhoto(chatId, product.photoFileId, caption, {
       keyboard,
       parseMode: 'HTML',
     });

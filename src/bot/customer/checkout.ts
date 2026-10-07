@@ -224,7 +224,7 @@ async function showCurrentStep(ctx: BotContextWithSession): Promise<void> {
       break;
     }
     case 'checkout.address': {
-      await showScreen(ctx, ctx.t.checkout.addressPrompt, stepKeyboard(ctx));
+      await showScreen(ctx, addressPromptText(ctx), stepKeyboard(ctx));
       break;
     }
     case 'checkout.contact': {
@@ -269,6 +269,12 @@ async function showCurrentStep(ctx: BotContextWithSession): Promise<void> {
     default:
       break;
   }
+}
+
+function addressPromptText(ctx: BotContextWithSession): string {
+  const base = ctx.t.checkout.addressPrompt;
+  const terms = ctx.tenant.deliveryText?.trim();
+  return terms ? `${base}\n\n${escapeHtml(terms)}` : base;
 }
 
 function photosPromptText(ctx: BotContextWithSession): string {
@@ -512,7 +518,9 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
         result.error === 'PRODUCT_INACTIVE'
           ? ctx.t.checkout.productInactive
           : result.error === 'TENANT_BUSY'
-            ? (ctx.tenant.busyText ?? ctx.t.checkout.busy)
+            ? ctx.tenant.busyText
+              ? escapeHtml(ctx.tenant.busyText)
+              : ctx.t.checkout.busy
             : result.error === 'BAD_QTY'
               ? ctx.t.checkout.badQty
               : result.error === 'BAD_ADDRESS' || result.error === 'BAD_OPTIONS'
@@ -529,25 +537,27 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
     ctx.session.checkout = undefined;
     ctx.sessionState = 'idle';
 
-    await ctx.port.editMessageTextOrSend(
-      chatId,
-      messageId,
-      `${ctx.t.checkout.orderSent((await getCustomerOrderNumber(order.id)) ?? order.number)} ${ctx.tenant.replySlaText}`,
-      {
-        keyboard: {
-          inline_keyboard: [
-            [{ text: ctx.t.checkout.orderMore, callback_data: 'cat:list' }],
-            [
-              { text: ctx.t.cart.button, callback_data: 'cart:show' },
-              { text: ctx.t.my.button, callback_data: 'my:list' },
+    // Customer confirmation and owner notification are independent: send together.
+    await Promise.all([
+      ctx.port.editMessageTextOrSend(
+        chatId,
+        messageId,
+        `${ctx.t.checkout.orderSent((await getCustomerOrderNumber(order.id)) ?? order.number)} ${escapeHtml(ctx.tenant.replySlaText)}`,
+        {
+          keyboard: {
+            inline_keyboard: [
+              [{ text: ctx.t.checkout.orderMore, callback_data: 'cat:list' }],
+              [
+                { text: ctx.t.cart.button, callback_data: 'cart:show' },
+                { text: ctx.t.my.button, callback_data: 'my:list' },
+              ],
+              [{ text: ctx.t.common.toMenu, callback_data: 'nav:menu' }],
             ],
-            [{ text: ctx.t.common.toMenu, callback_data: 'nav:menu' }],
-          ],
-        },
-      }
-    );
-
-    await notifyOwnerOfOrder(ctx, order.id);
+          },
+        }
+      ),
+      notifyOwnerOfOrder(ctx, order.id),
+    ]);
   });
 
   bot.on('message:text', async (ctx, next) => {
@@ -575,7 +585,7 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
         break;
       case 'checkout.address':
         if (!text) {
-          await showScreen(ctx, ctx.t.checkout.addressPrompt, stepKeyboard(ctx));
+          await showScreen(ctx, addressPromptText(ctx), stepKeyboard(ctx));
           return;
         }
         ctx.session.checkout!.address = text;

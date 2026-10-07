@@ -125,7 +125,15 @@ export const sessionMiddleware: MiddlewareFn<BotContextWithSession> = async (ctx
     ctx.sessionState = 'idle';
   }
 
+  // Snapshot to skip the write below when handlers changed nothing
+  // (read-only views like menus and lists). updatedAt has no readers.
+  const before = `${ctx.sessionState}|${JSON.stringify(ctx.session)}`;
+
   await next();
+
+  if (`${ctx.sessionState}|${JSON.stringify(ctx.session)}` === before && row) {
+    return;
+  }
 
   // Save session back to DB. The sessions.data column uses Drizzle json mode,
   // so pass the object itself; Drizzle serializes exactly once.

@@ -384,15 +384,15 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
         },
       }
     );
-    for (const ref of refs) {
-      if (ref.fileType === 'photo') {
-        const sent = await ctx.port.sendPhoto(ctx.callbackQuery.message!.chat.id, ref.fileId);
-        sentIds.push(sent.messageId);
-      } else {
-        const sent = await ctx.port.sendDocument(ctx.callbackQuery.message!.chat.id, ref.fileId);
-        sentIds.push(sent.messageId);
-      }
-    }
+    const ownerChatId = ctx.callbackQuery.message!.chat.id;
+    const sentRefs = await Promise.all(
+      refs.map((ref) =>
+        ref.fileType === 'photo'
+          ? ctx.port.sendPhoto(ownerChatId, ref.fileId)
+          : ctx.port.sendDocument(ownerChatId, ref.fileId)
+      )
+    );
+    for (const sent of sentRefs) sentIds.push(sent.messageId);
     ctx.session.refsMessageIds = [...(ctx.session.refsMessageIds ?? []), ...sentIds];
   });
 
@@ -416,6 +416,20 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
       const chatId = ctx.callbackQuery.message?.chat.id;
       const messageId = ctx.callbackQuery.message?.message_id;
       if (!chatId || !messageId) return;
+
+      const refreshOwnerCard = async (id: string, status: string): Promise<void> => {
+        const card = await buildOrderCardText(
+          id,
+          ctx.tenant.id,
+          ctx.tenant.currency,
+          ctx.tenant.language
+        );
+        if (!card) return;
+        await ctx.port.editMessageTextOrSend(chatId, messageId, card, {
+          keyboard: await orderCardKeyboard(ctx, id, status),
+          parseMode: 'HTML',
+        });
+      };
 
       if (['accept', 'rr', 'paid', 'badpay', 'ready', 'done', 'cancel'].includes(action)) {
         const targetId = rest.split(':')[0]!;
@@ -477,99 +491,54 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
       if (action === 'paid') {
         const result = await applyOrderEvent(rest, 'payment_confirmed', 'owner', new Date());
         if (!result.ok) return;
-        const card = await buildOrderCardText(
-          rest,
-          ctx.tenant.id,
-          ctx.tenant.currency,
-          ctx.tenant.language
-        );
-        if (card) {
-          await ctx.port.editMessageTextOrSend(chatId, messageId, card, {
-            keyboard: await orderCardKeyboard(ctx, rest, result.value.status),
-            parseMode: 'HTML',
-          });
-        }
-        await notifyCustomer(ctx.port, rest, () => ctx.t.payment.confirmedMsg);
+        await Promise.all([
+          refreshOwnerCard(rest, result.value.status),
+          notifyCustomer(ctx.port, rest, () => ctx.t.payment.confirmedMsg),
+        ]);
         return;
       }
 
       if (action === 'badpay') {
         const result = await applyOrderEvent(rest, 'payment_rejected', 'owner', new Date());
         if (!result.ok) return;
-        const card = await buildOrderCardText(
-          rest,
-          ctx.tenant.id,
-          ctx.tenant.currency,
-          ctx.tenant.language
-        );
-        if (card) {
-          await ctx.port.editMessageTextOrSend(chatId, messageId, card, {
-            keyboard: await orderCardKeyboard(ctx, rest, result.value.status),
-            parseMode: 'HTML',
-          });
-        }
-        await notifyCustomer(ctx.port, rest, () => ctx.t.payment.rejectedMsg(), {
-          inline_keyboard: [
-            [{ text: ctx.t.payment.paidButton, callback_data: `pay:sent:${rest}` }],
-          ],
-        });
+        await Promise.all([
+          refreshOwnerCard(rest, result.value.status),
+          notifyCustomer(ctx.port, rest, () => ctx.t.payment.rejectedMsg(), {
+            inline_keyboard: [
+              [{ text: ctx.t.payment.paidButton, callback_data: `pay:sent:${rest}` }],
+            ],
+          }),
+        ]);
         return;
       }
 
       if (action === 'ready') {
         const result = await applyOrderEvent(rest, 'mark_ready', 'owner', new Date());
         if (!result.ok) return;
-        const card = await buildOrderCardText(
-          rest,
-          ctx.tenant.id,
-          ctx.tenant.currency,
-          ctx.tenant.language
-        );
-        if (card) {
-          await ctx.port.editMessageTextOrSend(chatId, messageId, card, {
-            keyboard: await orderCardKeyboard(ctx, rest, result.value.status),
-            parseMode: 'HTML',
-          });
-        }
-        await notifyCustomer(ctx.port, rest, (n) => ctx.t.my.readyMsg(n));
+        await Promise.all([
+          refreshOwnerCard(rest, result.value.status),
+          notifyCustomer(ctx.port, rest, (n) => ctx.t.my.readyMsg(n)),
+        ]);
         return;
       }
 
       if (action === 'done') {
         const result = await applyOrderEvent(rest, 'mark_completed', 'owner', new Date());
         if (!result.ok) return;
-        const card = await buildOrderCardText(
-          rest,
-          ctx.tenant.id,
-          ctx.tenant.currency,
-          ctx.tenant.language
-        );
-        if (card) {
-          await ctx.port.editMessageTextOrSend(chatId, messageId, card, {
-            keyboard: await orderCardKeyboard(ctx, rest, result.value.status),
-            parseMode: 'HTML',
-          });
-        }
-        await notifyCustomer(ctx.port, rest, (n) => ctx.t.my.doneMsg(n));
+        await Promise.all([
+          refreshOwnerCard(rest, result.value.status),
+          notifyCustomer(ctx.port, rest, (n) => ctx.t.my.doneMsg(n)),
+        ]);
         return;
       }
 
       if (action === 'cancel') {
         const result = await applyOrderEvent(rest, 'owner_cancel', 'owner', new Date());
         if (!result.ok) return;
-        const card = await buildOrderCardText(
-          rest,
-          ctx.tenant.id,
-          ctx.tenant.currency,
-          ctx.tenant.language
-        );
-        if (card) {
-          await ctx.port.editMessageTextOrSend(chatId, messageId, card, {
-            keyboard: await orderCardKeyboard(ctx, rest, result.value.status),
-            parseMode: 'HTML',
-          });
-        }
-        await notifyCustomer(ctx.port, rest, (n) => ctx.t.my.cancelledByOwner(n));
+        await Promise.all([
+          refreshOwnerCard(rest, result.value.status),
+          notifyCustomer(ctx.port, rest, (n) => ctx.t.my.cancelledByOwner(n)),
+        ]);
         return;
       }
 
@@ -735,19 +704,10 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
           .update(orders)
           .set({ rejectReason: reason })
           .where(and(eq(orders.id, orderId), eq(orders.status, 'rejected')));
-        const card = await buildOrderCardText(
-          orderId,
-          ctx.tenant.id,
-          ctx.tenant.currency,
-          ctx.tenant.language
-        );
-        if (card) {
-          await ctx.port.editMessageTextOrSend(chatId, messageId, card, {
-            keyboard: await orderCardKeyboard(ctx, orderId, result.value.status),
-            parseMode: 'HTML',
-          });
-        }
-        await notifyCustomer(ctx.port, orderId, (n) => ctx.t.notify.orderRejected(n, reason));
+        await Promise.all([
+          refreshOwnerCard(orderId, result.value.status),
+          notifyCustomer(ctx.port, orderId, (n) => ctx.t.notify.orderRejected(n, reason)),
+        ]);
         return;
       }
     }

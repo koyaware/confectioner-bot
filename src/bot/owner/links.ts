@@ -1,6 +1,7 @@
 import { Bot } from 'grammy';
 import { canAccessOwner } from '../permissions.js';
 import { BotContextWithSession } from '../context.js';
+import { escapeHtml } from '../../domain/escape.js';
 import { InlineKeyboard } from '../../telegram/port.js';
 import { listSources, deleteSource } from '../../services/sources.js';
 import QRCode from 'qrcode';
@@ -53,7 +54,7 @@ export function registerLinksHandlers(bot: Bot<BotContextWithSession>): void {
       await ctx.port.sendPhoto(chatId, qr, `${code}\n${link}\n\n${ctx.t.ownerLinks.qrHint}`);
       await ctx.port.sendMessage(
         chatId,
-        `${ctx.t.ownerLinks.linkCaption}\n\n${link}\n\n${ctx.t.ownerLinks.profileLabel}\n${ctx.t.ownerLinks.tplProfile(ctx.tenant.shopName, link)}\n\n${ctx.t.ownerLinks.commentLabel}\n${ctx.t.ownerLinks.tplComment(ctx.tenant.shopName, link)}\n\n${ctx.t.ownerLinks.autoLabel}\n${ctx.t.ownerLinks.tplAutoText(ctx.tenant.shopName, link)}`,
+        `${ctx.t.ownerLinks.linkCaption}\n\n${link}\n\n${ctx.t.ownerLinks.profileLabel}\n${ctx.t.ownerLinks.tplProfile(escapeHtml(ctx.tenant.shopName), link)}\n\n${ctx.t.ownerLinks.commentLabel}\n${ctx.t.ownerLinks.tplComment(escapeHtml(ctx.tenant.shopName), link)}\n\n${ctx.t.ownerLinks.autoLabel}\n${ctx.t.ownerLinks.tplAutoText(escapeHtml(ctx.tenant.shopName), link)}`,
         {
           keyboard: {
             inline_keyboard: [

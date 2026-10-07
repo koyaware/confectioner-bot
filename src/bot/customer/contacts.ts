@@ -1,12 +1,18 @@
 import { Bot } from 'grammy';
 import { canAccessOwner } from '../permissions.js';
 import { BotContextWithSession } from '../context.js';
+import { escapeHtml } from '../../domain/escape.js';
+import { truncateText } from '../../domain/truncate.js';
 
 const POINTER_INTERVAL_S = 6 * 3600;
 
 export function buildContactsText(ctx: BotContextWithSession): string {
-  const body = ctx.tenant.contactsText?.trim() || ctx.t.contacts.empty;
-  return `${ctx.t.contacts.title}\n\n${body}`;
+  const blocks = [ctx.t.contacts.title];
+  const about = ctx.tenant.aboutText?.trim();
+  if (about) blocks.push(escapeHtml(about));
+  const contacts = ctx.tenant.contactsText?.trim();
+  blocks.push(contacts ? escapeHtml(contacts) : ctx.t.contacts.empty);
+  return truncateText(blocks.join('\n\n'), 4096);
 }
 
 export function registerContactsHandlers(bot: Bot<BotContextWithSession>): void {

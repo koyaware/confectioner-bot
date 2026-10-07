@@ -234,6 +234,33 @@ export class GrammyPort implements TelegramPort {
     }
   }
 
+  async editMessageMedia(
+    chatId: number,
+    messageId: number,
+    photo: string | Buffer,
+    caption?: string,
+    opts?: SendOpts
+  ): Promise<SendMessageResult> {
+    try {
+      const keyboard = toGrammyKeyboard(opts?.keyboard);
+      const media =
+        typeof photo === 'string'
+          ? { type: 'photo' as const, media: photo, caption, parse_mode: opts?.parseMode }
+          : {
+              type: 'photo' as const,
+              media: new InputFile(photo),
+              caption,
+              parse_mode: opts?.parseMode,
+            };
+      await this.bot.api.editMessageMedia(chatId, messageId, media, {
+        ...(keyboard ? { reply_markup: keyboard } : {}),
+      });
+      return { messageId };
+    } catch (error) {
+      throw new TelegramError(fromGrammyError(error), 'Failed to edit message media', error);
+    }
+  }
+
   async answerCallback(callbackQueryId: string, text?: string): Promise<void> {
     try {
       await this.bot.api.answerCallbackQuery(callbackQueryId, { text });

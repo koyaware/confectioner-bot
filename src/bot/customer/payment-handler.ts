@@ -8,6 +8,7 @@ import { buildOrderCardText } from '../owner/orders.js';
 import { formatMinor } from '../../lib/money.js';
 import { TelegramPort } from '../../telegram/port.js';
 import { stringsFor, localeFor } from '../../i18n/index.js';
+import { escapeHtml } from '../../domain/escape.js';
 import { nanoid } from 'nanoid';
 
 export async function sendPaymentCard(
@@ -47,7 +48,7 @@ export async function sendPaymentCard(
     '\n\n' +
     t.checkout.confirmPrepay(formatMinor(order.prepaymentMinor, tenant.currency)) +
     '\n\n' +
-    `${tenant.paymentText ?? t.payment.noRequisites}` +
+    `${tenant.paymentText ? escapeHtml(tenant.paymentText) : t.payment.noRequisites}` +
     '\n\n' +
     t.payment.payCall(t.payment.paidButton, deadline);
 
@@ -140,6 +141,30 @@ export function registerPaymentHandlers(bot: Bot<BotContextWithSession>): void {
     }
     // Receipts are photo-only by contract (v1.30). Reference attachments
     // in checkout still accept documents.
+    await deleteUserMessage(ctx);
+    const screen = receiptScreen(ctx);
+    if (screen) {
+      await ctx.port.editMessageTextOrSend(
+        screen.chatId,
+        screen.messageId,
+        ctx.t.payment.invalidReceipt,
+        {}
+      );
+    }
+  });
+
+  bot.on('message', async (ctx, next) => {
+    if (ctx.sessionState !== 'payment.await_receipt') {
+      await next();
+      return;
+    }
+    const m = ctx.message;
+    // Text/photo/document/contact have dedicated handlers above; anything
+    // else (sticker, voice, video, ...) is not a receipt either.
+    if (!m || m.text || m.photo || m.document || m.contact) {
+      await next();
+      return;
+    }
     await deleteUserMessage(ctx);
     const screen = receiptScreen(ctx);
     if (screen) {
@@ -262,18 +287,15 @@ async function handleReceipt(ctx: BotContextWithSession, fileId: string): Promis
     return;
   }
 
-  // Send the receipt photo to the owner with receipt info and paid/badpay buttons
+  // Send the receipt photo to the owner with receipt info and paid/badpay buttons.
+  // The photo forward and the card update are independent: send together.
   const receiptCaption = `${ctx.t.payment.receiptReceived(ctx.t.payment.kindPhoto)}\n\n${await buildOrderCardText(orderId, ctx.tenant.id, ctx.tenant.currency, ctx.tenant.language)}`;
-
-  await ctx.port.sendPhoto(ownerId, receiptPhoto.file_id, receiptCaption, {
-    keyboard: {
-      inline_keyboard: [
-        [{ text: ctx.t.ownerOrders.paid, callback_data: `adm:ord:paid:${order.id}` }],
-        [{ text: ctx.t.ownerOrders.badpay, callback_data: `adm:ord:badpay:${order.id}` }],
-      ],
-    },
-    parseMode: 'HTML',
-  });
+  const receiptKeyboard = {
+    inline_keyboard: [
+      [{ text: ctx.t.ownerOrders.paid, callback_data: `adm:ord:paid:${order.id}` }],
+      [{ text: ctx.t.ownerOrders.badpay, callback_data: `adm:ord:badpay:${order.id}` }],
+    ],
+  };
 
   // Also update the original order card message to show receipt status
   const card = await buildOrderCardText(
@@ -282,17 +304,20 @@ async function handleReceipt(ctx: BotContextWithSession, fileId: string): Promis
     ctx.tenant.currency,
     ctx.tenant.language
   );
-  if (card) {
-    const receiptInfo = ctx.t.payment.receiptReceived(ctx.t.payment.kindPhoto);
-    const updatedText = `${card}\n\n${receiptInfo}`;
-    await ctx.port.editMessageTextOrSend(ownerId, ownerCardMessageId, updatedText, {
-      keyboard: {
-        inline_keyboard: [
-          [{ text: ctx.t.ownerOrders.paid, callback_data: `adm:ord:paid:${order.id}` }],
-          [{ text: ctx.t.ownerOrders.badpay, callback_data: `adm:ord:badpay:${order.id}` }],
-        ],
-      },
+  const cardEdit = card
+    ? ctx.port.editMessageTextOrSend(
+        ownerId,
+        ownerCardMessageId,
+        `${card}\n\n${ctx.t.payment.receiptReceived(ctx.t.payment.kindPhoto)}`,
+        { keyboard: receiptKeyboard, parseMode: 'HTML' }
+      )
+    : Promise.resolve();
+
+  await Promise.all([
+    ctx.port.sendPhoto(ownerId, receiptPhoto.file_id, receiptCaption, {
+      keyboard: receiptKeyboard,
       parseMode: 'HTML',
-    });
-  }
+    }),
+    cardEdit,
+  ]);
 }

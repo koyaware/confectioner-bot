@@ -281,11 +281,15 @@ export function registerCartHandlers(bot: Bot<BotContextWithSession>): void {
     if (!ctx.tenant.acceptOrders) {
       const chatId = ctx.callbackQuery.message?.chat.id;
       if (chatId) {
-        await ctx.port.sendMessage(chatId, ctx.tenant.busyText ?? ctx.t.checkout.busy, {
-          keyboard: {
-            inline_keyboard: [[{ text: ctx.t.contacts.button, callback_data: 'cnt:show' }]],
-          },
-        });
+        await ctx.port.sendMessage(
+          chatId,
+          ctx.tenant.busyText ? escapeHtml(ctx.tenant.busyText) : ctx.t.checkout.busy,
+          {
+            keyboard: {
+              inline_keyboard: [[{ text: ctx.t.contacts.button, callback_data: 'cnt:show' }]],
+            },
+          }
+        );
       }
       return;
     }

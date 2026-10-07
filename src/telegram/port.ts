@@ -100,6 +100,18 @@ export interface TelegramPort {
   ): Promise<SendMessageResult>;
 
   /**
+   * Replace the media of a photo message in place (one API call instead of
+   * delete + sendPhoto). Caption follows the same 1024-char limit.
+   */
+  editMessageMedia(
+    chatId: number,
+    messageId: number,
+    photo: string | Buffer,
+    caption?: string,
+    opts?: SendOpts
+  ): Promise<SendMessageResult>;
+
+  /**
    * Send a document
    */
   sendDocument(

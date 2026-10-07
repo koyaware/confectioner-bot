@@ -88,6 +88,25 @@ export class FakePort implements TelegramPort {
     });
   }
 
+  editMessageMedia(
+    chatId: number,
+    messageId: number,
+    photo: string | Buffer,
+    caption?: string,
+    opts?: SendOpts
+  ): Promise<SendMessageResult> {
+    return Promise.resolve().then(() => {
+      const call = this.recordCall('editMessageMedia', [chatId, messageId, photo, caption, opts]);
+      this.checkErrorRules(call);
+
+      if (caption && caption.length > 1024) {
+        throw new TelegramError('OTHER', 'Caption too long (max 1024 chars)');
+      }
+
+      return { messageId };
+    });
+  }
+
   answerCallback(callbackQueryId: string, text?: string): Promise<void> {
     return Promise.resolve().then(() => {
       const call = this.recordCall('answerCallback', [callbackQueryId, text]);

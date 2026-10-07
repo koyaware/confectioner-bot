@@ -183,15 +183,14 @@ export function registerMyOrdersHandlers(bot: Bot<BotContextWithSession>): void 
         },
       }
     );
-    for (const ref of refs) {
-      if (ref.fileType === 'photo') {
-        const sent = await ctx.port.sendPhoto(chatId, ref.fileId);
-        sentIds.push(sent.messageId);
-      } else {
-        const sent = await ctx.port.sendDocument(chatId, ref.fileId);
-        sentIds.push(sent.messageId);
-      }
-    }
+    const sentRefs = await Promise.all(
+      refs.map((ref) =>
+        ref.fileType === 'photo'
+          ? ctx.port.sendPhoto(chatId, ref.fileId)
+          : ctx.port.sendDocument(chatId, ref.fileId)
+      )
+    );
+    for (const sent of sentRefs) sentIds.push(sent.messageId);
     ctx.session.refsMessageIds = [...(ctx.session.refsMessageIds ?? []), ...sentIds];
   });
 

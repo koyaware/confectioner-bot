@@ -61,6 +61,36 @@ describe('middleware', () => {
       const results = await db.select().from(sessions);
       expect(results.length).toBe(1);
     });
+
+    it('skips the write when handlers changed nothing', async () => {
+      const { sessionMiddleware } = await import('../src/bot/middleware/session.js');
+      const db = getDb();
+      const { sessions } = await import('../src/db/schema.js');
+      const { eq, and } = await import('drizzle-orm');
+
+      const then = new Date('2026-01-01T00:00:00Z');
+      await db.insert(sessions).values({
+        tenantId: 'tenant-1',
+        telegramId: 987654321,
+        state: 'idle',
+        data: { cart: { lines: [] } },
+        updatedAt: then,
+      });
+
+      const ctx: any = {
+        from: { id: 987654321 },
+        tenant: { id: 'tenant-1' },
+        next: () => Promise.resolve(),
+      };
+      await sessionMiddleware(ctx, ctx.next);
+
+      const rows = await db
+        .select()
+        .from(sessions)
+        .where(and(eq(sessions.tenantId, 'tenant-1'), eq(sessions.telegramId, 987654321)));
+      expect(rows).toHaveLength(1);
+      expect(new Date(rows[0]!.updatedAt).getTime()).toBe(then.getTime());
+    });
   });
 
   describe('role middleware', () => {
