@@ -11,7 +11,7 @@ import {
   orderAttachments,
   jobs as jobsTable,
 } from '../db/schema.js';
-import { and, eq, inArray, max } from 'drizzle-orm';
+import { and, eq, inArray, max, ne } from 'drizzle-orm';
 import { Cart, CheckoutDraft, Result } from '../types.js';
 import { priceLine, requiredLeadDays } from '../domain/pricing.js';
 import { effectiveCapacity, OCCUPYING_STATUSES, usedUnits } from '../domain/capacity.js';
@@ -438,7 +438,13 @@ export async function listCustomerOrders(
     .select({ order: orders })
     .from(orders)
     .innerJoin(customers, eq(orders.customerId, customers.id))
-    .where(and(eq(orders.tenantId, tenantId), eq(customers.telegramId, telegramId)))
+    .where(
+      and(
+        eq(orders.tenantId, tenantId),
+        eq(customers.telegramId, telegramId),
+        ne(orders.status, 'cancelled')
+      )
+    )
     .orderBy(orders.createdAt)
     .limit(limit);
   return rows.map((r) => r.order).reverse();

@@ -113,4 +113,16 @@ describe('my orders', () => {
     const sent = port.getCallsForMethod('sendMessage');
     expect(sent.some((c) => c.args[0] === 555)).toBe(true);
   });
+
+  it('cancelled orders are hidden from customer list', async () => {
+    const { tenantId, order } = await setup();
+    const port = new FakePort();
+    const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
+
+    await bot.handleUpdate(cb(1, 'c1', 42, 10, `my:cancel:${order.id}`));
+    await bot.handleUpdate(cb(2, 'c2', 42, 10, 'my:list'));
+
+    const edits = port.getCallsForMethod('editMessageText');
+    expect(edits[1]!.args[2]).toBe('У вас пока нет заказов.');
+  });
 });
