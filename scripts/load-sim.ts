@@ -22,10 +22,7 @@ async function main() {
 
   const now = new Date();
   const { tenantId } = await seedDemo(process.env.APP_SECRET, now);
-  await getDb()
-    .update(tenants)
-    .set({ defaultDailyCapacity: 1000 })
-    .where(eq(tenants.id, tenantId));
+  await getDb().update(tenants).set({ defaultDailyCapacity: 1000 }).where(eq(tenants.id, tenantId));
 
   const port = new FakePort();
   const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
@@ -132,6 +129,58 @@ async function main() {
   const durationsSorted = [...durations].sort((a, b) => a - b);
   const p95 = durationsSorted[Math.floor(durationsSorted.length * 0.95)] ?? 0;
 
+  // Last-slot race: 10 concurrent creations on a capacity-1 date, exactly one wins.
+  const { createOrder } = await import('../src/services/orders.js');
+  const { setCapacityForDate } = await import('../src/services/calendar.js');
+  const { customers } = await import('../src/db/schema.js');
+  const { products } = await import('../src/db/schema.js');
+  const raceDate = addDays(toIsoDate(now, 'Europe/Moscow'), 45);
+  await setCapacityForDate(tenantId, raceDate, 1, false);
+  const db = getDb();
+  await db.insert(customers).values({
+    id: 'race-cust',
+    tenantId,
+    telegramId: 999999,
+    firstSeenAt: now,
+    lastSeenAt: now,
+  });
+  const raceProducts = await db.select().from(products);
+  const raceProduct = raceProducts.find((p) => p.capacityUnits === 1)!;
+  const { productOptions } = await import('../src/db/schema.js');
+  const raceOpts = await db
+    .select()
+    .from(productOptions)
+    .where(eq(productOptions.productId, raceProduct.id));
+  const seenGroups = new Set<string>();
+  const raceOptionIds: string[] = [];
+  for (const o of raceOpts) {
+    if (o.isActive && !seenGroups.has(o.groupTitle)) {
+      seenGroups.add(o.groupTitle);
+      raceOptionIds.push(o.id);
+    }
+  }
+  const raceResults = await Promise.all(
+    Array.from({ length: 10 }, (_, i) =>
+      createOrder({
+        tenantId,
+        customerId: 'race-cust',
+        cart: {
+          lines: [{ lineId: `r${i}`, productId: raceProduct.id, qty: 1, optionIds: raceOptionIds }],
+        },
+        checkout: {
+          checkoutId: `race-${i}`,
+          dueDate: raceDate,
+          fulfillment: 'pickup',
+          contactName: 'Race',
+          contactPhone: '+7000',
+          referenceFileIds: [],
+        },
+        now,
+      })
+    )
+  );
+  const raceWins = raceResults.filter((r) => r.ok).length;
+
   console.log(
     JSON.stringify(
       {
@@ -144,7 +193,8 @@ async function main() {
         sessions: allSessions.length,
         p95Ms: Math.round(p95),
         passedCapacityCheck: Object.values(byDue).every((v) => v <= 1000),
-        passed,
+        raceWins,
+        passed: passed && raceWins === 1,
       },
       null,
       2
@@ -152,7 +202,7 @@ async function main() {
   );
 
   closeDatabase();
-  process.exit(passed && p95 < 200 ? 0 : 1);
+  process.exit(passed && raceWins === 1 && p95 < 200 ? 0 : 1);
 }
 
 function cb(update_id: number, id: string, from: number, msgId: number, data: string) {
