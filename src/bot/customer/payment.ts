@@ -115,16 +115,6 @@ async function handleReceipt(
   const orderId = ctx.session.paymentOrderId;
   if (!orderId) return;
 
-  const db = getDb();
-  await db.insert(orderAttachments).values({
-    id: nanoid(),
-    orderId,
-    kind: 'receipt',
-    fileId,
-    fileType,
-    createdAt: new Date(),
-  });
-
   const result = await applyOrderEvent(orderId, 'receipt_uploaded', 'customer', new Date());
 
   ctx.sessionState = 'idle';
@@ -134,6 +124,16 @@ async function handleReceipt(
     await ctx.port.sendMessage(ctx.message!.chat.id, ru.payment.failed);
     return;
   }
+
+  const db = getDb();
+  await db.insert(orderAttachments).values({
+    id: nanoid(),
+    orderId,
+    kind: 'receipt',
+    fileId,
+    fileType,
+    createdAt: new Date(),
+  });
 
   await ctx.port.sendMessage(ctx.message!.chat.id, ru.payment.receiptSent);
 

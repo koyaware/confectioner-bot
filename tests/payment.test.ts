@@ -151,6 +151,56 @@ describe('payment flow', () => {
     expect(sessionRows[0]!.state).toBe('idle');
   });
 
+  it('duplicate receipt on reviewed order leaves no orphan attachment', async () => {
+    const { tenantId, order } = await setupOrder();
+    const port = new FakePort();
+    const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
+
+    await bot.handleUpdate(cb(1, 'c1', 555, 10, `adm:ord:accept:${order.id}`));
+    await bot.handleUpdate(cb(2, 'c2', 42, 11, `pay:sent:${order.id}`));
+    await bot.handleUpdate({
+      update_id: 3,
+      message: {
+        message_id: 3,
+        date: 1,
+        chat: { id: 42, type: 'private' },
+        from: { id: 42, is_bot: false, first_name: 'C' },
+        photo: [{ file_id: 'photo123', file_unique_id: 'u1', width: 10, height: 10 }],
+      },
+    } as never);
+
+    // force the session back as if the customer sent another photo
+    const db = getDb();
+    const { sessions: sessionsTable } = await import('../src/db/schema.js');
+    const { eq: eq2, and: and2 } = await import('drizzle-orm');
+    const existing = await db.select().from(sessionsTable);
+    const row = existing.find((r) => r.telegramId === 42)!;
+    const data =
+      typeof row.data === 'string' ? JSON.parse(row.data) : (row.data as Record<string, unknown>);
+    await db
+      .update(sessionsTable)
+      .set({
+        state: 'payment.await_receipt',
+        data: { ...(data as object), paymentOrderId: order.id },
+      })
+      .where(and2(eq2(sessionsTable.tenantId, tenantId), eq2(sessionsTable.telegramId, 42)));
+
+    await bot.handleUpdate({
+      update_id: 4,
+      message: {
+        message_id: 4,
+        date: 1,
+        chat: { id: 42, type: 'private' },
+        from: { id: 42, is_bot: false, first_name: 'C' },
+        photo: [{ file_id: 'photo999', file_unique_id: 'u2', width: 10, height: 10 }],
+      },
+    } as never);
+
+    const attachments = await getDb().select().from(orderAttachments);
+    expect(attachments).toHaveLength(1);
+    expect(attachments[0]!.fileId).toBe('photo123');
+  });
+
   it('owner confirms payment → confirmed, badpay → back to awaiting_payment', async () => {
     const { tenantId, order } = await setupOrder();
     const port = new FakePort();
