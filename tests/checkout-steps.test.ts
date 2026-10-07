@@ -319,4 +319,47 @@ describe('checkout steps', () => {
     expect(rows[0]!.state).toBe('checkout.comment');
     expect(tenantId).toBeTruthy();
   });
+
+  it('concurrent album photos all count, none lost to races', async () => {
+    const now = new Date();
+    const { tenantId } = await seedDemo(appSecret, now);
+    const db = getDb();
+    const { sessions } = await import('../src/db/schema.js');
+    await db.insert(sessions).values({
+      tenantId,
+      telegramId: 42,
+      state: 'checkout.photos',
+      data: {
+        cart: { lines: [] },
+        checkout: { checkoutId: 'chk-race', referenceFileIds: [], screenMessageId: 10 },
+      },
+      updatedAt: now,
+    });
+    const port = new FakePort();
+    const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
+
+    await Promise.all(
+      Array.from({ length: 5 }, (_, i) =>
+        bot.handleUpdate({
+          update_id: 300 + i,
+          message: {
+            message_id: 400 + i,
+            date: 1,
+            chat: { id: 42, type: 'private' },
+            from: { id: 42, is_bot: false, first_name: 'C' },
+            photo: [{ file_id: 'race' + i, file_unique_id: 'ru' + i, width: 10, height: 10 }],
+            media_group_id: 'album9',
+          },
+        } as never)
+      )
+    );
+
+    const rows = await getDb().select().from(sessions);
+    const data = (
+      typeof rows[0]!.data === 'string' ? JSON.parse(rows[0]!.data) : rows[0]!.data
+    ) as { checkout: { referenceFileIds: { fileId: string }[] } };
+    expect(data.checkout.referenceFileIds.map((f) => f.fileId).sort()).toEqual(
+      ['race0', 'race1', 'race2', 'race3', 'race4'].sort()
+    );
+  });
 });

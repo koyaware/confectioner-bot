@@ -10,6 +10,7 @@ import { sessionMiddleware } from './middleware/session.js';
 import { antispamMiddleware } from './middleware/antispam.js';
 import { funnelMiddleware } from './middleware/funnel.js';
 import { refsCleanupMiddleware } from './middleware/cleanup.js';
+import { serializeMiddleware } from './middleware/serialize.js';
 import { errorMiddleware } from './middleware/errors.js';
 import { registerStartHandler } from './customer/start.js';
 import { registerCatalogHandlers } from './customer/catalog.js';
@@ -108,7 +109,8 @@ export function createTenantBot(
     await next();
   });
 
-  // Middleware chain
+  // Middleware chain (serialize first: one chat = strictly ordered updates)
+  bot.use(serializeMiddleware);
   bot.use(errorMiddleware);
   bot.use(tenantMiddleware);
   bot.use(roleMiddleware);
