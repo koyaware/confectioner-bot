@@ -105,6 +105,13 @@ export class FakePort implements TelegramPort {
     });
   }
 
+  deleteMessage(chatId: number, messageId: number): Promise<void> {
+    return Promise.resolve().then(() => {
+      const call = this.recordCall('deleteMessage', [chatId, messageId]);
+      this.checkErrorRules(call);
+    });
+  }
+
   sendDocument(
     chatId: number,
     document: string | Buffer,

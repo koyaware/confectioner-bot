@@ -15,6 +15,13 @@
       "when": 1790977377290,
       "tag": "0001_low_the_stranger",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1791024468536,
+      "tag": "0002_blushing_tag",
+      "breakpoints": true
     }
   ]
 }

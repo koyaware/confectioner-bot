@@ -182,6 +182,7 @@ export const orders = sqliteTable(
     idempotencyKey: text('idempotency_key').notNull(),
     paymentDueAt: ts('payment_due_at'),
     rejectReason: text('reject_reason'),
+    cancelReason: text('cancel_reason'),
     createdAt: ts('created_at').notNull(),
     decidedAt: ts('decided_at'),
     updatedAt: ts('updated_at').notNull(),

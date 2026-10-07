@@ -131,4 +131,29 @@ describe('cart', () => {
     ) as { checkout?: { checkoutId: string } };
     expect(data.checkout?.checkoutId).toBeTruthy();
   });
+
+  it('adding the same product twice merges into one line', async () => {
+    const { tenantId } = await seedDemo(appSecret, new Date());
+    const port = new FakePort();
+    const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
+
+    await bot.handleUpdate(cb(1, 'c1', 42, 10, 'cat:list'));
+    let edits = port.getCallsForMethod('editMessageText');
+    const catBtn = JSON.stringify(edits[0]!.args[3]).match(/cat:open:[A-Za-z0-9_-]+/)![0];
+    await bot.handleUpdate(cb(2, 'c2', 42, 10, catBtn));
+    edits = port.getCallsForMethod('editMessageText');
+    const prdBtn = JSON.stringify(edits[1]!.args[3]).match(/prd:open:[A-Za-z0-9_-]+/)![0];
+    await bot.handleUpdate(cb(3, 'c3', 42, 10, prdBtn));
+    edits = port.getCallsForMethod('editMessageText');
+    const addBtn = JSON.stringify(edits[2]!.args[3]).match(/prd:add:[A-Za-z0-9_-]+/)![0];
+    await bot.handleUpdate(cb(4, 'c4', 42, 10, addBtn));
+    await bot.handleUpdate(cb(5, 'c5', 42, 10, addBtn));
+
+    const rows = await getDb().select().from(sessions);
+    const data = (
+      typeof rows[0]!.data === 'string' ? JSON.parse(rows[0]!.data) : rows[0]!.data
+    ) as { cart: { lines: { qty: number }[] } };
+    expect(data.cart.lines).toHaveLength(1);
+    expect(data.cart.lines[0]!.qty).toBe(2);
+  });
 });

@@ -192,6 +192,14 @@ export class GrammyPort implements TelegramPort {
     }
   }
 
+  async deleteMessage(chatId: number, messageId: number): Promise<void> {
+    try {
+      await this.bot.api.deleteMessage(chatId, messageId);
+    } catch (error) {
+      throw new TelegramError(fromGrammyError(error), 'Failed to delete message', error);
+    }
+  }
+
   /**
    * Get the underlying grammy bot instance (for runner integration)
    */

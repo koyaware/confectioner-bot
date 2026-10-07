@@ -66,6 +66,11 @@ export interface TelegramPort {
   copyMessage(toChatId: number, fromChatId: number, messageId: number): Promise<SendMessageResult>;
 
   /**
+   * Delete a message. Best effort: NOT_FOUND means it is already gone.
+   */
+  deleteMessage(chatId: number, messageId: number): Promise<void>;
+
+  /**
    * Send a document
    */
   sendDocument(

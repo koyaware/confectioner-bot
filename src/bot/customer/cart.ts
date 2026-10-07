@@ -174,13 +174,23 @@ export function registerCartHandlers(bot: Bot<BotContextWithSession>): void {
     const options = await listProductOptions(productId);
     const selectedOptionIds = resolveSelections(ctx.session.selections?.[productId], options);
 
-    const line: CartLine = {
-      lineId: nanoid(10),
-      productId,
-      qty: product.minQty,
-      optionIds: selectedOptionIds,
-    };
-    ctx.session.cart.lines.push(line);
+    const existing = ctx.session.cart.lines.find(
+      (l) =>
+        l.productId === productId &&
+        l.optionIds.length === selectedOptionIds.length &&
+        l.optionIds.every((id) => selectedOptionIds.includes(id))
+    );
+    if (existing) {
+      existing.qty = Math.min(existing.qty + product.minQty, product.maxQty ?? 50);
+    } else {
+      const line: CartLine = {
+        lineId: nanoid(10),
+        productId,
+        qty: product.minQty,
+        optionIds: selectedOptionIds,
+      };
+      ctx.session.cart.lines.push(line);
+    }
     delete ctx.session.selections?.[productId];
 
     await trackFunnelEvent(ctx, 'cart_add');
