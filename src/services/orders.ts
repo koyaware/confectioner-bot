@@ -18,6 +18,7 @@ import { effectiveCapacity, OCCUPYING_STATUSES, usedUnits } from '../domain/capa
 import { transition } from '../domain/order-machine.js';
 import { OrderEvent } from '../types.js';
 import { addDays, compareIso, toIsoDate, zonedTimeToUtc } from '../domain/dates.js';
+import { getDateAvailability } from './dates.js';
 import { nanoid } from 'nanoid';
 
 export interface CreateOrderInput {
@@ -460,4 +461,111 @@ export async function listCustomerOrders(
     .orderBy(orders.createdAt)
     .limit(limit);
   return rows.map((r) => r.order).reverse();
+}
+
+export type AcceptProposedDateError = 'NOT_FOUND' | 'DATE_UNAVAILABLE' | 'ILLEGAL_TRANSITION';
+
+/**
+ * Customer accepts the owner's proposed date.
+ * Capacity is re-checked and the date swap + status guard happen
+ * atomically inside one transaction.
+ */
+export async function acceptProposedDate(
+  orderId: string,
+  tenantId: string,
+  telegramId: number,
+  now: Date
+): Promise<Result<typeof orders.$inferSelect, AcceptProposedDateError>> {
+  const db = getDb();
+  const found = (
+    await db
+      .select({ order: orders, customer: customers })
+      .from(orders)
+      .innerJoin(customers, eq(orders.customerId, customers.id))
+      .where(
+        and(
+          eq(orders.id, orderId),
+          eq(orders.tenantId, tenantId),
+          eq(customers.telegramId, telegramId),
+          eq(customers.tenantId, tenantId)
+        )
+      )
+      .limit(1)
+  )[0];
+  if (!found || found.order.status !== 'new' || !found.order.proposedDate) {
+    return { ok: false, error: 'NOT_FOUND' };
+  }
+  const proposed = found.order.proposedDate;
+
+  const items = await db.select().from(orderItems).where(eq(orderItems.orderId, orderId));
+  const cartLines = items
+    .filter((i) => i.productId !== null)
+    .map((i, idx) => ({
+      lineId: `l${idx}`,
+      productId: i.productId!,
+      qty: i.qty,
+      optionIds: [] as string[],
+    }));
+  const avail = await getDateAvailability(tenantId, proposed, proposed, { lines: cartLines }, now);
+  if (!avail[proposed]?.available) {
+    return { ok: false, error: 'DATE_UNAVAILABLE' };
+  }
+
+  const committed: 'NOT_FOUND' | 'DATE_UNAVAILABLE' | 'ILLEGAL_TRANSITION' | null = db.transaction(
+    (tx) => {
+      const cur = tx
+        .select()
+        .from(orders)
+        .where(
+          and(eq(orders.id, orderId), eq(orders.status, 'new'), eq(orders.proposedDate, proposed))
+        )
+        .limit(1)
+        .all();
+      if (cur.length === 0) {
+        return 'ILLEGAL_TRANSITION';
+      }
+      const tenantRows = tx.select().from(tenants).where(eq(tenants.id, tenantId)).limit(1).all();
+      const tenant = tenantRows[0];
+      if (!tenant) {
+        return 'NOT_FOUND';
+      }
+      const overrideRows = tx
+        .select()
+        .from(capacityOverrides)
+        .where(and(eq(capacityOverrides.tenantId, tenantId), eq(capacityOverrides.date, proposed)))
+        .all();
+      const eff = effectiveCapacity(tenant.defaultDailyCapacity, overrideRows[0]);
+      if (eff.closed) {
+        return 'DATE_UNAVAILABLE';
+      }
+      const dayOrders = tx
+        .select()
+        .from(orders)
+        .where(
+          and(
+            eq(orders.tenantId, tenantId),
+            eq(orders.dueDate, proposed),
+            inArray(orders.status, [...OCCUPYING_STATUSES])
+          )
+        )
+        .all();
+      const used = usedUnits(dayOrders);
+      if (used + cur[0]!.capacityUnits > eff.capacity) {
+        return 'DATE_UNAVAILABLE';
+      }
+      tx.update(orders)
+        .set({ dueDate: proposed, proposedDate: null, updatedAt: now })
+        .where(eq(orders.id, orderId))
+        .run();
+      return null;
+    }
+  );
+
+  if (committed === 'ILLEGAL_TRANSITION') {
+    return { ok: false, error: 'ILLEGAL_TRANSITION' };
+  }
+  if (committed) {
+    return { ok: false, error: committed };
+  }
+  return applyOrderEvent(orderId, 'owner_accept', 'customer', now);
 }

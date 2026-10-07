@@ -8,8 +8,11 @@ import { and, eq } from 'drizzle-orm';
 import { formatMinor } from '../../lib/money.js';
 import { escapeHtml } from '../../domain/escape.js';
 import { InlineKeyboard } from '../../telegram/port.js';
-import { applyOrderEvent, getCustomerOrderNumber } from '../../services/orders.js';
-import { getDateAvailability } from '../../services/dates.js';
+import {
+  applyOrderEvent,
+  getCustomerOrderNumber,
+  acceptProposedDate,
+} from '../../services/orders.js';
 import { sendPaymentCard } from './payment.js';
 
 const STATUS_LABELS: Record<string, string> = {
@@ -277,42 +280,22 @@ export function registerMyOrdersHandlers(bot: Bot<BotContextWithSession>): void 
       return;
     }
 
-    // pd:yes — re-check availability and accept
-    const items = await db.select().from(orderItems).where(eq(orderItems.orderId, found.order.id));
-    const cartLines = items
-      .filter((i) => i.productId !== null)
-      .map((i, idx) => ({
-        lineId: `l${idx}`,
-        productId: i.productId!,
-        qty: i.qty,
-        optionIds: [] as string[],
-      }));
-    const avail = await getDateAvailability(
+    // pd:yes — availability re-check and date swap happen atomically in the service
+    const accepted = await acceptProposedDate(
+      found.order.id,
       ctx.tenant.id,
-      found.order.proposedDate,
-      found.order.proposedDate,
-      { lines: cartLines },
+      ctx.from.id,
       new Date()
     );
-    const entry = avail[found.order.proposedDate];
-    if (!entry || !entry.available) {
+    if (!accepted.ok) {
       await ctx.port.editMessageText(
         chatId,
         messageId,
-        'Эта дата уже недоступна. Попросите мастера предложить другую.',
+        accepted.error === 'DATE_UNAVAILABLE'
+          ? 'Эта дата уже недоступна. Попросите мастера предложить другую.'
+          : ru.my.actionFailed,
         {}
       );
-      return;
-    }
-
-    await db
-      .update(orders)
-      .set({ dueDate: found.order.proposedDate, proposedDate: null })
-      .where(eq(orders.id, found.order.id));
-
-    const accepted = await applyOrderEvent(found.order.id, 'owner_accept', 'system', new Date());
-    if (!accepted.ok) {
-      await ctx.port.editMessageText(chatId, messageId, ru.my.cancelFailed, {});
       return;
     }
 

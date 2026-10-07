@@ -117,4 +117,22 @@ describe('proposed date', () => {
       true
     );
   });
+
+  it('double pd:yes accepts once, second is rejected', async () => {
+    const { tenantId, order } = await setup();
+    const newDate = addDays(toIsoDate(now, 'Europe/Moscow'), 8);
+    const port = new FakePort();
+    const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
+
+    await bot.handleUpdate(cb(1, 'c1', 555, 10, `adm:ord:pd:${order.id}:${newDate}`));
+    await bot.handleUpdate(cb(2, 'c2', 42, 11, `pd:yes:${order.id}`));
+    await bot.handleUpdate(cb(3, 'c3', 42, 11, `pd:yes:${order.id}`));
+
+    const rows = await getDb().select().from(orders);
+    expect(rows[0]!.dueDate).toBe(newDate);
+    expect(rows[0]!.status).toBe('awaiting_payment');
+    const edits = port.getCallsForMethod('editMessageText');
+    expect(edits[edits.length - 1]!.args[2]).toBe('Заказ не найден.');
+    expect(tenantId).toBeTruthy();
+  });
 });
