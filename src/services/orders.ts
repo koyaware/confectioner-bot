@@ -64,247 +64,255 @@ export async function createOrder(
     return { ok: false, error: 'EMPTY_CART' };
   }
 
-  try {
-    const result = db.transaction((tx) => {
-      const tenantRows = tx
-        .select()
-        .from(tenants)
-        .where(eq(tenants.id, input.tenantId))
-        .limit(1)
-        .all();
-      const tenant = tenantRows[0];
-      if (!tenant) {
-        return { error: 'DATE_UNAVAILABLE' as const };
-      }
-      if (!tenant.acceptOrders) {
-        return { error: 'TENANT_BUSY' as const };
-      }
-
-      const customerRows = tx
-        .select()
-        .from(customers)
-        .where(and(eq(customers.id, input.customerId), eq(customers.tenantId, input.tenantId)))
-        .limit(1)
-        .all();
-      const customer = customerRows[0];
-
-      // Idempotent replay: same checkoutId returns the existing order
-      const existing = tx
-        .select()
-        .from(orders)
-        .where(
-          and(
-            eq(orders.tenantId, input.tenantId),
-            eq(orders.idempotencyKey, input.checkout.checkoutId)
-          )
-        )
-        .limit(1)
-        .all();
-      if (existing.length > 0) {
-        return { order: existing[0]! } as const;
-      }
-
-      // Validate cart lines against current product state
-      const lines: {
-        product: typeof products.$inferSelect;
-        qty: number;
-        options: (typeof productOptions.$inferSelect)[];
-      }[] = [];
-
-      for (const line of input.cart.lines) {
-        if (!Number.isInteger(line.qty) || line.qty <= 0) {
-          return { error: 'BAD_QTY' as const };
-        }
-        const rows = tx
+  // Retry the whole transaction if another concurrent creation grabbed our
+  // order number first; idempotency collisions return the existing order.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const result = db.transaction((tx) => {
+        const tenantRows = tx
           .select()
-          .from(products)
-          .where(and(eq(products.id, line.productId), eq(products.tenantId, input.tenantId)))
+          .from(tenants)
+          .where(eq(tenants.id, input.tenantId))
           .limit(1)
           .all();
-        const product = rows[0];
-        if (!product || !product.isActive) {
-          return { error: 'PRODUCT_INACTIVE' as const };
+        const tenant = tenantRows[0];
+        if (!tenant) {
+          return { error: 'DATE_UNAVAILABLE' as const };
         }
-        if (line.qty < product.minQty || line.qty > product.maxQty) {
-          return { error: 'BAD_QTY' as const };
+        if (!tenant.acceptOrders) {
+          return { error: 'TENANT_BUSY' as const };
         }
-        const options = tx
+
+        const customerRows = tx
           .select()
-          .from(productOptions)
-          .where(eq(productOptions.productId, product.id))
+          .from(customers)
+          .where(and(eq(customers.id, input.customerId), eq(customers.tenantId, input.tenantId)))
+          .limit(1)
           .all();
-        lines.push({
-          product,
-          qty: line.qty,
-          options: options.filter((o) => line.optionIds.includes(o.id)),
-        });
-      }
+        const customer = customerRows[0];
 
-      const cartCapacityUnits = lines.reduce((s, l) => s + l.product.capacityUnits * l.qty, 0);
-      const lead = requiredLeadDays(
-        lines.map((l) => l.product.leadDays),
-        tenant.minLeadDays
-      );
-      const today = toIsoDate(input.now, tenant.timezone);
-      const minDate = addDays(today, lead);
-      const maxDate = addDays(today, tenant.maxAdvanceDays);
-
-      if (
-        compareIso(input.checkout.dueDate, minDate) < 0 ||
-        compareIso(input.checkout.dueDate, maxDate) > 0
-      ) {
-        return { error: 'DATE_UNAVAILABLE' as const };
-      }
-
-      const dayOrders = tx
-        .select()
-        .from(orders)
-        .where(
-          and(
-            eq(orders.tenantId, input.tenantId),
-            eq(orders.dueDate, input.checkout.dueDate),
-            inArray(orders.status, [...OCCUPYING_STATUSES])
+        // Idempotent replay: same checkoutId returns the existing order
+        const existing = tx
+          .select()
+          .from(orders)
+          .where(
+            and(
+              eq(orders.tenantId, input.tenantId),
+              eq(orders.idempotencyKey, input.checkout.checkoutId)
+            )
           )
-        )
-        .all();
+          .limit(1)
+          .all();
+        if (existing.length > 0) {
+          return { order: existing[0]! } as const;
+        }
 
-      const overrideRows = tx
-        .select()
-        .from(capacityOverrides)
-        .where(
-          and(
-            eq(capacityOverrides.tenantId, input.tenantId),
-            eq(capacityOverrides.date, input.checkout.dueDate)
-          )
-        )
-        .all();
+        // Validate cart lines against current product state
+        const lines: {
+          product: typeof products.$inferSelect;
+          qty: number;
+          options: (typeof productOptions.$inferSelect)[];
+        }[] = [];
 
-      const eff = effectiveCapacity(tenant.defaultDailyCapacity, overrideRows[0]);
-      if (eff.closed) {
-        return { error: 'DATE_UNAVAILABLE' as const };
-      }
-      const used = usedUnits(dayOrders);
-      if (used >= eff.capacity || used + cartCapacityUnits > eff.capacity) {
-        return { error: 'CAPACITY_EXCEEDED' as const };
-      }
+        for (const line of input.cart.lines) {
+          if (!Number.isInteger(line.qty) || line.qty <= 0) {
+            return { error: 'BAD_QTY' as const };
+          }
+          const rows = tx
+            .select()
+            .from(products)
+            .where(and(eq(products.id, line.productId), eq(products.tenantId, input.tenantId)))
+            .limit(1)
+            .all();
+          const product = rows[0];
+          if (!product || !product.isActive) {
+            return { error: 'PRODUCT_INACTIVE' as const };
+          }
+          if (line.qty < product.minQty || line.qty > product.maxQty) {
+            return { error: 'BAD_QTY' as const };
+          }
+          const options = tx
+            .select()
+            .from(productOptions)
+            .where(eq(productOptions.productId, product.id))
+            .all();
+          lines.push({
+            product,
+            qty: line.qty,
+            options: options.filter((o) => line.optionIds.includes(o.id)),
+          });
+        }
 
-      const maxRow = tx
-        .select({ value: max(orders.number) })
-        .from(orders)
-        .where(eq(orders.tenantId, input.tenantId))
-        .all();
-      const nextNumber = (maxRow[0]?.value ?? 0) + 1;
-
-      let itemsTotal = 0;
-      const itemRows: (typeof orderItems.$inferInsert)[] = [];
-
-      const orderId = nanoid();
-      for (const l of lines) {
-        const unitPrice = priceLine(
-          l.product.priceMinor,
-          l.options.map((o) => o.priceDeltaMinor),
-          1
+        const cartCapacityUnits = lines.reduce((s, l) => s + l.product.capacityUnits * l.qty, 0);
+        const lead = requiredLeadDays(
+          lines.map((l) => l.product.leadDays),
+          tenant.minLeadDays
         );
-        itemsTotal += unitPrice * l.qty;
-        itemRows.push({
-          id: nanoid(),
-          orderId,
-          productId: l.product.id,
-          titleSnapshot: l.product.title,
-          optionsSnapshot: l.options.map((o) => ({
-            group: o.groupTitle,
-            title: o.title,
-            deltaMinor: o.priceDeltaMinor,
-          })),
-          unitPriceMinor: unitPrice,
-          qty: l.qty,
-          capacityUnits: l.product.capacityUnits * l.qty,
-        });
-      }
+        const today = toIsoDate(input.now, tenant.timezone);
+        const minDate = addDays(today, lead);
+        const maxDate = addDays(today, tenant.maxAdvanceDays);
 
-      const deliveryFee = input.checkout.fulfillment === 'delivery' ? tenant.deliveryFeeMinor : 0;
-      const total = itemsTotal + deliveryFee;
-      const prepayment = Math.ceil((total * tenant.prepaymentPercent) / 100);
+        if (
+          compareIso(input.checkout.dueDate, minDate) < 0 ||
+          compareIso(input.checkout.dueDate, maxDate) > 0
+        ) {
+          return { error: 'DATE_UNAVAILABLE' as const };
+        }
 
-      tx.insert(orders)
-        .values({
-          id: orderId,
-          tenantId: input.tenantId,
-          number: nextNumber,
-          customerId: input.customerId,
-          status: 'new',
-          dueDate: input.checkout.dueDate,
-          dueTimeText: input.checkout.dueTimeText ?? null,
-          fulfillment: input.checkout.fulfillment,
-          address: input.checkout.address ?? null,
-          contactName: input.checkout.contactName,
-          contactPhone: input.checkout.contactPhone,
-          comment: input.checkout.comment ?? null,
-          itemsTotalMinor: itemsTotal,
-          deliveryFeeMinor: deliveryFee,
-          totalMinor: total,
-          prepaymentMinor: prepayment,
-          capacityUnits: cartCapacityUnits,
-          source: customer?.source ?? null,
-          idempotencyKey: input.checkout.checkoutId,
-          createdAt: input.now,
-          updatedAt: input.now,
-        })
-        .run();
+        const dayOrders = tx
+          .select()
+          .from(orders)
+          .where(
+            and(
+              eq(orders.tenantId, input.tenantId),
+              eq(orders.dueDate, input.checkout.dueDate),
+              inArray(orders.status, [...OCCUPYING_STATUSES])
+            )
+          )
+          .all();
 
-      for (const row of itemRows) {
-        tx.insert(orderItems).values(row).run();
-      }
+        const overrideRows = tx
+          .select()
+          .from(capacityOverrides)
+          .where(
+            and(
+              eq(capacityOverrides.tenantId, input.tenantId),
+              eq(capacityOverrides.date, input.checkout.dueDate)
+            )
+          )
+          .all();
 
-      for (const ref of input.checkout.referenceFileIds ?? []) {
-        tx.insert(orderAttachments)
+        const eff = effectiveCapacity(tenant.defaultDailyCapacity, overrideRows[0]);
+        if (eff.closed) {
+          return { error: 'DATE_UNAVAILABLE' as const };
+        }
+        const used = usedUnits(dayOrders);
+        if (used >= eff.capacity || used + cartCapacityUnits > eff.capacity) {
+          return { error: 'CAPACITY_EXCEEDED' as const };
+        }
+
+        const maxRow = tx
+          .select({ value: max(orders.number) })
+          .from(orders)
+          .where(eq(orders.tenantId, input.tenantId))
+          .all();
+        const nextNumber = (maxRow[0]?.value ?? 0) + 1;
+
+        let itemsTotal = 0;
+        const itemRows: (typeof orderItems.$inferInsert)[] = [];
+
+        const orderId = nanoid();
+        for (const l of lines) {
+          const unitPrice = priceLine(
+            l.product.priceMinor,
+            l.options.map((o) => o.priceDeltaMinor),
+            1
+          );
+          itemsTotal += unitPrice * l.qty;
+          itemRows.push({
+            id: nanoid(),
+            orderId,
+            productId: l.product.id,
+            titleSnapshot: l.product.title,
+            optionsSnapshot: l.options.map((o) => ({
+              group: o.groupTitle,
+              title: o.title,
+              deltaMinor: o.priceDeltaMinor,
+            })),
+            unitPriceMinor: unitPrice,
+            qty: l.qty,
+            capacityUnits: l.product.capacityUnits * l.qty,
+          });
+        }
+
+        const deliveryFee = input.checkout.fulfillment === 'delivery' ? tenant.deliveryFeeMinor : 0;
+        const total = itemsTotal + deliveryFee;
+        const prepayment = Math.ceil((total * tenant.prepaymentPercent) / 100);
+
+        tx.insert(orders)
+          .values({
+            id: orderId,
+            tenantId: input.tenantId,
+            number: nextNumber,
+            customerId: input.customerId,
+            status: 'new',
+            dueDate: input.checkout.dueDate,
+            dueTimeText: input.checkout.dueTimeText ?? null,
+            fulfillment: input.checkout.fulfillment,
+            address: input.checkout.address ?? null,
+            contactName: input.checkout.contactName,
+            contactPhone: input.checkout.contactPhone,
+            comment: input.checkout.comment ?? null,
+            itemsTotalMinor: itemsTotal,
+            deliveryFeeMinor: deliveryFee,
+            totalMinor: total,
+            prepaymentMinor: prepayment,
+            capacityUnits: cartCapacityUnits,
+            source: customer?.source ?? null,
+            idempotencyKey: input.checkout.checkoutId,
+            createdAt: input.now,
+            updatedAt: input.now,
+          })
+          .run();
+
+        for (const row of itemRows) {
+          tx.insert(orderItems).values(row).run();
+        }
+
+        for (const ref of input.checkout.referenceFileIds ?? []) {
+          tx.insert(orderAttachments)
+            .values({
+              id: nanoid(),
+              orderId,
+              kind: 'reference',
+              fileId: ref.fileId,
+              fileType: ref.fileType,
+              createdAt: input.now,
+            })
+            .run();
+        }
+
+        tx.insert(orderEvents)
           .values({
             id: nanoid(),
             orderId,
-            kind: 'reference',
-            fileId: ref.fileId,
-            fileType: ref.fileType,
+            type: 'order_created',
+            actor: 'customer',
             createdAt: input.now,
           })
           .run();
+
+        const createdRows = tx.select().from(orders).where(eq(orders.id, orderId)).all();
+        return { order: createdRows[0]! } as const;
+      });
+
+      if ('error' in result && result.error) {
+        return { ok: false, error: result.error };
       }
-
-      tx.insert(orderEvents)
-        .values({
-          id: nanoid(),
-          orderId,
-          type: 'order_created',
-          actor: 'customer',
-          createdAt: input.now,
-        })
-        .run();
-
-      const createdRows = tx.select().from(orders).where(eq(orders.id, orderId)).all();
-      return { order: createdRows[0]! } as const;
-    });
-
-    if ('error' in result && result.error) {
-      return { ok: false, error: result.error };
-    }
-    return { ok: true, value: (result as { order: typeof orders.$inferSelect }).order };
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('UNIQUE constraint failed')) {
-      const rows = await db
-        .select()
-        .from(orders)
-        .where(
-          and(
-            eq(orders.tenantId, input.tenantId),
-            eq(orders.idempotencyKey, input.checkout.checkoutId)
+      return { ok: true, value: (result as { order: typeof orders.$inferSelect }).order };
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('UNIQUE constraint failed')) {
+        if (error.message.includes('orders.number')) {
+          continue;
+        }
+        const rows = await db
+          .select()
+          .from(orders)
+          .where(
+            and(
+              eq(orders.tenantId, input.tenantId),
+              eq(orders.idempotencyKey, input.checkout.checkoutId)
+            )
           )
-        )
-        .limit(1);
-      if (rows.length > 0) {
-        return { ok: true, value: rows[0]! };
+          .limit(1);
+        if (rows.length > 0) {
+          return { ok: true, value: rows[0]! };
+        }
       }
+      throw error;
     }
-    throw error;
   }
+  throw new Error('Failed to allocate order number after 3 attempts');
 }
 
 export async function applyOrderEvent(
