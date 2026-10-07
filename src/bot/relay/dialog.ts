@@ -3,7 +3,7 @@ import { BotContextWithSession } from '../context.js';
 import { canAccessOwner } from '../permissions.js';
 import { ru } from '../../i18n/ru.js';
 import { getDb } from '../../db/client.js';
-import { orders, customers } from '../../db/schema.js';
+import { orders, customers, relayMessages } from '../../db/schema.js';
 import { and, desc, eq, notInArray } from 'drizzle-orm';
 import { escapeHtml } from '../../domain/escape.js';
 import { trackFunnelEvent } from '../middleware/funnel.js';
@@ -133,12 +133,12 @@ async function updateCustomerDialogScreen(
   ctx: BotContextWithSession,
   orderId: string,
   orderNumber: number
-): Promise<void> {
+): Promise<number | null> {
   const history = getCustomerDialog(ctx);
   const historyText = formatHistory(history);
   const header = `💬 Диалог по заказу №${orderNumber}`;
   const text = `${header}\n\n${historyText}\n\n—\nНапишите сообщение мастеру:`;
-  await showDialogScreen(ctx, text, dialogKeyboard(false, orderId), false, orderId);
+  return showDialogScreen(ctx, text, dialogKeyboard(false, orderId), false, orderId);
 }
 
 async function openOwnerDialog(
@@ -186,8 +186,36 @@ async function openCustomerDialog(
   const header = `💬 Диалог по заказу №${found.order.number}`;
   const text = historyText ? `${header}\n\n${historyText}\n\n—\nНапишите сообщение мастеру:` : `${header}\n\nНапишите сообщение мастеру:`;
 
-  await showDialogScreen(ctx, text, dialogKeyboard(false, orderId), false, orderId);
+  const replyKb = { inline_keyboard: [[{ text: 'Ответить мастеру', callback_data: `rel:dialog:${orderId}` }]] };
+  const sent = await ctx.port.sendMessage(ctx.chat!.id, text, { keyboard: replyKb, parseMode: 'HTML' });
+  ctx.session.dialogMessageId = sent.messageId;
   ctx.sessionState = 'customer.dialog';
+
+  // Store customer's dialog message ID in relayMessages for single-screen updates
+  const existing = await db
+    .select()
+    .from(relayMessages)
+    .where(and(eq(relayMessages.tenantId, ctx.tenant.id), eq(relayMessages.customerId, found.customer.id)))
+    .orderBy(desc(relayMessages.createdAt))
+    .limit(1);
+  if (existing.length > 0) {
+    await db
+      .update(relayMessages)
+      .set({ customerDialogMessageId: sent.messageId })
+      .where(eq(relayMessages.id, existing[0]!.id));
+  } else {
+    await db.insert(relayMessages).values({
+      id: nanoid(),
+      tenantId: ctx.tenant.id,
+      customerId: found.customer.id,
+      ownerChatId: ctx.tenant.ownerTelegramId ?? 0,
+      ownerMessageId: 0,
+      customerChatId: ctx.chat!.id,
+      orderId,
+      customerDialogMessageId: sent.messageId,
+      createdAt: new Date(),
+    });
+  }
 }
 
 async function handleOwnerDialogMessage(ctx: BotContextWithSession): Promise<boolean> {
@@ -230,10 +258,9 @@ async function handleOwnerDialogMessage(ctx: BotContextWithSession): Promise<boo
   // Update owner's dialog screen
   await updateOwnerDialogScreen(ctx, orderId, customerId, customer, order);
 
-  // Update customer's dialog screen (single-screen: edit their dialog message)
+  // Update customer's dialog screen (single-screen: replace their dialog message)
   const replyKb = { inline_keyboard: [[{ text: 'Ответить мастеру', callback_data: `rel:dialog:${orderId}` }]] };
   try {
-    // Send a notification to customer's chat, but also update their dialog screen
     const customerChatId = customer.telegramId;
     const history = getCustomerDialog(ctx);
     // Add owner's message to customer's history
@@ -244,33 +271,57 @@ async function handleOwnerDialogMessage(ctx: BotContextWithSession): Promise<boo
     const customerHeader = `💬 Диалог по заказу №${order.number}`;
     const customerText = `${customerHeader}\n\n${customerHistoryText}\n\n—\nНапишите сообщение мастеру:`;
 
-    // Update customer's dialog screen if they have one open
     if (customer.isBlocked || customer.botBlocked) {
-      // Can't send message
       await ctx.port.sendMessage(ctx.chat!.id, '⚠️ Клиент заблокировал бота. Сообщение не доставлено.');
     } else {
-      // Try to edit customer's dialog screen
-      const customerDialogMsgId = ctx.session.dialogMessageId;
-      let updated = false;
+      const db = getDb();
+      // Find existing relay message for this customer to get their dialog message ID
+      const relayRows = await db
+        .select()
+        .from(relayMessages)
+        .where(and(eq(relayMessages.tenantId, ctx.tenant.id), eq(relayMessages.customerId, customer.id)))
+        .orderBy(desc(relayMessages.createdAt))
+        .limit(1);
+
+      let customerDialogMsgId: number | undefined;
+      if (relayRows.length > 0) {
+        customerDialogMsgId = relayRows[0]!.customerDialogMessageId ?? undefined;
+      }
+
+      // Delete old dialog message if exists
       if (customerDialogMsgId) {
         try {
-          await ctx.port.editMessageTextOrSend(customerChatId, customerDialogMsgId, customerText, {
-            keyboard: replyKb,
-            parseMode: 'HTML',
-          });
-          updated = true;
+          await ctx.port.deleteMessage(customerChatId, customerDialogMsgId);
         } catch {
-          // dialog message not found or can't edit
+          // already gone
         }
       }
-      if (!updated) {
-        // Send new dialog message to customer
-        const sent = await ctx.port.sendMessage(customerChatId, customerText, {
-          keyboard: replyKb,
-          parseMode: 'HTML',
+
+      // Send new dialog message to customer
+      const sent = await ctx.port.sendMessage(customerChatId, customerText, {
+        keyboard: replyKb,
+        parseMode: 'HTML',
+      });
+
+      // Store the new dialog message ID in relayMessages
+      if (relayRows.length > 0) {
+        await db
+          .update(relayMessages)
+          .set({ customerDialogMessageId: sent.messageId })
+          .where(eq(relayMessages.id, relayRows[0]!.id));
+      } else {
+        // Create new relay message entry
+        await db.insert(relayMessages).values({
+          id: nanoid(),
+          tenantId: ctx.tenant.id,
+          customerId: customer.id,
+          ownerChatId: ctx.chat!.id,
+          ownerMessageId: ctx.message!.message_id,
+          customerChatId,
+          orderId,
+          customerDialogMessageId: sent.messageId,
+          createdAt: new Date(),
         });
-        // Store the dialog message ID for future updates
-        ctx.session.dialogMessageId = sent.messageId;
       }
     }
   } catch (e) {
@@ -332,9 +383,26 @@ async function handleCustomerDialogMessage(ctx: BotContextWithSession): Promise<
   const orderId = order?.id ?? '';
   appendToDialog(ctx, orderId, customer.id, message, false);
 
-  // Update customer's dialog screen
+  // Update customer's dialog screen and store message ID
   const orderNumber = order?.number ?? 0;
-  await updateCustomerDialogScreen(ctx, orderId, orderNumber);
+  const newMsgId = await updateCustomerDialogScreen(ctx, orderId, orderNumber);
+
+  // Store customer's dialog message ID in relayMessages
+  if (newMsgId && order) {
+    const db = getDb();
+    const existing = await db
+      .select()
+      .from(relayMessages)
+      .where(and(eq(relayMessages.tenantId, ctx.tenant.id), eq(relayMessages.customerId, customer.id)))
+      .orderBy(desc(relayMessages.createdAt))
+      .limit(1);
+    if (existing.length > 0) {
+      await db
+        .update(relayMessages)
+        .set({ customerDialogMessageId: newMsgId })
+        .where(eq(relayMessages.id, existing[0]!.id));
+    }
+  }
 
   // Send to owner (notification with reply button)
   const ownerId = ctx.tenant.ownerTelegramId;

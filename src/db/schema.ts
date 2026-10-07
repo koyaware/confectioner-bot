@@ -294,10 +294,12 @@ export const relayMessages = sqliteTable(
     ownerMessageId: integer('owner_message_id').notNull(),
     customerChatId: integer('customer_chat_id').notNull(),
     orderId: text('order_id'),
+    customerDialogMessageId: integer('customer_dialog_message_id'),
     createdAt: ts('created_at').notNull(),
   },
   (t) => ({
     ownerMsgUq: uniqueIndex('relay_owner_msg_uq').on(t.tenantId, t.ownerChatId, t.ownerMessageId),
+    customerDialogIdx: index('relay_customer_dialog_idx').on(t.tenantId, t.customerId, t.customerDialogMessageId),
   })
 );
 
