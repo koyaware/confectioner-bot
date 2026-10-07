@@ -15,14 +15,22 @@ export function registerMenuHandler(bot: Bot<BotContextWithSession>): void {
       const s = ru.menu.ownerSections;
       const keyboard: InlineKeyboard = {
         inline_keyboard: [
-          [{ text: s.orders, callback_data: 'adm:ord:list' }],
-          [{ text: s.catalog, callback_data: 'adm:cat:list' }],
-          [{ text: s.faq, callback_data: 'adm:faq:list' }],
-          [{ text: s.calendar, callback_data: 'adm:cal:list' }],
-          [{ text: s.settings, callback_data: 'adm:set:list' }],
-          [{ text: s.links, callback_data: 'adm:src:list' }],
-          [{ text: s.stats, callback_data: 'adm:stats' }],
-          [{ text: s.preview, callback_data: 'adm:preview' }],
+          [
+            { text: s.orders, callback_data: 'adm:ord:list' },
+            { text: s.catalog, callback_data: 'adm:cat:list' },
+          ],
+          [
+            { text: s.faq, callback_data: 'adm:faq:list' },
+            { text: s.calendar, callback_data: 'adm:cal:list' },
+          ],
+          [
+            { text: s.settings, callback_data: 'adm:set:list' },
+            { text: s.links, callback_data: 'adm:src:list' },
+          ],
+          [
+            { text: s.stats, callback_data: 'adm:stats' },
+            { text: s.preview, callback_data: 'adm:preview' },
+          ],
         ],
       };
       await ctx.port.sendMessage(ctx.chat.id, ru.menu.ownerTitle, {
@@ -35,8 +43,10 @@ export function registerMenuHandler(bot: Bot<BotContextWithSession>): void {
     const keyboard: InlineKeyboard = {
       inline_keyboard: [
         [{ text: ru.start.buttonCatalog, callback_data: 'cat:list' }],
-        [{ text: ru.cart.button, callback_data: 'cart:show' }],
-        [{ text: ru.my.button, callback_data: 'my:list' }],
+        [
+          { text: ru.cart.button, callback_data: 'cart:show' },
+          { text: ru.my.button, callback_data: 'my:list' },
+        ],
         [{ text: ru.faq.button, callback_data: 'faq:list' }],
       ],
     };
