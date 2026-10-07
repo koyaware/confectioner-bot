@@ -97,9 +97,9 @@ async function main() {
       stepDurations.push(performance.now() - start);
 
       start = performance.now();
-      const sent = port.getCallsForMethod('sendMessage');
-      const confirm = sent[sent.length - 1]!;
-      const submitMatch = JSON.stringify(confirm.args[2]).match(/chk:submit:[A-Za-z0-9_-]+/);
+      const confirmEdits = port.getCallsForMethod('editMessageText');
+      const confirm = confirmEdits[confirmEdits.length - 1]!;
+      const submitMatch = JSON.stringify(confirm.args[3]).match(/chk:submit:[A-Za-z0-9_-]+/);
       if (!submitMatch) throw new Error('submit button not found');
       await bot.handleUpdate(cb(10, `c-${customer}-10`, userId, 10, submitMatch[0]));
       stepDurations.push(performance.now() - start);

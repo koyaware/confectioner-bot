@@ -209,6 +209,12 @@ describe('checkout steps', () => {
     const editTexts = edits.map((c) => c.args[2] as string);
     expect(editTexts.some((t) => t.includes('Заказ №'))).toBe(true);
 
+    // order-sent screen is not a dead end: it offers menu navigation
+    const lastEdit = edits[edits.length - 1]!;
+    const lastKb = JSON.stringify(lastEdit.args[3]);
+    expect(lastKb).toContain('cat:list');
+    expect(lastKb).toContain('nav:menu');
+
     // second submit with same id = noop (stale draft)
     await bot.handleUpdate(cb(31, 'c14', 42, 10, `chk:submit:${data.checkout.checkoutId}`));
     const { orders } = await import('../src/db/schema.js');
