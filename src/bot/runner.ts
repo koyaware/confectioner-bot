@@ -5,11 +5,11 @@ import { tenants } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
 import { decrypt } from '../lib/crypto.js';
 
-const APP_SECRET = process.env.APP_SECRET || '';
-
 export class BotRunner {
   private bots: Map<string, TenantBot> = new Map();
   private handles: Map<string, RunnerHandle> = new Map();
+
+  constructor(private readonly appSecret: string = process.env.APP_SECRET || '') {}
 
   /**
    * Load all active tenants and start their bots
@@ -39,7 +39,7 @@ export class BotRunner {
       return;
     }
 
-    const botToken = decrypt(encryptedToken, APP_SECRET);
+    const botToken = decrypt(encryptedToken, this.appSecret);
     const tenantBot = await import('./factory.js').then((m) =>
       m.createTenantBot(botToken, tenantId, tenantSlug, undefined, this)
     );

@@ -1,5 +1,6 @@
 import { Bot } from 'grammy';
 import { autoRetry } from '@grammyjs/auto-retry';
+import { apiThrottler } from '@grammyjs/transformer-throttler';
 import { BotContextWithSession } from './context.js';
 import { GrammyPort } from '../telegram/grammy-port.js';
 import { TelegramPort } from '../telegram/port.js';
@@ -64,8 +65,11 @@ export function createTenantBot(
     },
   });
 
-  // Enable auto-retry for rate limits
+  // Enable auto-retry for rate limits and throttling per tech.md section 3/12
   bot.api.config.use(autoRetry());
+  bot.api.config.use(apiThrottler());
+
+  const port = portOverride ?? new GrammyPort(botToken);
 
   // Store tenant info in context
   bot.use(async (ctx, next) => {
@@ -96,7 +100,6 @@ export function createTenantBot(
     };
     ctx.role = 'customer'; // Will be overridden by role middleware
 
-    const port = portOverride ?? new GrammyPort(botToken);
     ctx.port = port;
     ctx.session = { cart: { lines: [] } };
     ctx.sessionState = 'idle';
@@ -111,8 +114,6 @@ export function createTenantBot(
   bot.use(sessionMiddleware);
   bot.use(antispamMiddleware);
   bot.use(funnelMiddleware);
-
-  const port = portOverride ?? new GrammyPort(botToken);
 
   registerStartHandler(bot);
   registerCatalogHandlers(bot);

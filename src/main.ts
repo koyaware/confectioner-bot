@@ -24,7 +24,7 @@ async function main() {
   migrate();
   console.log('Migrations applied');
 
-  const runner = new BotRunner();
+  const runner = new BotRunner(config.appSecret);
   const scheduler = new JobScheduler();
   const ports = { getPort: (tenantId: string) => runner.getBot(tenantId)?.port };
   scheduler.registerHandler('order.payment_reminder', createPaymentReminderHandler(ports));
