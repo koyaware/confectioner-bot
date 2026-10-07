@@ -8,6 +8,10 @@ export function registerStartHandler(bot: Bot<BotContextWithSession>): void {
   bot.command('start', async (ctx) => {
     ctx.sessionState = 'idle';
     ctx.session.cart = ctx.session.cart ?? { lines: [] };
+    ctx.session.checkout = undefined;
+    ctx.session.paymentOrderId = undefined;
+    ctx.session.ownerDraft = undefined;
+    ctx.session.selections = undefined;
 
     const param = ctx.message?.text?.split(' ')[1];
 

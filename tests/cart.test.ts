@@ -72,7 +72,11 @@ describe('cart', () => {
 
     // cart persisted
     const sessionRows = await getDb().select().from(sessions);
-    const data = JSON.parse(sessionRows[0]!.data as string) as {
+    const data = (
+      typeof sessionRows[0]!.data === 'string'
+        ? JSON.parse(sessionRows[0]!.data)
+        : sessionRows[0]!.data
+    ) as {
       cart: { lines: { productId: string; qty: number; optionIds: string[] }[] };
     };
     expect(data.cart.lines).toHaveLength(1);
@@ -92,7 +96,11 @@ describe('cart', () => {
     await bot.handleUpdate(cb(8, 'c8', 42, 10, decBtn![0]));
 
     const sessionRows2 = await getDb().select().from(sessions);
-    const data2 = JSON.parse(sessionRows2[0]!.data as string) as { cart: { lines: unknown[] } };
+    const data2 = (
+      typeof sessionRows2[0]!.data === 'string'
+        ? JSON.parse(sessionRows2[0]!.data)
+        : sessionRows2[0]!.data
+    ) as { cart: { lines: unknown[] } };
     expect(data2.cart.lines).toHaveLength(0);
   });
 
@@ -118,7 +126,9 @@ describe('cart', () => {
 
     const rows = await getDb().select().from(sessions);
     expect(rows[0]!.state).toBe('checkout.date');
-    const data = JSON.parse(rows[0]!.data as string) as { checkout?: { checkoutId: string } };
+    const data = (
+      typeof rows[0]!.data === 'string' ? JSON.parse(rows[0]!.data) : rows[0]!.data
+    ) as { checkout?: { checkoutId: string } };
     expect(data.checkout?.checkoutId).toBeTruthy();
   });
 });

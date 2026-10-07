@@ -46,7 +46,9 @@ describe('deleteme', () => {
         chat: { id: from, type: 'private' },
         from: { id: from, is_bot: false, first_name: 'C' },
         text,
-        entities: text.startsWith('/') ? [{ type: 'bot_command', offset: 0, length: text.length }] : [],
+        entities: text.startsWith('/')
+          ? [{ type: 'bot_command', offset: 0, length: text.length }]
+          : [],
       },
     } as never;
   }
@@ -90,7 +92,12 @@ describe('deleteme', () => {
       state: 'idle',
       data: JSON.stringify({
         cart: { lines: [] },
-        checkout: { contactName: 'Иван', contactPhone: '+7999', address: 'ул. Пушкина, 10', comment: 'Позвонить' },
+        checkout: {
+          contactName: 'Иван',
+          contactPhone: '+7999',
+          address: 'ул. Пушкина, 10',
+          comment: 'Позвонить',
+        },
       }),
       updatedAt: now,
     });
@@ -114,7 +121,7 @@ describe('deleteme', () => {
     expect(ord[0]!.comment).toBe('[удалено]');
 
     const sess = await getDb().select().from(sessions);
-    const data = JSON.parse(sess[0]!.data as string);
+    const data = typeof sess[0]!.data === 'string' ? JSON.parse(sess[0]!.data) : sess[0]!.data;
     expect(data.checkout.contactName).toBe('[удалено]');
     expect(data.checkout.contactPhone).toBe('[удалено]');
     expect(data.checkout.address).toBe('[удалено]');

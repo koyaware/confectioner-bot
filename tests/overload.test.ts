@@ -76,7 +76,9 @@ describe('overload mode', () => {
       .select()
       .from((await import('../src/db/schema.js')).sessions);
     for (const s of sessions) {
-      const data = JSON.parse(s.data as string) as { checkout?: unknown };
+      const data = (typeof s.data === 'string' ? JSON.parse(s.data) : s.data) as {
+        checkout?: unknown;
+      };
       expect(data.checkout).toBeUndefined();
     }
   });

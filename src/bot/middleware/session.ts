@@ -4,7 +4,51 @@ import { sessions } from '../../db/schema.js';
 import { eq, and } from 'drizzle-orm';
 import { BotContextWithSession } from '../context.js';
 import { z } from 'zod';
-import { SessionState } from '../../types.js';
+import { SessionData, SessionState } from '../../types.js';
+
+const checkoutSchema = z.object({
+  checkoutId: z.string().min(1).max(64),
+  dueDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  dueTimeText: z.string().max(200).optional(),
+  fulfillment: z.enum(['pickup', 'delivery']).optional(),
+  address: z.string().max(500).optional(),
+  contactName: z.string().max(200).optional(),
+  contactPhone: z.string().max(100).optional(),
+  comment: z.string().max(1000).optional(),
+  referenceFileIds: z
+    .array(
+      z.object({
+        fileId: z.string().min(1).max(200),
+        fileType: z.enum(['photo', 'document']),
+      })
+    )
+    .max(10),
+});
+
+const ownerDraftSchema = z.object({
+  kind: z.string().min(1).max(64),
+  targetId: z.string().min(1).max(64).optional(),
+  extra: z.record(z.string()).optional(),
+});
+
+const sessionStateSchema = z.enum([
+  'idle',
+  'checkout.date',
+  'checkout.time',
+  'checkout.fulfillment',
+  'checkout.address',
+  'checkout.contact',
+  'checkout.comment',
+  'checkout.photos',
+  'checkout.confirm',
+  'payment.await_receipt',
+  'relay.compose',
+  'owner.edit_field',
+  'owner.reply_to_customer',
+]);
 
 const sessionDataSchema = z.object({
   cart: z.object({
@@ -17,8 +61,8 @@ const sessionDataSchema = z.object({
       })
     ),
   }),
-  checkout: z.any().optional(),
-  ownerDraft: z.any().optional(),
+  checkout: checkoutSchema.optional(),
+  ownerDraft: ownerDraftSchema.optional(),
   paymentOrderId: z.string().optional(),
   lastAutoReplyAt: z.number().optional(),
   antispam: z
@@ -29,6 +73,20 @@ const sessionDataSchema = z.object({
     .optional(),
   selections: z.record(z.array(z.string())).optional(),
 });
+
+function parseStoredSession(raw: unknown): { session: SessionData; state: SessionState } | null {
+  let value = raw;
+  for (let i = 0; i < 2 && typeof value === 'string'; i++) {
+    try {
+      value = JSON.parse(value);
+    } catch {
+      return null;
+    }
+  }
+  const session = sessionDataSchema.safeParse(value);
+  if (!session.success) return null;
+  return { session: session.data, state: 'idle' };
+}
 
 /**
  * Session middleware - loads and saves session from DB
@@ -50,11 +108,13 @@ export const sessionMiddleware: MiddlewareFn<BotContextWithSession> = async (ctx
     .limit(1);
 
   const row = results[0];
-  if (row && typeof row.data === 'string') {
-    try {
-      ctx.session = sessionDataSchema.parse(JSON.parse(row.data));
-      ctx.sessionState = row.state as SessionState;
-    } catch {
+  if (row) {
+    const stored = parseStoredSession(row.data);
+    const state = sessionStateSchema.safeParse(row.state);
+    if (stored && state.success) {
+      ctx.session = stored.session;
+      ctx.sessionState = state.data;
+    } else {
       ctx.session = { cart: { lines: [] } };
       ctx.sessionState = 'idle';
     }
@@ -65,8 +125,8 @@ export const sessionMiddleware: MiddlewareFn<BotContextWithSession> = async (ctx
 
   await next();
 
-  // Save session back to DB
-  const sessionData = JSON.stringify(ctx.session);
+  // Save session back to DB. The sessions.data column uses Drizzle json mode,
+  // so pass the object itself; Drizzle serializes exactly once.
   const now = new Date();
 
   await db
@@ -75,14 +135,14 @@ export const sessionMiddleware: MiddlewareFn<BotContextWithSession> = async (ctx
       tenantId,
       telegramId,
       state: ctx.sessionState,
-      data: sessionData,
+      data: ctx.session,
       updatedAt: now,
     })
     .onConflictDoUpdate({
       target: [sessions.tenantId, sessions.telegramId],
       set: {
         state: ctx.sessionState,
-        data: sessionData,
+        data: ctx.session,
         updatedAt: now,
       },
     });

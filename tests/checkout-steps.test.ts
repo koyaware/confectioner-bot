@@ -106,7 +106,7 @@ describe('checkout steps', () => {
     await bot.handleUpdate(cb(25, 'c9', 42, 10, 'chk:skip'));
 
     let rows = await getDb().select().from(sessions);
-    let data = JSON.parse(rows[0]!.data as string) as {
+    let data = (typeof rows[0]!.data === 'string' ? JSON.parse(rows[0]!.data) : rows[0]!.data) as {
       checkout: {
         dueDate: string;
         fulfillment: string;
@@ -141,7 +141,9 @@ describe('checkout steps', () => {
     await bot.handleUpdate(cb(28, 'c12', 42, 10, 'chk:cancel'));
     rows = await getDb().select().from(sessions);
     expect(rows[0]!.state).toBe('idle');
-    data = JSON.parse(rows[0]!.data as string) as { checkout?: unknown };
+    data = (typeof rows[0]!.data === 'string' ? JSON.parse(rows[0]!.data) : rows[0]!.data) as {
+      checkout?: unknown;
+    };
     expect(data.checkout).toBeUndefined();
   });
 
@@ -180,13 +182,17 @@ describe('checkout steps', () => {
 
     // now on confirm: call chk:submit with the checkoutId from session
     let rows = await getDb().select().from(sessions);
-    const data = JSON.parse(rows[0]!.data as string) as {
+    const data = (
+      typeof rows[0]!.data === 'string' ? JSON.parse(rows[0]!.data) : rows[0]!.data
+    ) as {
       checkout: { checkoutId: string };
     };
     await bot.handleUpdate(cb(30, 'c13', 42, 10, `chk:submit:${data.checkout.checkoutId}`));
 
     rows = await getDb().select().from(sessions);
-    const after = JSON.parse(rows[0]!.data as string) as {
+    const after = (
+      typeof rows[0]!.data === 'string' ? JSON.parse(rows[0]!.data) : rows[0]!.data
+    ) as {
       cart: { lines: unknown[] };
       checkout?: unknown;
     };

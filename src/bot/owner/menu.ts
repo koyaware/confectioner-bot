@@ -42,6 +42,11 @@ export function registerMenuHandler(bot: Bot<BotContextWithSession>): void {
 
   bot.command('menu', async (ctx) => {
     ctx.sessionState = 'idle';
+    ctx.session.cart = ctx.session.cart ?? { lines: [] };
+    ctx.session.checkout = undefined;
+    ctx.session.paymentOrderId = undefined;
+    ctx.session.ownerDraft = undefined;
+    ctx.session.selections = undefined;
 
     const isOwner = canAccessOwner(ctx);
 

@@ -98,6 +98,7 @@ export function createTenantBot(
 
     const port = portOverride ?? new GrammyPort(botToken);
     ctx.port = port;
+    ctx.session = { cart: { lines: [] } };
     ctx.sessionState = 'idle';
 
     await next();

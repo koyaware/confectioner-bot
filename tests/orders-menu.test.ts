@@ -126,7 +126,9 @@ describe('owner orders callbacks', () => {
     const rows = await getDb().select().from(sessions);
     expect(rows[0]!.state).toBe('owner.reply_to_customer');
 
-    const data = JSON.parse(rows[0]!.data as string) as {
+    const data = (
+      typeof rows[0]!.data === 'string' ? JSON.parse(rows[0]!.data) : rows[0]!.data
+    ) as {
       ownerDraft: { kind: string; targetId: string };
     };
     expect(data.ownerDraft.kind).toBe('ord_msg');
