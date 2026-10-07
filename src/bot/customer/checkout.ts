@@ -670,17 +670,10 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
       await next();
       return;
     }
-    const doc = ctx.message.document;
-    if (!doc) return;
+    // References are photo-only by contract (v1.33): drop documents silently,
+    // mirroring the over-limit path. The screen already prompts for photos.
+    // Old document attachments still display in my:refs / adm:ord:refs.
     await deleteUserMessage(ctx);
-    const arr = ctx.session.checkout?.referenceFileIds ?? [];
-    if (arr.length >= 5) {
-      // Limit reached, silently ignore additional documents
-      return;
-    }
-    arr.push({ fileId: doc.file_id, fileType: 'document' });
-    ctx.session.checkout!.referenceFileIds = arr;
-    await refreshPhotosScreen(ctx);
   });
 }
 

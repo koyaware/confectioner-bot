@@ -379,6 +379,36 @@ describe('checkout steps', () => {
     expect(edits[edits.length - 1]!.args[2] as string).toContain('Зона 1 — 300');
   });
 
+  it('reference documents are dropped, only photos attach', async () => {
+    const now = new Date();
+    const { tenantId } = await seedDemo(appSecret, now);
+    const port = new FakePort();
+    const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
+
+    await setupCartAndCheckout(port, bot);
+    await bot.handleUpdate(msg(20, 42, 'к 15:00'));
+    await bot.handleUpdate(cb(21, 'c8', 42, 10, 'chk:ful:pickup'));
+    await bot.handleUpdate(msg(22, 42, 'Иван, +79991234567'));
+    await bot.handleUpdate(msg(23, 42, 'без комментария'));
+    // photos step: document must not attach
+    await bot.handleUpdate({
+      update_id: 24,
+      message: {
+        message_id: 24,
+        date: 1,
+        chat: { id: 42, type: 'private' },
+        from: { id: 42, is_bot: false, first_name: 'C' },
+        document: { file_id: 'd1', file_unique_id: 'du1', file_name: 'ref.pdf' },
+      },
+    } as never);
+
+    const rows = await getDb().select().from(sessions);
+    const data = (
+      typeof rows[0]!.data === 'string' ? JSON.parse(rows[0]!.data) : rows[0]!.data
+    ) as { checkout: { referenceFileIds: unknown[] } };
+    expect(data.checkout.referenceFileIds).toHaveLength(0);
+  });
+
   it('confirm without draft shows stale hint and no dead submit button', async () => {
     const now = new Date();
     const { tenantId } = await seedDemo(appSecret, now);
