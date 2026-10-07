@@ -7,13 +7,17 @@ export function registerMenuHandler(bot: Bot<BotContextWithSession>): void {
   bot.command('menu', async (ctx) => {
     ctx.sessionState = 'idle';
 
-    if (ctx.role === 'owner') {
+    const isOwner =
+      ctx.role === 'owner' ||
+      (ctx.role === 'superadmin' && ctx.tenant.ownerTelegramId === ctx.from?.id);
+
+    if (isOwner) {
       const s = ru.menu.ownerSections;
       const keyboard: InlineKeyboard = {
         inline_keyboard: [
           [{ text: s.orders, callback_data: 'adm:ord:list' }],
           [{ text: s.catalog, callback_data: 'adm:cat:list' }],
-          [{ text: 'FAQ', callback_data: 'adm:faq:list' }],
+          [{ text: s.faq, callback_data: 'adm:faq:list' }],
           [{ text: s.calendar, callback_data: 'adm:cal:list' }],
           [{ text: s.settings, callback_data: 'adm:set:list' }],
           [{ text: s.links, callback_data: 'adm:src:list' }],

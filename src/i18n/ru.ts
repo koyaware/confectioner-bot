@@ -182,6 +182,7 @@ export const ru = {
     ownerSections: {
       orders: 'Заказы',
       catalog: 'Каталог',
+      faq: 'Вопросы и ответы',
       calendar: 'Календарь',
       settings: 'Настройки',
       links: 'Ссылки для Instagram',
