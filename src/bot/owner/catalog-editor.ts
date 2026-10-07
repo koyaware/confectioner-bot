@@ -8,7 +8,7 @@ import { formatMinor } from '../../lib/money.js';
 import {
   listProductsAll,
   getProductById,
-  listProductOptions,
+  listProductOptionsAll,
   getCategoryById,
   listCategoriesAll,
 } from '../../services/catalog.js';
@@ -101,7 +101,7 @@ async function showProductEdit(ctx: BotContextWithSession, productId: string) {
     await showCategoryList(ctx);
     return;
   }
-  const productOptionsList = await listProductOptions(productId);
+  const productOptionsList = await listProductOptionsAll(productId);
   const optionCount = productOptionsList.length;
 
   const rows: InlineKeyboard['inline_keyboard'] = [
@@ -170,12 +170,12 @@ async function showOptionList(ctx: BotContextWithSession, productId: string) {
     }
     return;
   }
-  const opts = await listProductOptions(productId);
+  const opts = await listProductOptionsAll(productId);
   const rows: InlineKeyboard['inline_keyboard'] = [];
   for (const o of opts) {
     rows.push([
       {
-        text: `${o.groupTitle}: ${o.title}`,
+        text: `${o.isActive ? '' : '🙈 '}${o.groupTitle}: ${o.title}`,
         callback_data: `adm:prd:opttoggle:${productId}:${o.id}`,
       },
       {
@@ -317,7 +317,7 @@ export function registerOwnerCatalogHandlers(bot: Bot<BotContextWithSession>): v
       return showOptionList(ctx, arg);
     }
     if (action === 'opttoggle' && arg && arg2) {
-      const opts = await listProductOptions(arg);
+      const opts = await listProductOptionsAll(arg);
       const opt = opts.find((o: { id: string }) => o.id === arg2);
       if (opt) {
         await setOptionActive(ctx.tenant.id, arg2, !opt.isActive);

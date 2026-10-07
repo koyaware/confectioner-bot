@@ -291,4 +291,40 @@ describe('owner catalog editor', () => {
     expect(sent).toContain('❌ Название не подходит.');
     expect((await listCategoriesAll(tenantId))[0]!.title).toBe(cats[0]!.title);
   });
+
+  it('hidden option stays listed and can be re-enabled', async () => {
+    const { tenantId } = await seedDemo(appSecret, new Date());
+    await getDb().update(tenants).set({ ownerTelegramId: 555 }).where(eq(tenants.id, tenantId));
+    const catId = (await listCategoriesAll(tenantId))[0]!.id;
+    const productId = (await listProductsAll(tenantId, catId))[0]!.id;
+    const added = await editor.addOption(tenantId, productId, 'Вес', '2 кг', 0);
+    if (!added.ok) throw new Error('addOption failed');
+    const optionId = added.value.id;
+    const cbq = (update_id: number, id: string, data: string) =>
+      ({
+        update_id,
+        callback_query: {
+          id,
+          from: { id: 555, is_bot: false, first_name: 'O' },
+          message: { message_id: 10, date: 1, chat: { id: 555, type: 'private' } },
+          data,
+        },
+      }) as never;
+
+    const port = new FakePort();
+    const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
+
+    // hide the option
+    await bot.handleUpdate(cbq(1, 'c1', `adm:prd:opttoggle:${productId}:${optionId}`));
+    // still listed, marked hidden
+    await bot.handleUpdate(cbq(2, 'c2', `adm:prd:opt:${productId}`));
+    let edits = port.getCallsForMethod('editMessageTextOrSend');
+    let last = edits[edits.length - 1]!;
+    expect(JSON.stringify(last.args[3])).toContain('🙈');
+    // re-enable works now (used to silently no-op)
+    await bot.handleUpdate(cbq(3, 'c3', `adm:prd:opttoggle:${productId}:${optionId}`));
+    const { productOptions } = await import('../src/db/schema.js');
+    const rows = await getDb().select().from(productOptions).where(eq(productOptions.id, optionId));
+    expect(rows[0]!.isActive).toBe(true);
+  });
 });

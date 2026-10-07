@@ -36,6 +36,7 @@ const callbackSchema = z
     z.object({ ns: z.literal('cart'), action: z.enum(['inc', 'dec', 'open']), arg: idSchema }),
     z.object({ ns: z.literal('chk'), action: z.enum(['start', 'skip', 'back', 'cancel']) }),
     z.object({ ns: z.literal('chk'), action: z.literal('date'), arg: isoDateSchema }),
+    z.object({ ns: z.literal('chk'), action: z.literal('closed'), arg: isoDateSchema }),
     z.object({ ns: z.literal('chk'), action: z.literal('datepage'), arg: isoMonthSchema }),
     z.object({ ns: z.literal('chk'), action: z.literal('ful'), arg: fulfillmentSchema }),
     z.object({ ns: z.literal('chk'), action: z.literal('submit'), arg: idSchema }),

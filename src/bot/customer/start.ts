@@ -42,9 +42,10 @@ export function registerStartHandler(bot: Bot<BotContextWithSession>): void {
       return;
     }
 
+    const userName = escapeHtml(ctx.from?.first_name ?? ctx.t.common.guest);
     const greeting = ctx.tenant.greetingText
       ? escapeHtml(ctx.tenant.greetingText)
-      : ctx.t.start.greeting(escapeHtml(ctx.tenant.shopName));
+      : ctx.t.start.greeting(escapeHtml(ctx.tenant.shopName), userName);
 
     await ctx.port.sendMessage(ctx.chat.id, greeting, {
       keyboard: customerMenuKeyboard(ctx),

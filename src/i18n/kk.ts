@@ -5,8 +5,8 @@ export const kk: Strings = {
     paused: 'Дүкен уақытша тоқтатылды.',
   },
   start: {
-    greeting: (shopName: string) =>
-      `Сәлем! Мен «${shopName}» дүкенінің ботымын. Төменнен бөлім таңдаңыз.`,
+    greeting: (shopName: string, userName: string) =>
+      `👋 Танысқаныма қуаныштымын, ${userName}!\n\nМен «${shopName}» дүкенінің ботымын. Төменнен бөлім таңдаңыз.`,
     buttonCatalog: '📦 Каталог',
     claimSuccess: (shopName: string) =>
       `Дайын! Енді сіз «${shopName}» дүкенінің иесісіз. /menu иесі мәзірін көрсетеді.`,
@@ -40,6 +40,7 @@ export const kk: Strings = {
     badText: '⚠️ Мәтін бос немесе тым ұзын.',
     back: '🔙 Артқа',
     toMenu: '🏠 Мәзір',
+    guest: 'Қонақ',
     client: 'клиент',
   },
   date: {
@@ -147,6 +148,8 @@ export const kk: Strings = {
     incomplete: '❌ Тапсырысқа деректер жетіспейді. Рәсімдеуді қайта бастаңыз.',
     capacityExceeded: '❌ Бұл күнге орындар толы. Басқа күнді таңдаңыз.',
     dateTaken: '❌ Күн қазір бос емес. Басқа күнді таңдаңыз.',
+    dateTooSoon: '❌ Бұл күнге әлі ерте — кейінгі күнді таңдаңыз.',
+    dateTooFar: '❌ Тым алыс — жақынырақ күнді таңдаңыз.',
     productInactive: '❌ Тауарлардың бірі енді сатылмайды. Каталогқа оралыңыз.',
     busy: '⏸ Тапсырыстарды қабылдау уақытша тоқтатылды.',
     badQty: '❌ Тауар саны дұрыс емес.',

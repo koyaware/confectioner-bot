@@ -409,6 +409,25 @@ describe('checkout steps', () => {
     expect(data.checkout.referenceFileIds).toHaveLength(0);
   });
 
+  it('tapping a closed date explains why instead of silence', async () => {
+    const now = new Date();
+    const { tenantId } = await seedDemo(appSecret, now);
+    const port = new FakePort();
+    const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
+
+    await setupCartAndCheckout(port, bot);
+
+    const tomorrow = addDays(toIsoDate(now, 'Europe/Moscow'), 1);
+    await bot.handleUpdate(cb(30, 'c30', 42, 10, `chk:closed:${tomorrow}`));
+    let answers = port.getCallsForMethod('answerCallback');
+    expect(answers[answers.length - 1]!.args[1] as string).toContain('рано');
+
+    const far = addDays(toIsoDate(now, 'Europe/Moscow'), 61);
+    await bot.handleUpdate(cb(31, 'c31', 42, 10, `chk:closed:${far}`));
+    answers = port.getCallsForMethod('answerCallback');
+    expect(answers[answers.length - 1]!.args[1] as string).toContain('далеко');
+  });
+
   it('confirm without draft shows stale hint and no dead submit button', async () => {
     const now = new Date();
     const { tenantId } = await seedDemo(appSecret, now);

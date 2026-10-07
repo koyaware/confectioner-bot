@@ -99,9 +99,10 @@ export function registerMenuHandler(bot: Bot<BotContextWithSession>): void {
     }
     await ctx.port.answerCallback(ctx.callbackQuery.id);
 
+    const userName = escapeHtml(ctx.from?.first_name ?? ctx.t.common.guest);
     const greeting = ctx.tenant.greetingText
       ? escapeHtml(ctx.tenant.greetingText)
-      : ctx.t.start.greeting(escapeHtml(ctx.tenant.shopName));
+      : ctx.t.start.greeting(escapeHtml(ctx.tenant.shopName), userName);
     const keyboard: InlineKeyboard = {
       inline_keyboard: [
         [{ text: ctx.t.start.buttonCatalog, callback_data: 'cat:list' }],

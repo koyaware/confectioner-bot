@@ -94,3 +94,13 @@ export async function listProductOptions(productId: string) {
     .where(and(eq(productOptions.productId, productId), eq(productOptions.isActive, true)))
     .orderBy(asc(productOptions.sortOrder));
 }
+
+// Owner editor: all options including hidden ones.
+export async function listProductOptionsAll(productId: string) {
+  const db = getDb();
+  return db
+    .select()
+    .from(productOptions)
+    .where(eq(productOptions.productId, productId))
+    .orderBy(asc(productOptions.sortOrder));
+}

@@ -154,4 +154,20 @@ describe('catalog flow', () => {
     const row = await db.select().from(sessions);
     expect(row[0]!.state).toBe('idle');
   });
+
+  it('default greeting addresses the user by name', async () => {
+    const { tenantId } = await seedDemo(appSecret, new Date());
+    const db = getDb();
+    const { tenants } = await import('../src/db/schema.js');
+    const { eq } = await import('drizzle-orm');
+    await db.update(tenants).set({ greetingText: null }).where(eq(tenants.id, tenantId));
+    const port = new FakePort();
+    const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
+
+    await bot.handleUpdate(messageUpdate('/start'));
+
+    const sendCalls = port.getCallsForMethod('sendMessage');
+    expect(sendCalls).toHaveLength(1);
+    expect(sendCalls[0]!.args[1] as string).toContain('Приятно познакомиться, Test!');
+  });
 });

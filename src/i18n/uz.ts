@@ -5,8 +5,8 @@ export const uz: Strings = {
     paused: 'Doʻkon vaqtincha toʻxtatildi.',
   },
   start: {
-    greeting: (shopName: string) =>
-      `Salom! «${shopName}» doʻkoni botiman. Quyidagi boʻlimni tanlang.`,
+    greeting: (shopName: string, userName: string) =>
+      `👋 Tanishganimdan xursandman, ${userName}!\n\nMen «${shopName}» doʻkonining botiman. Quyidagi boʻlimni tanlang.`,
     buttonCatalog: '📦 Katalog',
     claimSuccess: (shopName: string) =>
       `Tayyor! Endi siz «${shopName}» doʻkonining egasisiz. /menu egasi menyusini koʻrsatadi.`,
@@ -40,6 +40,7 @@ export const uz: Strings = {
     badText: '⚠️ Matn boʻsh yoki juda uzun.',
     back: '🔙 Orqaga',
     toMenu: '🏠 Menyu',
+    guest: 'Mehmon',
     client: 'mijoz',
   },
   date: {
@@ -148,6 +149,8 @@ export const uz: Strings = {
     incomplete: '❌ Buyurtma uchun maʼlumotlar yetarli emas. Qaytadan boshlang.',
     capacityExceeded: '❌ Bu sanaga barcha joylar band. Boshqa sanani tanlang.',
     dateTaken: '❌ Sana band. Boshqa sanani tanlang.',
+    dateTooSoon: '❌ Bu yerga hali erta — keyingi sanani tanlang.',
+    dateTooFar: '❌ Juda uzoq — yaqinroq sanani tanlang.',
     productInactive: '❌ Mahsulotlardan biri endi sotuvda yoʻq. Katalogga qayting.',
     busy: '⏸ Buyurtmalar qabul qilish vaqtincha toʻxtatilgan.',
     badQty: '❌ Mahsulot miqdori notoʻgʻri.',

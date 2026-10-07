@@ -89,7 +89,7 @@ export function calendarKeyboard(
     if (avail && avail.available) {
       cells.push({ text: String(day), callback_data: `chk:date:${iso}` });
     } else {
-      cells.push({ text: `${day} ✕`, callback_data: 'cart:noop' });
+      cells.push({ text: `${day} ✕`, callback_data: `chk:closed:${iso}` });
     }
   }
   while (cells.length % 7 !== 0) {
@@ -363,6 +363,31 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
       messageId,
       `${ctx.t.checkout.dateTitle}\n${ctx.t.checkout.dateLegend}`,
       { keyboard: calendarKeyboard(ctx, availability, year, month) }
+    );
+  });
+
+  bot.callbackQuery(/^chk:closed:(\d{4}-\d{2}-\d{2})$/, async (ctx) => {
+    const m = /^chk:closed:(\d{4}-\d{2}-\d{2})$/.exec(ctx.callbackQuery.data);
+    if (!m) return;
+    const iso = m[1]!;
+    const availability = await getDateAvailability(
+      ctx.tenant.id,
+      iso,
+      iso,
+      ctx.session.cart,
+      new Date()
+    );
+    const reason = availability[iso]?.reason;
+    // Toast explains why the day is off instead of a dead button.
+    await ctx.port.answerCallback(
+      ctx.callbackQuery.id,
+      reason === 'FULL'
+        ? ctx.t.checkout.capacityExceeded
+        : reason === 'TOO_SOON'
+          ? ctx.t.checkout.dateTooSoon
+          : reason === 'TOO_FAR'
+            ? ctx.t.checkout.dateTooFar
+            : ctx.t.checkout.dateTaken
     );
   });
 
