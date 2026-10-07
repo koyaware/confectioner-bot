@@ -36,10 +36,10 @@ describe('seedDemo', () => {
 
     const db = getDb();
     expect(await db.select().from(tenants)).toHaveLength(1);
-    expect((await db.select().from(categories)).length).toBe(4);
-    expect((await db.select().from(products)).length).toBe(4);
-    expect((await db.select().from(productOptions)).length).toBeGreaterThan(0);
-    expect((await db.select().from(faqItems)).length).toBe(6);
+    expect((await db.select().from(categories)).length).toBe(6);
+    expect((await db.select().from(products)).length).toBe(22);
+    expect((await db.select().from(productOptions)).length).toBe(35);
+    expect((await db.select().from(faqItems)).length).toBe(9);
   });
 
   it('is idempotent', async () => {
@@ -49,6 +49,6 @@ describe('seedDemo', () => {
     expect(second.created).toBe(false);
     const db = getDb();
     expect(await db.select().from(tenants)).toHaveLength(1);
-    expect(await db.select().from(products)).toHaveLength(4);
+    expect(await db.select().from(products)).toHaveLength(22);
   });
 });

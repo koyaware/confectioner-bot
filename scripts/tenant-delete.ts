@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { loadConfig } from '../src/config.js';
 import { initDatabase, closeDatabase } from '../src/db/client.js';
 import { migrate } from '../src/db/migrate.js';

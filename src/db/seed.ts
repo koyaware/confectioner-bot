@@ -3,6 +3,11 @@ import { tenants, categories, products, productOptions, faqItems } from './schem
 import { encrypt } from '../lib/crypto.js';
 import { nanoid } from 'nanoid';
 import { eq } from 'drizzle-orm';
+import tenantData from './seed-data/tenant.json' with { type: 'json' };
+import categoriesData from './seed-data/categories.json' with { type: 'json' };
+import productsData from './seed-data/products.json' with { type: 'json' };
+import optionsData from './seed-data/options.json' with { type: 'json' };
+import faqData from './seed-data/faq.json' with { type: 'json' };
 
 export const DEMO_SLUG = 'demo';
 
@@ -19,135 +24,86 @@ export async function seedDemo(
 
   const tenantId = nanoid();
 
-  const cats = [
-    { title: 'Торты', sortOrder: 1 },
-    { title: 'Бенто', sortOrder: 2 },
-    { title: 'Капкейки', sortOrder: 3 },
-    { title: 'Макаруны', sortOrder: 4 },
-  ].map((c) => ({ id: nanoid(), tenantId, ...c }));
+  const cats = categoriesData.map((c) => ({ id: nanoid(), tenantId, ...c }));
 
   await db.insert(tenants).values({
     id: tenantId,
     slug: DEMO_SLUG,
-    botTokenEnc: encrypt('000000:demo-placeholder', appSecret),
-    botId: 0,
-    botUsername: 'demo_bot',
-    shopName: 'Демо-кондитерская',
-    greetingText:
-      'Привет! Я бот демо-магазина. Здесь вы можете посмотреть каталог и оформить заказ.',
-    aboutText: 'Демо-магазин для тестового запуска бота.',
-    contactsText: 'Telegram: @demo',
-    deliveryText: 'Доставка по городу, от 300 ₽.',
-    paymentText: 'Реквизиты для предоплаты: карта 0000 0000 0000 0000.',
-    busyText: 'Сейчас много заказов, оформление временно закрыто. Напишите мастеру.',
+    botTokenEnc: encrypt(tenantData.botTokenEnc, appSecret),
+    botId: tenantData.botId,
+    botUsername: tenantData.botUsername,
+    shopName: tenantData.shopName,
+    greetingText: tenantData.greetingText,
+    aboutText: tenantData.aboutText,
+    contactsText: tenantData.contactsText,
+    deliveryText: tenantData.deliveryText,
+    paymentText: tenantData.paymentText,
+    busyText: tenantData.busyText,
     createdAt: now,
   });
 
   await db.insert(categories).values(cats.map((c) => ({ ...c, isActive: true })));
 
-  const [cakes, bento, cupcakes, macarons] = cats;
+  const [cakes, bento, cupcakes, macarons, jars, boxes] = cats;
 
-  const prdCake = {
-    id: nanoid(),
-    tenantId,
-    categoryId: cakes!.id,
-    title: 'Торт "Медовик"',
-    description: 'Классический медовый торт со сметанным кремом, вес от 1 кг.',
-    priceMinor: 150000,
-    unit: 'шт',
-    capacityUnits: 2,
-    sortOrder: 1,
-    isActive: true,
-  };
-  const prdBento = {
-    id: nanoid(),
-    tenantId,
-    categoryId: bento!.id,
-    title: 'Торт-бенто',
-    description: 'Мини-торт 12 см с надписью, вес около 400 г.',
-    priceMinor: 120000,
-    unit: 'шт',
-    sortOrder: 1,
-    isActive: true,
-  };
-  const prdCupcakes = {
-    id: nanoid(),
-    tenantId,
-    categoryId: cupcakes!.id,
-    title: 'Капкейки (набор 6 шт)',
-    description: 'Классические капкейки с крем-чизом.',
-    priceMinor: 90000,
-    unit: 'набор',
-    sortOrder: 1,
-    isActive: true,
-  };
-  const prdMacarons = {
-    id: nanoid(),
-    tenantId,
-    categoryId: macarons!.id,
-    title: 'Макаруны (набор 6 шт)',
-    description: 'Ассорти вкусов на выбор.',
-    priceMinor: 84000,
-    unit: 'набор',
-    sortOrder: 1,
-    isActive: true,
-  };
+  const productsList = productsData.map((p) => {
+    let categoryId: string;
+    const tk = p.titleKey;
+    if (tk.startsWith('cake')) categoryId = cakes!.id;
+    else if (tk.startsWith('bento')) categoryId = bento!.id;
+    else if (tk.startsWith('cupcake')) categoryId = cupcakes!.id;
+    else if (tk.startsWith('macaron')) categoryId = macarons!.id;
+    else if (tk.startsWith('jar')) categoryId = jars!.id;
+    else if (tk.startsWith('box')) categoryId = boxes!.id;
+    else categoryId = cakes!.id;
 
-  await db.insert(products).values([prdCake, prdBento, prdCupcakes, prdMacarons]);
+    const { titleKey: _titleKey, ...rest } = p;
+    return { id: nanoid(), tenantId, categoryId, ...rest };
+  });
 
-  await db.insert(productOptions).values([
-    {
-      id: nanoid(),
-      productId: prdCake.id,
-      groupTitle: 'Вес',
-      title: '1 кг',
-      priceDeltaMinor: 0,
-      sortOrder: 1,
-    },
-    {
-      id: nanoid(),
-      productId: prdCake.id,
-      groupTitle: 'Вес',
-      title: '2 кг',
-      priceDeltaMinor: 150000,
-      sortOrder: 2,
-    },
-    {
-      id: nanoid(),
-      productId: prdBento.id,
-      groupTitle: 'Начинка',
-      title: 'Малина-фисташка',
-      priceDeltaMinor: 0,
-      sortOrder: 1,
-    },
-    {
-      id: nanoid(),
-      productId: prdBento.id,
-      groupTitle: 'Начинка',
-      title: 'Шоколад-вишня',
-      priceDeltaMinor: 20000,
-      sortOrder: 2,
-    },
-  ]);
+  await db.insert(products).values(productsList);
+
+  // Map product titles to IDs for options
+  const productMap = new Map<string, string>();
+  for (const p of productsList) {
+    productMap.set(p.title, p.id);
+  }
+
+  const cake1 = productMap.get('🍯 Classic Medovik')!;
+  const cake2 = productMap.get('🍫 Chocolate "Truffle"')!;
+  const cake3 = productMap.get('🍓 Berry "Summer Breeze"')!;
+  const cake4 = productMap.get('🥛 Classic "Napoleon"')!;
+  const cake5 = productMap.get('🥕 Carrot Cake with Cream Cheese')!;
+  const bento1 = productMap.get('🎨 Bento "Flower Garden"')!;
+  const bento2 = productMap.get('🍫 Bento "Chocolate Dream"')!;
+  const cupcake1 = productMap.get('🧁 Cupcakes "Vanilla Bliss" (6 pcs)')!;
+  const macaron1 = productMap.get('🌈 Macarons "Assorted" (12 pcs)')!;
+  const jar1 = productMap.get('🍓 Tiramisu in a Jar')!;
+  const box1 = productMap.get('🎁 Gift Box "Sweet Life"')!;
+
+  const options = optionsData.map((o) => {
+    let productId: string;
+    switch (o.productTitleKey) {
+      case 'cake1': productId = cake1; break;
+      case 'cake2': productId = cake2; break;
+      case 'cake3': productId = cake3; break;
+      case 'cake4': productId = cake4; break;
+      case 'cake5': productId = cake5; break;
+      case 'bento1': productId = bento1; break;
+      case 'bento2': productId = bento2; break;
+      case 'cupcake1': productId = cupcake1; break;
+      case 'macaron1': productId = macaron1; break;
+      case 'jar1': productId = jar1; break;
+      case 'box1': productId = box1; break;
+      default: productId = cake1;
+    }
+    return { id: nanoid(), tenantId, productId, groupTitle: o.groupTitle, title: o.title, priceDeltaMinor: o.priceDeltaMinor, sortOrder: o.sortOrder };
+  });
+
+  await db.insert(productOptions).values(options);
 
   await db.insert(faqItems).values(
-    [
-      {
-        q: 'Сколько стоит торт?',
-        a: 'Цены есть в каталоге. Медовик от 1500 ₽ за кг, бенто от 1200 ₽.',
-      },
-      { q: 'За сколько дней заказывать?', a: 'Минимум за 2 дня. В праздники лучше раньше.' },
-      { q: 'Есть доставка?', a: 'Да, по городу. Стоимость доставки показывается при оформлении.' },
-      {
-        q: 'Как оплатить?',
-        a: 'Предоплата 50% по реквизитам, остаток при получении. Чек присылаете в бота.',
-      },
-      {
-        q: 'Как сделать заказ?',
-        a: 'Откройте каталог, добавьте товар в корзину и оформите заказ.',
-      },
-      { q: 'Где самовывоз?', a: 'Адрес пришлём после подтверждения заказа.' },
-    ].map((f, i) => ({ id: nanoid(), tenantId, question: f.q, answer: f.a, sortOrder: i + 1 }))
+    faqData.map((f, i) => ({ id: nanoid(), tenantId, question: f.q, answer: f.a, sortOrder: i + 1 }))
   );
 
   return { tenantId, created: true };

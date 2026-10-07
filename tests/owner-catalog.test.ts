@@ -67,10 +67,12 @@ describe('owner catalog editor', () => {
     const { tenantId } = await seedDemo(appSecret, new Date());
     const cats = await listCategoriesAll(tenantId);
     const catId = cats[0]!.id;
-    const prodId = (await listProductsAll(tenantId, catId))[0]!.id;
+    const prodIds = (await listProductsAll(tenantId, catId)).map(p => p.id);
 
     await editor.setCategoryActive(tenantId, catId, false);
-    await editor.setProductActive(tenantId, prodId, false);
+    for (const prodId of prodIds) {
+      await editor.setProductActive(tenantId, prodId, false);
+    }
 
     expect(await listActiveCategories(tenantId)).toHaveLength(cats.length - 1);
     expect(await listProducts(tenantId, catId)).toHaveLength(0);
@@ -81,10 +83,10 @@ describe('owner catalog editor', () => {
     const catId = (await listCategoriesAll(tenantId))[0]!.id;
 
     await editor.setCategoryActive(tenantId, catId, false);
-    expect(await listCategoriesAll(tenantId)).toHaveLength(4);
+    expect(await listCategoriesAll(tenantId)).toHaveLength(6);
 
     await editor.setCategoryActive(tenantId, catId, true);
-    expect(await listActiveCategories(tenantId)).toHaveLength(4);
+    expect(await listActiveCategories(tenantId)).toHaveLength(6);
   });
 
   it('deleting a product keeps old order items intact', async () => {
@@ -206,7 +208,7 @@ describe('owner catalog editor', () => {
 
     // session must stay in idle with empty cart
     const cats = await listCategoriesAll(tenantId);
-    expect(cats).toHaveLength(4);
+    expect(cats).toHaveLength(6);
   });
 
   it('photo field rejects text and re-prompts for a photo', async () => {

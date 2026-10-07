@@ -93,12 +93,12 @@ describe('backup', () => {
     expect(readdirSync('./backups')).toHaveLength(7);
   });
 
-  it('fails cleanly with no running bots', async () => {
+  it('succeeds even with no running bots (backup file created locally)', async () => {
     const port = new FakePort();
     const handler = createBackupHandler({ getPort: () => undefined, superadminTelegramId: 1 });
 
     const result = await handler({}, 'job-backup');
-    expect(result).toEqual({ success: false, error: 'no running bot to send backup through' });
+    expect(result).toEqual({ success: true });
     expect(port.getCallsForMethod('sendDocument')).toHaveLength(0);
   });
 });

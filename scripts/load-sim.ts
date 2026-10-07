@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { unlinkSync, existsSync } from 'fs';
 import { initDatabase, closeDatabase, getDb } from '../src/db/client.js';
 import { migrate } from '../src/db/migrate.js';
@@ -60,10 +61,10 @@ async function main() {
   let expectedOrders = 0;
   let customerSeq = 0;
 
-  function lastEditFor(userId: number, method: string): { args: unknown[] } {
-    const calls = port.getCallsForMethod(method).filter((c) => (c.args[0] as number) === userId);
+  function lastEditFor(userId: number): { args: unknown[] } {
+    const calls = port.getCallsForMethod('editMessageTextOrSend').filter((c) => (c.args[0] as number) === userId);
     const last = calls[calls.length - 1];
-    if (!last) throw new Error(`no ${method} for user ${userId}`);
+    if (!last) throw new Error(`no editMessageTextOrSend for user ${userId}`);
     return last;
   }
 
@@ -82,19 +83,19 @@ async function main() {
     };
 
     await timed(() => bot.handleUpdate(cb(`${tag}-1`, userId, 10, 'cat:list')));
-    const catMatch = JSON.stringify(lastEditFor(userId, 'editMessageText').args[3]).match(
+    const catMatch = JSON.stringify(lastEditFor(userId).args[3]).match(
       /cat:open:[A-Za-z0-9_-]+/
     );
     if (!catMatch) throw new Error('category button not found');
     await timed(() => bot.handleUpdate(cb(`${tag}-2`, userId, 10, catMatch[0])));
 
-    const prdMatch = JSON.stringify(lastEditFor(userId, 'editMessageText').args[3]).match(
+    const prdMatch = JSON.stringify(lastEditFor(userId).args[3]).match(
       /prd:open:[A-Za-z0-9_-]+/
     );
     if (!prdMatch) throw new Error('product button not found');
     await timed(() => bot.handleUpdate(cb(`${tag}-3`, userId, 10, prdMatch[0])));
 
-    const addMatch = JSON.stringify(lastEditFor(userId, 'editMessageText').args[3]).match(
+    const addMatch = JSON.stringify(lastEditFor(userId).args[3]).match(
       /prd:add:[A-Za-z0-9_-]+/
     );
     if (!addMatch) throw new Error('add button not found');
@@ -112,7 +113,7 @@ async function main() {
     await timed(() => bot.handleUpdate(msg(userId, 'Без комментария')));
     await timed(() => bot.handleUpdate(cb(`${tag}-9`, userId, 10, 'chk:skip')));
 
-    const confirm = lastEditFor(userId, 'editMessageText');
+    const confirm = lastEditFor(userId);
     const submitMatch = JSON.stringify(confirm.args[3]).match(/chk:submit:[A-Za-z0-9_-]+/);
     if (!submitMatch) throw new Error('submit button not found');
     await timed(() => bot.handleUpdate(cb(`${tag}-10`, userId, 10, submitMatch[0])));

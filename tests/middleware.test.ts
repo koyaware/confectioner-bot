@@ -313,7 +313,7 @@ describe('middleware', () => {
       } as never);
 
       const sent = port.getCallsForMethod('sendMessage').map((c) => c.args[1] as string);
-      expect(sent.some((t) => t.includes('Привет'))).toBe(true);
+      expect(sent.some((t) => t.includes('Welcome'))).toBe(true);
       expect(tenantId).toBeTruthy();
     });
   });

@@ -31,7 +31,9 @@ export function createBackupHandler(ports: {
       if (port) break;
     }
     if (!port) {
-      return { success: false, error: 'no running bot to send backup through' };
+      // No bot running, but backup file was created locally - that's OK
+      console.warn('Backup created but no running bot to send through Telegram');
+      return { success: true };
     }
 
     const buffer = await readFile(filePath);

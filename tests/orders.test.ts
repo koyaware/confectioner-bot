@@ -216,7 +216,9 @@ describe('createOrder', () => {
   it('rejects second submit to the last slot (parallel race) — only one succeeds', async () => {
     const { tenantId, customerId } = await setup();
     // fill capacity: 5 orders of 1 unit each
-    const product = (await getDb().query.products.findMany())[3]!; // макаруны capacity 1
+    // find a product with capacityUnits = 1
+    const allProducts = await getDb().query.products.findMany();
+    const product = allProducts.find(p => p.capacityUnits === 1)!;
     const dueDate = addDays(toIsoDate(now, 'Europe/Moscow'), 5);
 
     for (let i = 0; i < 5; i++) {
