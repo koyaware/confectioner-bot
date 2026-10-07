@@ -75,7 +75,7 @@ export function registerMyOrdersHandlers(bot: Bot<BotContextWithSession>): void 
     const messageId = ctx.callbackQuery.message?.message_id;
     if (!chatId || !messageId) return;
 
-    if (!found) {
+    if (!found || found.order.status === 'cancelled') {
       await ctx.port.editMessageText(chatId, messageId, ru.my.notFound, {
         keyboard: { inline_keyboard: [[{ text: ru.catalog.back, callback_data: 'my:list' }]] },
       });

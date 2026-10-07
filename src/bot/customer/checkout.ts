@@ -4,6 +4,7 @@ import { ru } from '../../i18n/ru.js';
 import { getDateAvailability, DateAvailability } from '../../services/dates.js';
 import { createOrder, CreateOrderInput, getCustomerOrderNumber } from '../../services/orders.js';
 import { buildOrderCardText, orderCardKeyboard } from '../owner/orders.js';
+import { customerMenuKeyboard } from '../owner/menu.js';
 import { getDb } from '../../db/client.js';
 import { customers } from '../../db/schema.js';
 import { eq, and } from 'drizzle-orm';
@@ -109,6 +110,7 @@ export function calendarKeyboard(
     { text: `${MONTH_NAMES[month - 1]} ${year}`, callback_data: 'cart:noop' },
     { text: '»', callback_data: `chk:datepage:${next}` },
   ]);
+  rows.push([{ text: 'Отмена', callback_data: 'chk:cancel' }]);
 
   return { inline_keyboard: rows };
 }
@@ -134,21 +136,11 @@ async function showCalendar(ctx: BotContextWithSession, edit: boolean): Promise<
 
   if (edit && chatId && messageId) {
     await ctx.port.editMessageText(chatId, messageId, text, {
-      keyboard: {
-        inline_keyboard: [
-          ...calendarKeyboard(availability, year, month).inline_keyboard,
-          [{ text: 'Отмена', callback_data: 'chk:cancel' }],
-        ],
-      },
+      keyboard: calendarKeyboard(availability, year, month),
     });
   } else if (chatId) {
     await ctx.port.sendMessage(chatId, text, {
-      keyboard: {
-        inline_keyboard: [
-          ...calendarKeyboard(availability, year, month).inline_keyboard,
-          [{ text: 'Отмена', callback_data: 'chk:cancel' }],
-        ],
-      },
+      keyboard: calendarKeyboard(availability, year, month),
     });
   }
 }
@@ -384,8 +376,11 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
     ctx.sessionState = 'idle';
     ctx.session.checkout = undefined;
     const chatId = ctx.callbackQuery.message?.chat.id;
-    if (chatId) {
-      await ctx.port.sendMessage(chatId, ru.checkout.cancelled);
+    const messageId = ctx.callbackQuery.message?.message_id;
+    if (chatId && messageId) {
+      await ctx.port.editMessageText(chatId, messageId, ru.checkout.cancelled, {
+        keyboard: customerMenuKeyboard(),
+      });
     }
   });
 
