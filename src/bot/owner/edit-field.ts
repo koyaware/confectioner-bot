@@ -9,6 +9,7 @@ import {
   SettingsField,
   SETTINGS_FIELDS,
 } from '../../services/settings.js';
+import { getCapacityForDate, setCapacityForDate } from '../../services/calendar.js';
 
 const tenantFieldCheck: Record<string, true> = Object.fromEntries(
   SETTINGS_FIELDS.map((f) => [f, true])
@@ -182,6 +183,20 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
           await updateFaq(ctx.tenant.id, draft.targetId, { answer: text });
         }
         await ctx.port.sendMessage(ctx.chat.id, ru.ownerCatalog.saved);
+        return;
+      }
+      case 'cal_capacity': {
+        const n = Number(text);
+        if (draft.targetId && Number.isInteger(n) && n >= 0) {
+          const current = await getCapacityForDate(ctx.tenant.id, draft.targetId);
+          const closed = current.isOverride ? current.isClosed : false;
+          await setCapacityForDate(ctx.tenant.id, draft.targetId, n, closed);
+          await ctx.port.sendMessage(ctx.chat.id, ru.ownerCatalog.saved);
+        } else {
+          ctx.sessionState = 'owner.edit_field';
+          ctx.session.ownerDraft = draft;
+          await ctx.port.sendMessage(ctx.chat.id, ru.ownerCalendar.badCapacity);
+        }
         return;
       }
       case 'set_field': {

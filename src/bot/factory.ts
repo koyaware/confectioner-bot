@@ -20,6 +20,7 @@ import { registerOwnerFaqHandlers } from './owner/faq-editor.js';
 import { registerEditFieldHandlers } from './owner/edit-field.js';
 import { registerSettingsHandlers } from './owner/settings.js';
 import { registerOrderHandlers } from './owner/orders.js';
+import { registerCalendarHandlers } from './owner/calendar.js';
 
 export interface TenantBot {
   tenantId: string;
@@ -115,6 +116,7 @@ export function createTenantBot(
   registerEditFieldHandlers(bot);
   registerSettingsHandlers(bot);
   registerOrderHandlers(bot);
+  registerCalendarHandlers(bot);
 
   return {
     tenantId,
