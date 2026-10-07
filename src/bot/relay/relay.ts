@@ -202,6 +202,22 @@ export function registerRelayHandlers(bot: Bot<BotContextWithSession>): void {
     await relayToOwner(ctx);
   });
 
+  bot.on('message:voice', async (ctx, next) => {
+    if (ctx.sessionState === 'checkout.photos' || ctx.sessionState === 'payment.await_receipt') {
+      await next();
+      return;
+    }
+    if (canAccessOwner(ctx) && ctx.sessionState === 'owner.edit_field') {
+      await next();
+      return;
+    }
+    if (canAccessOwner(ctx)) {
+      await handleOwnerReply(ctx);
+      return;
+    }
+    await relayToOwner(ctx);
+  });
+
   bot.on('message:document', async (ctx, next) => {
     if (ctx.sessionState === 'checkout.photos' || ctx.sessionState === 'payment.await_receipt') {
       await next();

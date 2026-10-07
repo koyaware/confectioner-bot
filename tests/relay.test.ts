@@ -131,4 +131,26 @@ describe('relay', () => {
     const sentAfter = port.getCallsForMethod('sendMessage').filter((c) => c.args[0] === 555);
     expect(sentAfter).toHaveLength(0);
   });
+
+  it('customer voice messages are relayed to owner', async () => {
+    const { tenantId } = await seedDemo(appSecret, new Date());
+    await getDb().update(tenants).set({ ownerTelegramId: 555 }).where(eq(tenants.id, tenantId));
+
+    const port = new FakePort();
+    const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
+
+    await bot.handleUpdate({
+      update_id: 1,
+      message: {
+        message_id: 1,
+        date: 1,
+        chat: { id: 42, type: 'private' },
+        from: { id: 42, is_bot: false, first_name: 'C', username: 'cust42' },
+        voice: { file_id: 'voice1', file_unique_id: 'v1', duration: 5 },
+      },
+    } as never);
+
+    const copies = port.getCallsForMethod('copyMessage');
+    expect(copies.some((c) => c.args[0] === 555)).toBe(true);
+  });
 });
