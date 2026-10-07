@@ -192,7 +192,7 @@ export const ru = {
     } as Record<string, string>,
   },
   payment: {
-    promptReceipt: '📎 Пришлите фото или файл чека.',
+    promptReceipt: '📎 Пришлите фото чека.',
     paidButton: 'Я оплатил',
     accepted: (n: number) => `Заказ №${n} принят.`,
     noRequisites: 'Реквизиты уточняйте у мастера',
@@ -203,7 +203,8 @@ export const ru = {
     receiptReceived: (kind: string) => `📎 Чек получен (${kind})`,
     kindPhoto: 'фото',
     kindFile: 'файл',
-    invalidReceipt: '❌ Нужен чек: фото или файл. Текст, аудио или другие форматы не подходят.',
+    invalidReceipt:
+      '❌ Нужен чек: только фото. Файлы, текст, аудио или другие форматы не подходят.',
     receiptToOwner: (client: string, orderNumber: number, kind: string) =>
       `💳 Клиент ${client} прислал подтверждение оплаты (${kind}), заказ №${orderNumber}`,
     receiptSent: '✅ Чек отправлен мастеру на проверку.',

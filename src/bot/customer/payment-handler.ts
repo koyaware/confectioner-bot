@@ -138,9 +138,18 @@ export function registerPaymentHandlers(bot: Bot<BotContextWithSession>): void {
       await next();
       return;
     }
-    const doc = ctx.message.document;
-    if (!doc) return;
-    await handleReceipt(ctx, doc.file_id, 'document');
+    // Receipts are photo-only by contract (v1.30). Reference attachments
+    // in checkout still accept documents.
+    await deleteUserMessage(ctx);
+    const screen = receiptScreen(ctx);
+    if (screen) {
+      await ctx.port.editMessageTextOrSend(
+        screen.chatId,
+        screen.messageId,
+        ctx.t.payment.invalidReceipt,
+        {}
+      );
+    }
   });
 }
 

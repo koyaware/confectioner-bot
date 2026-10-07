@@ -197,7 +197,7 @@ export const uz: Strings = {
     },
   },
   payment: {
-    promptReceipt: '📎 Chek foto yoki faylini yuboring.',
+    promptReceipt: '📎 Chek fotosini yuboring.',
     paidButton: 'Men toʻladim',
     accepted: (n: number) => `№${n} buyurtma qabul qilindi.`,
     noRequisites: 'Rekvizitlarni ustadan aniqlang',
@@ -209,7 +209,7 @@ export const uz: Strings = {
     kindPhoto: 'foto',
     kindFile: 'fayl',
     invalidReceipt:
-      '❌ Chek kerak: foto yoki fayl. Matn, audio yoki boshqa formatlar mos kelmaydi.',
+      '❌ Chek kerak: faqat foto. Fayllar, matn, audio yoki boshqa formatlar mos kelmaydi.',
     receiptToOwner: (client: string, orderNumber: number, kind: string) =>
       `💳 Mijoz ${client} toʻlov tasdigʻini yubordi (${kind}), buyurtma №${orderNumber}`,
     receiptSent: '✅ Chek ustaga tekshirish uchun yuborildi.',

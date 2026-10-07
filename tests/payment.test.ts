@@ -239,4 +239,63 @@ describe('payment flow', () => {
     );
     expect(toClient).toBeTruthy();
   });
+
+  it('badpay notice carries a pay button and no stale references', async () => {
+    const { tenantId, order } = await setupOrder();
+    const port = new FakePort();
+    const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
+
+    await bot.handleUpdate(cb(1, 'c1', 555, 10, `adm:ord:accept:${order.id}`));
+    await bot.handleUpdate(cb(2, 'c2', 42, 11, `pay:sent:${order.id}`));
+    await bot.handleUpdate({
+      update_id: 3,
+      message: {
+        message_id: 3,
+        date: 1,
+        chat: { id: 42, type: 'private' },
+        from: { id: 42, is_bot: false, first_name: 'C' },
+        photo: [{ file_id: 'p1', file_unique_id: 'u2', width: 10, height: 10 }],
+      },
+    } as never);
+    await bot.handleUpdate(cb(4, 'c4', 555, 10, `adm:ord:badpay:${order.id}`));
+
+    const sent = port.getCallsForMethod('sendMessage');
+    const notice = sent.find(
+      (c) => c.args[0] === 42 && (c.args[1] as string).includes('другой чек')
+    );
+    expect(notice).toBeTruthy();
+    expect(notice!.args[1] as string).not.toContain('реквизитами');
+    const kb = (
+      notice!.args[2] as {
+        keyboard: { inline_keyboard: { text: string; callback_data?: string }[][] };
+      }
+    ).keyboard;
+    const datas = kb.inline_keyboard.flat().map((b) => b.callback_data);
+    expect(datas).toContain(`pay:sent:${order.id}`);
+  });
+
+  it('receipt document is rejected, photo is accepted', async () => {
+    const { tenantId, order } = await setupOrder();
+    const port = new FakePort();
+    const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
+
+    await bot.handleUpdate(cb(1, 'c1', 555, 10, `adm:ord:accept:${order.id}`));
+    await bot.handleUpdate(cb(2, 'c2', 42, 11, `pay:sent:${order.id}`));
+    await bot.handleUpdate({
+      update_id: 3,
+      message: {
+        message_id: 3,
+        date: 1,
+        chat: { id: 42, type: 'private' },
+        from: { id: 42, is_bot: false, first_name: 'C' },
+        document: { file_id: 'd1', file_unique_id: 'u3', file_name: 'check.pdf' },
+      },
+    } as never);
+
+    const db = getDb();
+    const attachments = await db.select().from(orderAttachments);
+    expect(attachments).toHaveLength(0);
+    const rows = await db.select().from(orders);
+    expect(rows[0]!.status).toBe('awaiting_payment');
+  });
 });

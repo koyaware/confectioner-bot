@@ -195,7 +195,7 @@ export const kk: Strings = {
     },
   },
   payment: {
-    promptReceipt: '📎 Чек фотосы немесе файлын жіберіңіз.',
+    promptReceipt: '📎 Чек фотосын жіберіңіз.',
     paidButton: 'Мен төледім',
     accepted: (n: number) => `№${n} тапсырыс қабылданды.`,
     noRequisites: 'Реквизиттерді шеберден нақтылаңыз',
@@ -207,7 +207,7 @@ export const kk: Strings = {
     kindPhoto: 'фото',
     kindFile: 'файл',
     invalidReceipt:
-      '❌ Чек керек: фото немесе файл. Мәтін, аудио немесе басқа форматтар жарамайды.',
+      '❌ Чек керек: тек фото. Файлдар, мәтін, аудио немесе басқа форматтар жарамайды.',
     receiptToOwner: (client: string, orderNumber: number, kind: string) =>
       `💳 Клиент ${client} төлем растауын жіберді (${kind}), тапсырыс №${orderNumber}`,
     receiptSent: '✅ Чек тексеруге шеберге жіберілді.',

@@ -6,8 +6,8 @@
   "shopName": "🍰 SweetDreams Confectionery",
   "greetingText": "👋 Welcome to SweetDreams! 🍰\n\nBrowse our catalog, pick your favorites, and place an order in minutes. Simple: catalog → cart → checkout → pay.\n\n🎂 Custom cakes\n🍰 Bento cakes with messages\n🧁 Cupcakes & macarons\n🍯 Jar desserts\n\nChoose a section below 👇",
   "aboutText": "🏠 SweetDreams — home bakery where every dessert is made with love using natural ingredients. No margarine, preservatives, or dry mixes. Only real butter, fresh berries, Callebaut & Valrhona chocolate, farm-fresh eggs and milk.\n\n📍 Pickup: 15 Baker St (Victory Square metro)\n🚚 Delivery from $3\n⏰ Open: Mon–Sun 10:00–20:00",
-  "contactsText": "📱 Telegram: @sweetdreams_bot\n📞 +1 (999) 123-45-67\n📧 sweetdreams@email.com\n📍 15 Baker St",
+  "contactsText": "📱 Telegram: @sweetdreams_bot\n📞 +1 (999) 123-45-67\n📧 sweetdreams@email.com\n📍 15 Baker St\n\n⏰ Open: Mon–Sun 10:00–20:00",
   "deliveryText": "🚚 City delivery:\n• Under 5 km — $3\n• 5–10 km — $5\n• 10–15 km — $7\n• Over 15 km — by agreement\n\n⏰ Delivery hours: 10:00–20:00\n📦 Courier calls 30 min before arrival",
   "paymentText": "💳 50% deposit:\n\n🏦 Bank Card:\n2200 7000 1234 5678\nIvanov I.\n\n📱 Phone (instant):\n+1 (999) 123-45-67\n\n⚠️ Remaining 50% paid on delivery (cash or transfer).",
-  "busyText": "😔 Too many orders right now, checkout is paused.\n\nBut you can message the baker — we will try to squeeze you in! ✍️"
+  "busyText": "😔 Too many orders right now, checkout is paused.\n\n📞 See Contacts for the phone number!"
 }
