@@ -370,7 +370,7 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
       return;
     }
 
-    ctx.session.checkout = ctx.session.checkout ?? { checkoutId: '', referenceFileIds: [] };
+    ctx.session.checkout = ctx.session.checkout ?? { checkoutId: nanoid(10), referenceFileIds: [] };
     ctx.session.checkout.dueDate = iso;
     ctx.sessionState = 'checkout.time';
     await ctx.port.editMessageText(chatId, messageId, `${ru.checkout.dateSelected}: ${iso}`);
@@ -381,7 +381,7 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
     await ctx.port.answerCallback(ctx.callbackQuery.id);
     const m = /^chk:ful:(pickup|delivery)$/.exec(ctx.callbackQuery.data);
     if (!m) return;
-    ctx.session.checkout = ctx.session.checkout ?? { checkoutId: '', referenceFileIds: [] };
+    ctx.session.checkout = ctx.session.checkout ?? { checkoutId: nanoid(10), referenceFileIds: [] };
     ctx.session.checkout.fulfillment = m[1] as 'pickup' | 'delivery';
     ctx.sessionState = m[1] === 'delivery' ? 'checkout.address' : 'checkout.contact';
     await showCurrentStep(ctx);
@@ -519,7 +519,10 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
 
     switch (ctx.sessionState) {
       case 'checkout.time':
-        ctx.session.checkout = ctx.session.checkout ?? { checkoutId: '', referenceFileIds: [] };
+        ctx.session.checkout = ctx.session.checkout ?? {
+          checkoutId: nanoid(10),
+          referenceFileIds: [],
+        };
         ctx.session.checkout.dueTimeText = text || undefined;
         ctx.sessionState = 'checkout.fulfillment';
         await showCurrentStep(ctx);

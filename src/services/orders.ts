@@ -223,13 +223,16 @@ export async function createOrder(
         let itemsTotal = 0;
         const itemRows: (typeof orderItems.$inferInsert)[] = [];
 
-        const orderId = nanoid();
+        const orderId = nanoid(10);
         for (const l of lines) {
           const unitPrice = priceLine(
             l.product.priceMinor,
             l.options.map((o) => o.priceDeltaMinor),
             1
           );
+          if (unitPrice <= 0) {
+            return { error: 'BAD_QTY' as const };
+          }
           itemsTotal += unitPrice * l.qty;
           itemRows.push({
             id: nanoid(),
@@ -249,7 +252,8 @@ export async function createOrder(
 
         const deliveryFee = input.checkout.fulfillment === 'delivery' ? tenant.deliveryFeeMinor : 0;
         const total = itemsTotal + deliveryFee;
-        const prepayment = Math.ceil((total * tenant.prepaymentPercent) / 100);
+        const percent = Math.min(100, Math.max(0, tenant.prepaymentPercent));
+        const prepayment = Math.ceil((total * percent) / 100);
 
         tx.insert(orders)
           .values({

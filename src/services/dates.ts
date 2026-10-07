@@ -60,9 +60,14 @@ export async function getDateAvailability(
   let cartUnits = 0;
   const productLeadDays: (number | null)[] = [];
   for (const line of cart.lines) {
-    const rows = await db.select().from(products).where(eq(products.id, line.productId)).limit(1);
+    if (!Number.isInteger(line.qty) || line.qty <= 0) continue;
+    const rows = await db
+      .select()
+      .from(products)
+      .where(and(eq(products.id, line.productId), eq(products.tenantId, tenantId)))
+      .limit(1);
     const product = rows[0];
-    if (product) {
+    if (product && line.qty >= product.minQty && line.qty <= product.maxQty) {
       cartUnits += product.capacityUnits * line.qty;
       productLeadDays.push(product.leadDays);
     }

@@ -79,6 +79,33 @@ describe('createOrder', () => {
     expect(result).toEqual({ ok: false, error: 'BAD_OPTIONS' });
   });
 
+  it('rejects zero-price products', async () => {
+    const { tenantId, products, customerId } = await setup();
+    const db = getDb();
+    const { products: pTable } = await import('../src/db/schema.js');
+    await db
+      .update(pTable)
+      .set({ priceMinor: 0 })
+      .where(eq(pTable.id, products[0]!.id));
+
+    const result = await createOrder({
+      tenantId,
+      customerId,
+      cart: cartWith(products[0]!.id, 1, await firstActiveOptionIds(products[0]!.id)).cart,
+      checkout: {
+        checkoutId: 'chk-free',
+        dueDate: addDays(toIsoDate(now, 'Europe/Moscow'), 5),
+        fulfillment: 'pickup',
+        contactName: 'Иван',
+        contactPhone: '+7999',
+        referenceFileIds: [],
+      },
+      now,
+    });
+
+    expect(result).toEqual({ ok: false, error: 'BAD_QTY' });
+  });
+
   it('rejects delivery orders without address', async () => {
     const { tenantId, products, customerId } = await setup();
     const product = products[0]!;
