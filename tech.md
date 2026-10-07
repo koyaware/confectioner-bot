@@ -1,6 +1,6 @@
 # ТЗ: Telegram-бот приема заказов для кондитеров
 
-**Версия ядра: v1.24**
+**Версия ядра: v1.26**
 
 Changelog:
 
@@ -30,6 +30,7 @@ Changelog:
 - v1.23: добавлен `TelegramPort.deleteMessage`; callback `my:cancelreason:<orderId>:<code>` / `my:cancelskip:<orderId>`; поле `orders.cancelReason`.
 - v1.24: `serializeMiddleware` — строгая последовательность апдейтов одного чата (защита от гонок сессии при альбомах и быстрых тапах).
 - v1.25: Упрощен relay: удален сложный диалог с историей. Осталась простая схема — клиент пишет через `rel:start` (`relay.compose`), владелец отвечает reply на заголовок/копию. Кнопка `adm:ord:msg` включает `owner.reply_to_customer` на одно сообщение.
+- v1.26: закрыт GAP (контракт догоняет код): удалены callback `adm:ord:msg:<orderId>` (из кодека и из шапки relay) и состояние `owner.reply_to_customer` (функция «написать клиенту» убрана, владелец отвечает только Telegram-reply на relay-сообщение); UI `adm:set:feat:*` убран из настроек (сервис feature-flags оставлен для daily-digest); задокументированы поле `orders.ownerCardMessageId`, поле `relay_messages.customer_dialog_message_id` (резерв, не используется), метод `TelegramPort.editMessageTextOrSend`, таблица `feature_flags`, транзитные поля сессий (`CheckoutDraft.screenMessageId`, `SessionData.paymentScreenId`, `SessionData.refsMessageIds`). Новое: per-tenant язык интерфейса (`tenants.language`: `ru`/`uz`, независим от валюты) — read-path: все тексты через `ctx.t`, словарь `src/i18n/uz.ts` зеркалит `src/i18n/ru.ts`, fallback `ru`. Язык задаётся при создании магазина/скриптом (кнопок в боте нет), валюта правится текстовым полем настроек (`currency`: `₽`/`₸`/`UZS`); независимость языка и валюты держится на уровне данных.
 
 Правила изменения этого файла: менять только append-only. Любое изменение контракта (схема БД, типы, callback-данные, джобы, статусы заказа) поднимает версию и записывается в changelog до написания кода, который от него зависит.
 
@@ -86,7 +87,7 @@ Telegram-бот-витрина и приемщик заказов для кон�
 
 ### 1.6 Допущения (можно менять, версия ядра поднимается)
 
-- Язык интерфейса бота: русский. Все тексты в `src/i18n/ru.ts`.
+- Язык интерфейса бота задаётся на магазин (`tenants.language`: `ru` или `uz`, по умолчанию `ru`) при создании/скриптом и не зависит от валюты. Все тексты бота лежат в словарях `src/i18n/ru.ts` / `src/i18n/uz.ts` одинаковой формы (`Strings`), резолвятся в `ctx.t` по языку магазина. Контент владельца (названия, описания, FAQ, тексты магазина) не переводится.
 - Валюта и часовой пояс настраиваются на магазин. Значения по умолчанию: `₽`, `Europe/Moscow`.
 - Оплата вручную: перевод по реквизитам владельца, клиент присылает скриншот чека, владелец подтверждает кнопкой. Эквайринга нет.
 - В MVP один владелец на магазин.
@@ -125,7 +126,7 @@ Telegram-бот-витрина и приемщик заказов для кон�
 | Планировщик              | Собственный, таблица `jobs`           | Опрос раз в 30 секунд, in-process                                                      |
 | Файлы                    | Только Telegram `file_id`             | Диска и S3 не нужно. `file_id` валиден для бота, который его получил                   |
 | QR                       | `qrcode` (npm)                        | Локально, PNG в памяти                                                                 |
-| Логи                     | `pino` в stdout                       |                                                                                        |
+| Логи                     | `console` в stdout                    | `pino` в зависимостях, фактически используется `console`                               |
 | Тесты                    | vitest, fast-check                    | Раздел 13                                                                              |
 | Линт                     | eslint, prettier, `tsc --noEmit`      |                                                                                        |
 | CI                       | GitHub Actions                        | Бесплатно для публичного репо, лимиты минут для приватного                             |
@@ -161,7 +162,7 @@ src/
     runner.ts                # запуск и остановка ботов всех магазинов
     context.ts               # BotContext: tenant, role, session
     callbacks.ts             # кодек callback-данных (раздел 8.1)
-    middleware/              # tenant, role, session, errors, antispam, funnel
+    middleware/              # tenant, role, session, errors, antispam, funnel, serialize, cleanup
     customer/                # start, catalog, cart, checkout, payment, faq, myorders, freetext
     owner/                   # menu, orders, catalog-editor, faq-editor, calendar, settings, links, stats
     relay/                   # пересылка клиент <-> владелец
@@ -172,21 +173,23 @@ src/
     order-machine.ts
     escape.ts
   services/                  # работа с БД, транзакции
-    tenants.ts catalog.ts orders.ts customers.ts relay.ts stats.ts scheduler.ts
+    tenants.ts catalog.ts catalog-editor.ts orders.ts dates.ts calendar.ts faq.ts settings.ts
+    sources.ts stats.ts digest.ts notify.ts privacy.ts backup.ts feature-flags.ts tenant-delete.ts
   telegram/
     port.ts                  # интерфейс TelegramPort
     grammy-port.ts           # реальная реализация
     fake-port.ts             # фейк для тестов, с инъекцией ошибок
-  jobs/                      # хендлеры джобов
+  jobs/                      # create, types, scheduler, handlers/
   db/
-    schema.ts client.ts migrations/ seed.ts
-  i18n/ru.ts
-  lib/                       # logger, ids, money, time, crypto
+    schema.ts client.ts migrate.ts migrations/ seed.ts
+  i18n/ru.ts uz.ts index.ts  # Strings, stringsFor, isLang, currencyForCode
+  lib/                       # crypto, money, time (логгирование через console в stdout; id через nanoid по месту)
 tests/
-  domain/ services/ jobs/ flows/ contracts/
+  *.test.ts                  # плоские сценарные/юнит/property-тесты через фейковый TelegramPort
 scripts/
   tenant-create.ts           # заводит магазин, печатает claim-ссылку
-  backup.ts
+  tenant-delete.ts           # удаляет магазин с бэкапом
+  seed.ts                    # демо-магазин
   load-sim.ts                # симуляция наплыва (раздел 13.5)
 docs/
   owner-setup.md             # инструкция для владельца: создать бота, куда вставить ссылки
@@ -225,7 +228,8 @@ export const tenants = sqliteTable('tenants', {
   claimCodeHash: text('claim_code_hash'),
   claimExpiresAt: ts('claim_expires_at'),
   shopName: text('shop_name').notNull(),
-  currency: text('currency').notNull().default('₽'),
+  currency: text('currency').notNull().default('₽'), // ₽ | ₸ | UZS, независимо от language
+  language: text('language').notNull().default('ru'), // ru | uz, независимо от currency
   timezone: text('timezone').notNull().default('Europe/Moscow'),
   status: text('status', { enum: ['active', 'paused'] })
     .notNull()
@@ -380,6 +384,7 @@ export const orders = sqliteTable(
     paymentDueAt: ts('payment_due_at'),
     rejectReason: text('reject_reason'),
     cancelReason: text('cancel_reason'),
+    ownerCardMessageId: integer('owner_card_message_id'), // сообщение карточки заказа у владельца для правок в одном экране
     createdAt: ts('created_at').notNull(),
     decidedAt: ts('decided_at'),
     updatedAt: ts('updated_at').notNull(),
@@ -389,6 +394,7 @@ export const orders = sqliteTable(
     uniqueIndex('orders_idem_uq').on(t.tenantId, t.idempotencyKey),
     index('orders_tenant_status_idx').on(t.tenantId, t.status),
     index('orders_tenant_due_idx').on(t.tenantId, t.dueDate),
+    index('orders_owner_card_message_idx').on(t.tenantId, t.ownerCardMessageId),
   ]
 );
 
@@ -483,10 +489,31 @@ export const relayMessages = sqliteTable(
     ownerMessageId: integer('owner_message_id').notNull(), // сообщение в чате владельца
     customerChatId: integer('customer_chat_id').notNull(),
     orderId: text('order_id'),
+    customerDialogMessageId: integer('customer_dialog_message_id'), // резерв, не используется
     createdAt: ts('created_at').notNull(),
   },
-  (t) => [uniqueIndex('relay_owner_msg_uq').on(t.tenantId, t.ownerChatId, t.ownerMessageId)]
+  (t) => [
+    uniqueIndex('relay_owner_msg_uq').on(t.tenantId, t.ownerChatId, t.ownerMessageId),
+    index('relay_customer_dialog_idx').on(t.tenantId, t.customerId, t.customerDialogMessageId),
+  ]
 );
+
+export const featureFlags = sqliteTable(
+  'feature_flags',
+  {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id')
+      .notNull()
+      .references(() => tenants.id),
+    name: text('name').notNull(), // например daily_digest
+    enabled: integer('enabled', { mode: 'boolean' }).notNull().default(false),
+    description: text('description'),
+    createdAt: ts('created_at').notNull(),
+    updatedAt: ts('updated_at').notNull(),
+  },
+  (t) => [uniqueIndex('feature_flags_tenant_name_uq').on(t.tenantId, t.name)]
+);
+// Управление только кодом/скриптами (без UI). Использует daily-digest.
 
 export const sessions = sqliteTable(
   'sessions',
@@ -621,6 +648,7 @@ export type CheckoutDraft = {
   contactPhone?: string;
   comment?: string;
   referenceFileIds: { fileId: string; fileType: 'photo' | 'document' }[];
+  screenMessageId?: number; // транзитное: одно сообщение экрана оформления, правится на шагах
 };
 
 export type SessionState =
@@ -635,15 +663,24 @@ export type SessionState =
   | 'checkout.confirm'
   | 'payment.await_receipt'
   | 'relay.compose' // клиент пишет мастеру
-  | 'owner.edit_field' // владелец вводит текст поля, контекст в ownerDraft
-  | 'owner.reply_to_customer';
+  | 'owner.edit_field'; // владелец вводит текст поля, контекст в ownerDraft
+
+export type Lang = 'ru' | 'uz'; // язык интерфейса магазина, независим от валюты
+export type Strings = typeof ru; // живёт в src/i18n/index.ts; src/i18n/ru.ts — эталон формы, src/i18n/uz.ts обязан повторять её точь-в-точь
+// Все тексты бот-слоя берутся из ctx.t (ставится из tenants.language, fallback 'ru').
+// Кнопок смены языка/валюты в боте нет: язык задаётся при создании магазина/скриптом, валюта — текстовым полем настроек.
+
+// Язык и валюта независимы на уровне данных: currency ∈ {₽, ₸, UZS}, language ∈ {ru, uz}.
+// Форматирование сумм: formatMinor(minor, currency, lang?) — lang по умолчанию 'ru'.
 
 export type SessionData = {
   cart: Cart;
   checkout?: CheckoutDraft;
   ownerDraft?: { kind: string; targetId?: string; extra?: Record<string, string> };
   paymentOrderId?: string;
+  paymentScreenId?: number; // транзитное: сообщение экрана оплаты для правок
   lastAutoReplyAt?: number; // unix seconds
+  refsMessageIds?: number[]; // транзитные сообщения референсов, удаляются при навигации
   antispam?: { windowStart: number; count: number };
   selections?: Record<string, string[]>; // productId -> выбранные optionIds (по одной опции на группу)
 };
@@ -665,6 +702,12 @@ export interface TelegramPort {
     opts?: SendOpts
   ): Promise<{ messageId: number }>;
   editMessageText(chatId: number, messageId: number, text: string, opts?: SendOpts): Promise<void>;
+  editMessageTextOrSend(
+    chatId: number,
+    messageId: number,
+    text: string,
+    opts?: SendOpts
+  ): Promise<{ messageId: number }>; // правит текст; если исходное сообщение без текста (фото/документ) — удаляет и шлёт новое
   answerCallback(callbackQueryId: string, text?: string): Promise<void>;
   copyMessage(
     toChatId: number,
@@ -717,7 +760,6 @@ export interface TelegramPort {
 | `adm:ord:accept:<orderId>`                                                                                  | принять                                                                                           |
 | `adm:ord:list`                                                                                              | список последних заказов владельца                                                                |
 | `adm:ord:view:<orderId>`                                                                                    | карточка заказа в режиме владельца                                                                |
-| `adm:ord:msg:<orderId>`                                                                                     | написать клиенту                                                                                  |
 | `adm:ord:refs:<orderId>`                                                                                    | показать референсы заказа владельцу                                                               |
 | `adm:ord:reject:<orderId>` / `adm:ord:rr:<orderId>:<reasonCode>`                                            | отклонить, код причины                                                                            |
 | `adm:ord:date:<orderId>` / `adm:ord:pd:<orderId>:<YYYY-MM-DD>` / `adm:ord:datepage:<orderId>:<YYYY-MM>`     | предложить дату; сетка; листание месяца                                                           |
@@ -725,7 +767,7 @@ export interface TelegramPort {
 | `adm:ord:ready:<orderId>` / `adm:ord:done:<orderId>` / `adm:ord:cancel:<orderId>`                           | статусы                                                                                           |
 | `pd:yes:<orderId>` / `pd:no:<orderId>`                                                                      | клиент принимает или отклоняет предложенную дату                                                  |
 | `adm:cat:*`, `adm:prd:*`, `adm:faq:*`, `adm:set:*`, `adm:cal:*`, `adm:src:*`                                | редакторы владельца                                                                               |
-| `adm:set:feat:<name>` / `adm:set:featadd`                                                                   | переключение / добавление per-tenant feature-флага                                                |
+| `adm:set:feat:<name>` / `adm:set:featadd`                                                                   | service-only (без UI): переключаются кодом/скриптами, использует daily-digest                     |
 | `adm:menu` / `adm:preview`                                                                                  | меню владельца / предпросмотр клиентского меню                                                    |
 | `adm:stats` / `adm:stats:7` / `adm:stats:30`                                                                | статистика за период по умолчанию, 7 или 30 дней                                                  |
 | `adm:relay:block:<customerId>`                                                                              | блокировка клиента из relay-шапки                                                                 |
@@ -769,9 +811,8 @@ requiredLeadDays(cartProductLeadDays: (number|null)[], tenantMinLead: number): n
 
 ### 8.4 Пересылка клиент <-> владелец
 
-- Сообщение клиента идет в чат владельца только из явного состояния диалога (`rel:start` / «Ответить мастеру» → `relay.compose`): заголовок («Имя, @username, заказ №N если есть») и `copyMessage` исходного сообщения. Обе записи сохраняются в `relay_messages`. Свободный текст вне диалога владельцу не уходит.
-- Владелец отвечает Telegram-ответом (reply) на заголовок или копию. Бот находит запись по `(tenantId, ownerChatId, ownerMessageId)` и копирует ответ клиенту.
-- Кнопка `adm:ord:msg:<orderId>` включает состояние `owner.reply_to_customer` на одно сообщение.
+- Сообщение клиента идет в чат владельца только из явного состояния диалога (`rel:start` / «Ответить мастеру» → `relay.compose`): заголовок («Имя, @username, заказ №N если есть») и `copyMessage` исходного сообщения. Обе записи сохраняются в `relay_messages`. Свободный текст вне диалога владельцу не уходит (удаляется с подсказкой).
+- Владелец отвечает только Telegram-ответом (reply) на заголовок или копию. Бот находит запись по `(tenantId, ownerChatId, ownerMessageId)` и копирует ответ клиенту. Отдельной кнопки «написать клиенту» нет.
 - Клиенту после первого сообщения вне сценария отправляется автоответ: «Передал мастеру, ответ придет сюда, обычно {replySlaText}» и кнопки «Каталог», «Мои заказы». Автоответ не чаще раза в 6 часов на клиента (`lastAutoReplyAt`).
 - `BLOCKED` от Telegram при отправке клиенту: `customers.botBlocked = true`, владельцу уведомление один раз.
 
@@ -852,7 +893,7 @@ requiredLeadDays(cartProductLeadDays: (number|null)[], tenantMinLead: number): n
 
 ### 10.5 FAQ и настройки
 
-Редактирование всех текстов и числовых параметров из `tenants` (раздел 5). Каждый параметр редактируется в одном шаге с валидацией (проценты 0..100, дни не отрицательные). Режим «перегруз»: переключатель `acceptOrders` и текст `busyText`.
+Редактирование всех текстов и числовых параметров из `tenants` (раздел 5). Каждый параметр редактируется в одном шаге с валидацией (проценты 0..100, дни не отрицательные). Режим «перегруз»: переключатель `acceptOrders` и текст `busyText`. Валюта (`₽`/`₸`/`UZS`) правится текстовым полем `currency` и не зависит от языка. Язык интерфейса (`tenants.language`: `ru`/`uz`, по умолчанию `ru`) задаётся при создании магазина/скриптом; в боте кнопок смены языка и валюты нет. Весь интерфейс читается из `ctx.t` по языку магазина с fallback `ru`; контент владельца не переводится.
 
 ### 10.6 Календарь
 
@@ -927,7 +968,7 @@ requiredLeadDays(cartProductLeadDays: (number|null)[], tenantMinLead: number): n
 3. **Идемпотентность.** На каждый хендлер джоба тест: запуск дважды с тем же payload дает ровно один эффект (одно сообщение, один переход статуса). Отдельно: `chk:submit` два раза подряд создает один заказ. Отдельно: параллельное создание заказов на последний свободный слот дает один успех.
 4. **Контрактные тесты на стыках.** Payload каждого джоба валидируется zod-схемой из раздела 8.2. Каждое сообщение в `TelegramPort` проверяется фейком: текст не пустой, не длиннее 4096 символов, подпись не длиннее 1024, callback-данные не длиннее 64 байт.
 5. **Путь ошибки через фейк.** `RATE_LIMIT`: повтор. `BLOCKED` при отправке клиенту: `botBlocked = true`, владелец уведомлен один раз. `NETWORK`: ретрай джоба по расписанию. Необработанная ошибка в обработчике: клиент получает нейтральное сообщение, суперадмин уведомление, бот продолжает работать.
-6. **Сценарные (flow) тесты.** Фейковые апдейты подаются напрямую в `bot.handleUpdate`, исходящие вызовы перехватывает фейковый `TelegramPort`. Сети нет. Обязательные сценарии: путь клиента от `/start` до заказа, принятие с предоплатой и без, отклонение, встречная дата, истечение оплаты, вопрос вне сценария и ответ владельца, привязка владельца и повторное использование claim-кода, доступ клиента к чужому заказу (запрещен), доступ не-владельца к `adm:*` (запрещен).
+6. **Сценарные (flow) тесты.** Фейковые апдейты подаются напрямую в `bot.handleUpdate`, исходящие вызовы перехватывает фейковый `TelegramPort`. Сети нет. Обязательные сценарии: путь клиента от `/start` до заказа, принятие с предоплатой и без, отклонение, встречная дата, истечение оплаты, вопрос вне сценария и ответ владельца, привязка владельца и повторное использование claim-кода, доступ клиента к чужому заказу (запрещен), доступ не-владельца к `adm:*` (запрещен), резолв языка (юнит: `stringsFor` для `ru`/`uz`/неизвестного с fallback `ru`, зеркальность формы `uz` ↔ `ru`, независимость кодов валют `rub|kzt|uzs` от языка).
 
 ### 13.5 Симуляция наплыва
 
@@ -947,7 +988,7 @@ requiredLeadDays(cartProductLeadDays: (number|null)[], tenantMinLead: number): n
 
 ## 14. Конвенции
 
-- **Язык.** Коммиты, заголовки PR, комментарии в коде, имена: английский. Тексты бота: русский, только в `i18n/ru.ts`.
+- **Язык.** Коммиты, заголовки PR, комментарии в коде, имена: английский. Тексты бота: русский и узбекский, только в `i18n/ru.ts` / `i18n/uz.ts` (uz повторяет форму ru; строки владельца и контент каталога не переводятся).
 - **Коммиты.** Conventional Commits: `type(scope): summary`. `type` из набора `feat|fix|test|refactor|chore|docs`. `summary` в повелительном наклонении, со строчной, без точки, до 50 символов. Тело только для объяснения «почему». Коммитить маленькими логическими шагами по ходу работы. Каждый коммит по возможности проходит `tsc`.
 - **Ветки и PR.** Короткие ветки от `main`, PR в `main` даже соло (CI как гейт). Заголовок PR кратко, тело: что делает, какие контракты затронуты, чем покрыто тестами.
 - **Комментарии.** Объясняют «почему», не пересказывают код. Закомментированный код не коммитится.
