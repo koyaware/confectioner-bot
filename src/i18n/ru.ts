@@ -70,10 +70,10 @@ export const ru = {
     orderSent: (n: number) => `Заказ №${n} отправлен. Мастер ответит`,
   },
   faq: {
-    title: 'Вопросы и ответы',
+    title: 'FAQ',
     empty: 'Частые вопросы пока не добавлены.',
     notFound: 'Вопрос не найден.',
-    button: 'Вопросы и ответы',
+    button: 'FAQ',
   },
   my: {
     listTitle: 'Ваши заказы',
@@ -125,7 +125,7 @@ export const ru = {
     badCapacity: 'Нужно целое неотрицательное число.',
   },
   ownerFaq: {
-    title: 'Вопросы и ответы',
+    title: 'FAQ',
     add: 'Добавить вопрос',
     editQuestion: 'Вопрос',
     editAnswer: 'Ответ',
@@ -182,7 +182,7 @@ export const ru = {
     ownerSections: {
       orders: 'Заказы',
       catalog: 'Каталог',
-      faq: 'Вопросы и ответы',
+      faq: 'FAQ',
       calendar: 'Календарь',
       settings: 'Настройки',
       links: 'Ссылки для Instagram',

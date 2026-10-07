@@ -70,7 +70,7 @@ describe('owner menu roles', () => {
     expect(keyboard).toContain('adm:src:list');
     expect(keyboard).toContain('adm:stats');
     expect(keyboard).toContain('adm:preview');
-    expect(keyboard).toContain('Вопросы и ответы');
+    expect(keyboard).toContain('FAQ');
   });
 
   it('superadmin owner also sees owner sections', async () => {
