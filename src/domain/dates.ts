@@ -47,4 +47,3 @@ export function zonedTimeToUtc(dateIso: IsoDate, time: string, timezone: string)
   const offsetMs = Date.parse(wallAtGuess) - guessMs;
   return new Date(guessMs - offsetMs);
 }
-

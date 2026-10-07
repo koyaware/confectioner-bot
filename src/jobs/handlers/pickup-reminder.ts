@@ -20,7 +20,11 @@ export function createPickupReminderHandler(ports: {
       .where(eq(customers.id, order.customerId))
       .limit(1);
     const customer = customerRows[0];
-    const tenantRows = await db.select().from(tenants).where(eq(tenants.id, order.tenantId)).limit(1);
+    const tenantRows = await db
+      .select()
+      .from(tenants)
+      .where(eq(tenants.id, order.tenantId))
+      .limit(1);
     const tenant = tenantRows[0];
     if (!customer || customer.botBlocked || !tenant) {
       return { success: true };
@@ -30,7 +34,9 @@ export function createPickupReminderHandler(ports: {
       return { success: false, error: `no bot for tenant ${order.tenantId}` };
     }
     const detail =
-      order.fulfillment === 'delivery' ? `доставка${order.address ? `, адрес: ${order.address}` : ''}` : 'самовывоз';
+      order.fulfillment === 'delivery'
+        ? `доставка${order.address ? `, адрес: ${order.address}` : ''}`
+        : 'самовывоз';
     await port.sendMessage(
       customer.telegramId,
       `Напоминание: заказ №${order.number} — ${order.dueDate}${order.dueTimeText ? `, ${order.dueTimeText}` : ''}. ${detail}.`

@@ -15,7 +15,11 @@ async function getOrderWithCustomer(orderId: string) {
   const rows = await db.select().from(orders).where(eq(orders.id, orderId)).limit(1);
   const order = rows[0];
   if (!order) return { order: undefined, customer: undefined, tenant: undefined };
-  const customerRows = await db.select().from(customers).where(eq(customers.id, order.customerId)).limit(1);
+  const customerRows = await db
+    .select()
+    .from(customers)
+    .where(eq(customers.id, order.customerId))
+    .limit(1);
   const tenantRows = await db.select().from(tenants).where(eq(tenants.id, order.tenantId)).limit(1);
   return { order, customer: customerRows[0], tenant: tenantRows[0] };
 }

@@ -9,6 +9,8 @@ import { formatMinor } from '../../lib/money.js';
 import { escapeHtml } from '../../domain/escape.js';
 import { InlineKeyboard } from '../../telegram/port.js';
 import { applyOrderEvent } from '../../services/orders.js';
+import { getDateAvailability } from '../../services/dates.js';
+import { sendPaymentCard } from './payment.js';
 
 const STATUS_LABELS: Record<string, string> = {
   new: 'Новый',
@@ -28,13 +30,18 @@ export function registerMyOrdersHandlers(bot: Bot<BotContextWithSession>): void 
 
     const list = await listCustomerOrders(ctx.tenant.id, ctx.from.id);
     const rows: InlineKeyboard['inline_keyboard'] = list.map((o) => [
-      { text: `№${o.number} — ${STATUS_LABELS[o.status] ?? o.status}`, callback_data: `my:view:${o.id}` },
+      {
+        text: `№${o.number} — ${STATUS_LABELS[o.status] ?? o.status}`,
+        callback_data: `my:view:${o.id}`,
+      },
     ]);
     const text = list.length > 0 ? ru.my.listTitle : ru.my.empty;
     const chatId = ctx.callbackQuery.message?.chat.id;
     const messageId = ctx.callbackQuery.message?.message_id;
     if (chatId && messageId) {
-      await ctx.port.editMessageText(chatId, messageId, text, { keyboard: { inline_keyboard: rows } });
+      await ctx.port.editMessageText(chatId, messageId, text, {
+        keyboard: { inline_keyboard: rows },
+      });
     }
   });
 
@@ -71,7 +78,9 @@ export function registerMyOrdersHandlers(bot: Bot<BotContextWithSession>): void 
         `• ${escapeHtml(it.titleSnapshot)}${it.optionsSnapshot.length ? ` (${it.optionsSnapshot.map((o) => o.title).join(', ')})` : ''} × ${it.qty}`
       );
     }
-    lines.push(`Дата: ${found.order.dueDate}${found.order.dueTimeText ? `, ${found.order.dueTimeText}` : ''}`);
+    lines.push(
+      `Дата: ${found.order.dueDate}${found.order.dueTimeText ? `, ${found.order.dueTimeText}` : ''}`
+    );
     lines.push(`Получение: ${found.order.fulfillment === 'delivery' ? 'доставка' : 'самовывоз'}`);
     lines.push(`Итого: ${formatMinor(found.order.totalMinor, ctx.tenant.currency)}`);
 
@@ -123,5 +132,105 @@ export function registerMyOrdersHandlers(bot: Bot<BotContextWithSession>): void 
     if (ownerId) {
       await ctx.port.sendMessage(ownerId, `Заказ №${found.order.number} отменён клиентом.`);
     }
+  });
+
+  bot.callbackQuery(/^pd:(yes|no):(.+)$/, async (ctx) => {
+    await ctx.port.answerCallback(ctx.callbackQuery.id);
+
+    const m = /^pd:(yes|no):(.+)$/.exec(ctx.callbackQuery.data);
+    if (!m) return;
+
+    const chatId = ctx.callbackQuery.message?.chat.id;
+    const messageId = ctx.callbackQuery.message?.message_id;
+    if (!chatId || !messageId) return;
+
+    const db = getDb();
+    const rows = await db
+      .select({ order: orders, customer: customers })
+      .from(orders)
+      .innerJoin(customers, eq(orders.customerId, customers.id))
+      .where(and(eq(orders.id, m[2]!), eq(customers.telegramId, ctx.from.id)))
+      .limit(1);
+    const found = rows[0];
+    if (
+      !found ||
+      found.order.tenantId !== ctx.tenant.id ||
+      found.order.status !== 'new' ||
+      !found.order.proposedDate
+    ) {
+      await ctx.port.editMessageText(chatId, messageId, ru.my.notFound, {});
+      return;
+    }
+
+    const action = m[1]!;
+    if (action === 'no') {
+      await db.update(orders).set({ proposedDate: null }).where(eq(orders.id, found.order.id));
+      await ctx.port.editMessageText(
+        chatId,
+        messageId,
+        'Хорошо, ждём нового предложения от мастера.',
+        {}
+      );
+      const ownerId = ctx.tenant.ownerTelegramId;
+      if (ownerId) {
+        await ctx.port.sendMessage(
+          ownerId,
+          `Клиент отклонил предложенную дату по заказу №${found.order.number}.`
+        );
+      }
+      return;
+    }
+
+    // pd:yes — re-check availability and accept
+    const items = await db.select().from(orderItems).where(eq(orderItems.orderId, found.order.id));
+    const cartLines = items
+      .filter((i) => i.productId !== null)
+      .map((i, idx) => ({
+        lineId: `l${idx}`,
+        productId: i.productId!,
+        qty: i.qty,
+        optionIds: [] as string[],
+      }));
+    const avail = await getDateAvailability(
+      ctx.tenant.id,
+      found.order.proposedDate,
+      found.order.proposedDate,
+      { lines: cartLines },
+      new Date()
+    );
+    const entry = avail[found.order.proposedDate];
+    if (!entry || !entry.available) {
+      await ctx.port.editMessageText(
+        chatId,
+        messageId,
+        'Эта дата уже недоступна. Попросите мастера предложить другую.',
+        {}
+      );
+      return;
+    }
+
+    await db
+      .update(orders)
+      .set({ dueDate: found.order.proposedDate, proposedDate: null })
+      .where(eq(orders.id, found.order.id));
+
+    const accepted = await applyOrderEvent(found.order.id, 'owner_accept', 'system', new Date());
+    if (!accepted.ok) {
+      await ctx.port.editMessageText(chatId, messageId, ru.my.cancelFailed, {});
+      return;
+    }
+
+    if (accepted.value.status === 'awaiting_payment') {
+      await sendPaymentCard(ctx.port, ctx.tenant.id, found.order.id);
+    } else {
+      await ctx.port.sendMessage(chatId, `Заказ №${found.order.number} принят в работу.`);
+    }
+
+    await ctx.port.editMessageText(
+      chatId,
+      messageId,
+      `Заказ №${found.order.number} перенесён на ${accepted.value.dueDate}.`,
+      {}
+    );
   });
 }

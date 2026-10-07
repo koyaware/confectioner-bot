@@ -9,6 +9,8 @@ import { InlineKeyboard, TelegramPort } from '../../telegram/port.js';
 import { getDb } from '../../db/client.js';
 import { customers, orders, orderItems } from '../../db/schema.js';
 import { eq } from 'drizzle-orm';
+import { addDays } from '../../domain/dates.js';
+import { getDateAvailability } from '../../services/dates.js';
 
 export const REJECT_REASONS: Record<string, string> = {
   full: 'Нет мест на эту дату',
@@ -73,6 +75,7 @@ export function orderCardKeyboard(orderId: string, status: string): InlineKeyboa
   if (status === 'new') {
     rows.push([{ text: 'Принять', callback_data: `adm:ord:accept:${orderId}` }]);
     rows.push([{ text: 'Отклонить', callback_data: `adm:ord:reject:${orderId}` }]);
+    rows.push([{ text: 'Другая дата', callback_data: `adm:ord:date:${orderId}` }]);
   }
   if (status === 'confirmed') {
     rows.push([{ text: 'Готов', callback_data: `adm:ord:ready:${orderId}` }]);
@@ -89,142 +92,227 @@ export function orderCardKeyboard(orderId: string, status: string): InlineKeyboa
 }
 
 export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
-  bot.callbackQuery(/^adm:ord:(accept|reject|rr|paid|badpay|ready|done|cancel):/, async (ctx) => {
-    if (ctx.role !== 'owner') {
-      await ctx.port.answerCallback(ctx.callbackQuery.id, ru.ownerCatalog.notOwner);
-      return;
-    }
-    await ctx.port.answerCallback(ctx.callbackQuery.id);
-
-    const m = /^adm:ord:(accept|reject|rr|paid|badpay|ready|done|cancel):(.+)$/.exec(ctx.callbackQuery.data);
-    if (!m) return;
-    const action = m[1]!;
-    const rest = m[2]!;
-
-    const chatId = ctx.callbackQuery.message?.chat.id;
-    const messageId = ctx.callbackQuery.message?.message_id;
-    if (!chatId || !messageId) return;
-
-    if (action === 'accept') {
-      const result = await applyOrderEvent(rest, 'owner_accept', 'owner', new Date());
-      if (!result.ok) return;
-      const card = await buildOrderCardText(rest, ctx.tenant.id, ctx.tenant.currency);
-      if (card) {
-        await ctx.port.editMessageText(chatId, messageId, card, {
-          keyboard: orderCardKeyboard(rest, result.value.status),
-          parseMode: 'HTML',
-        });
+  bot.callbackQuery(
+    /^adm:ord:(accept|reject|rr|paid|badpay|ready|done|cancel|date|pd):/,
+    async (ctx) => {
+      if (ctx.role !== 'owner') {
+        await ctx.port.answerCallback(ctx.callbackQuery.id, ru.ownerCatalog.notOwner);
+        return;
       }
-      if (result.value.status === 'awaiting_payment') {
-        await sendPaymentCard(ctx.port, ctx.tenant.id, rest);
-      } else {
-        await notifyCustomer(ctx.port, rest, (n) => `Заказ №${n} принят в работу.`);
-      }
-      return;
-    }
+      await ctx.port.answerCallback(ctx.callbackQuery.id);
 
-    if (action === 'reject') {
-      // show reason picker
-      const rows: InlineKeyboard['inline_keyboard'] = Object.entries(REJECT_REASONS).map(
-        ([code, label]) => [{ text: label, callback_data: `adm:ord:rr:${rest}:${code}` }]
+      const m = /^adm:ord:(accept|reject|rr|paid|badpay|ready|done|cancel|date|pd):(.+)$/.exec(
+        ctx.callbackQuery.data
       );
-      const card = await buildOrderCardText(rest, ctx.tenant.id, ctx.tenant.currency);
-      if (card) {
-        await ctx.port.editMessageText(chatId, messageId, `${card}\n\nПричина отказа?`, {
-          keyboard: { inline_keyboard: rows },
-          parseMode: 'HTML',
-        });
-      }
-      return;
-    }
+      if (!m) return;
+      const action = m[1]!;
+      const rest = m[2]!;
 
-    if (action === 'paid') {
-      const result = await applyOrderEvent(rest, 'payment_confirmed', 'owner', new Date());
-      if (!result.ok) return;
-      const card = await buildOrderCardText(rest, ctx.tenant.id, ctx.tenant.currency);
-      if (card) {
-        await ctx.port.editMessageText(chatId, messageId, card, {
-          parseMode: 'HTML',
-        });
-      }
-      await notifyCustomer(ctx.port, rest, () => 'Оплата подтверждена. Заказ в работе.');
-      return;
-    }
+      const chatId = ctx.callbackQuery.message?.chat.id;
+      const messageId = ctx.callbackQuery.message?.message_id;
+      if (!chatId || !messageId) return;
 
-    if (action === 'badpay') {
-      const result = await applyOrderEvent(rest, 'payment_rejected', 'owner', new Date());
-      if (!result.ok) return;
-      const card = await buildOrderCardText(rest, ctx.tenant.id, ctx.tenant.currency);
-      if (card) {
-        await ctx.port.editMessageText(chatId, messageId, card, {
-          parseMode: 'HTML',
-        });
+      if (action === 'accept') {
+        const result = await applyOrderEvent(rest, 'owner_accept', 'owner', new Date());
+        if (!result.ok) return;
+        const card = await buildOrderCardText(rest, ctx.tenant.id, ctx.tenant.currency);
+        if (card) {
+          await ctx.port.editMessageText(chatId, messageId, card, {
+            keyboard: orderCardKeyboard(rest, result.value.status),
+            parseMode: 'HTML',
+          });
+        }
+        if (result.value.status === 'awaiting_payment') {
+          await sendPaymentCard(ctx.port, ctx.tenant.id, rest);
+        } else {
+          await notifyCustomer(ctx.port, rest, (n) => `Заказ №${n} принят в работу.`);
+        }
+        return;
       }
-      await notifyCustomer(
-        ctx.port,
-        rest,
-        () =>
-          'Оплата не подтверждена. Нажмите «Я оплатил» в сообщении с реквизитами и пришлите другой чек.'
-      );
-      return;
-    }
 
-    if (action === 'ready') {
-      const result = await applyOrderEvent(rest, 'mark_ready', 'owner', new Date());
-      if (!result.ok) return;
-      const card = await buildOrderCardText(rest, ctx.tenant.id, ctx.tenant.currency);
-      if (card) {
-        await ctx.port.editMessageText(chatId, messageId, card, {
-          keyboard: orderCardKeyboard(rest, result.value.status),
-          parseMode: 'HTML',
-        });
+      if (action === 'reject') {
+        // show reason picker
+        const rows: InlineKeyboard['inline_keyboard'] = Object.entries(REJECT_REASONS).map(
+          ([code, label]) => [{ text: label, callback_data: `adm:ord:rr:${rest}:${code}` }]
+        );
+        const card = await buildOrderCardText(rest, ctx.tenant.id, ctx.tenant.currency);
+        if (card) {
+          await ctx.port.editMessageText(chatId, messageId, `${card}\n\nПричина отказа?`, {
+            keyboard: { inline_keyboard: rows },
+            parseMode: 'HTML',
+          });
+        }
+        return;
       }
-      await notifyCustomer(ctx.port, rest, (n) => `Заказ №${n} готов!`);
-      return;
-    }
 
-    if (action === 'done') {
-      const result = await applyOrderEvent(rest, 'mark_completed', 'owner', new Date());
-      if (!result.ok) return;
-      const card = await buildOrderCardText(rest, ctx.tenant.id, ctx.tenant.currency);
-      if (card) {
-        await ctx.port.editMessageText(chatId, messageId, card, { parseMode: 'HTML' });
+      if (action === 'paid') {
+        const result = await applyOrderEvent(rest, 'payment_confirmed', 'owner', new Date());
+        if (!result.ok) return;
+        const card = await buildOrderCardText(rest, ctx.tenant.id, ctx.tenant.currency);
+        if (card) {
+          await ctx.port.editMessageText(chatId, messageId, card, {
+            parseMode: 'HTML',
+          });
+        }
+        await notifyCustomer(ctx.port, rest, () => 'Оплата подтверждена. Заказ в работе.');
+        return;
       }
-      await notifyCustomer(ctx.port, rest, (n) => `Заказ №${n} завершён. Спасибо!`);
-      return;
-    }
 
-    if (action === 'cancel') {
-      const result = await applyOrderEvent(rest, 'owner_cancel', 'owner', new Date());
-      if (!result.ok) return;
-      const card = await buildOrderCardText(rest, ctx.tenant.id, ctx.tenant.currency);
-      if (card) {
-        await ctx.port.editMessageText(chatId, messageId, card, { parseMode: 'HTML' });
+      if (action === 'badpay') {
+        const result = await applyOrderEvent(rest, 'payment_rejected', 'owner', new Date());
+        if (!result.ok) return;
+        const card = await buildOrderCardText(rest, ctx.tenant.id, ctx.tenant.currency);
+        if (card) {
+          await ctx.port.editMessageText(chatId, messageId, card, {
+            parseMode: 'HTML',
+          });
+        }
+        await notifyCustomer(
+          ctx.port,
+          rest,
+          () =>
+            'Оплата не подтверждена. Нажмите «Я оплатил» в сообщении с реквизитами и пришлите другой чек.'
+        );
+        return;
       }
-      await notifyCustomer(ctx.port, rest, (n) => `Заказ №${n} отменён мастером.`);
-      return;
-    }
 
-    if (action === 'rr') {
-      const [orderId, code] = rest.split(':');
-      const reason = REJECT_REASONS[code!];
-      if (!orderId || !reason) return;
-      const result = await applyOrderEvent(orderId, 'owner_reject', 'owner', new Date());
-      if (!result.ok) return;
-      // store reason text
-      const db = getDb();
-      await db.update(orders).set({ rejectReason: reason }).where(eq(orders.id, orderId));
-      const card = await buildOrderCardText(orderId, ctx.tenant.id, ctx.tenant.currency);
-      if (card) {
-        await ctx.port.editMessageText(chatId, messageId, card, {
-          keyboard: orderCardKeyboard(orderId, result.value.status),
-          parseMode: 'HTML',
-        });
+      if (action === 'ready') {
+        const result = await applyOrderEvent(rest, 'mark_ready', 'owner', new Date());
+        if (!result.ok) return;
+        const card = await buildOrderCardText(rest, ctx.tenant.id, ctx.tenant.currency);
+        if (card) {
+          await ctx.port.editMessageText(chatId, messageId, card, {
+            keyboard: orderCardKeyboard(rest, result.value.status),
+            parseMode: 'HTML',
+          });
+        }
+        await notifyCustomer(ctx.port, rest, (n) => `Заказ №${n} готов!`);
+        return;
       }
-      await notifyCustomer(ctx.port, orderId, (n) => `Заказ №${n} отклонён: ${reason}`);
-      return;
+
+      if (action === 'done') {
+        const result = await applyOrderEvent(rest, 'mark_completed', 'owner', new Date());
+        if (!result.ok) return;
+        const card = await buildOrderCardText(rest, ctx.tenant.id, ctx.tenant.currency);
+        if (card) {
+          await ctx.port.editMessageText(chatId, messageId, card, { parseMode: 'HTML' });
+        }
+        await notifyCustomer(ctx.port, rest, (n) => `Заказ №${n} завершён. Спасибо!`);
+        return;
+      }
+
+      if (action === 'cancel') {
+        const result = await applyOrderEvent(rest, 'owner_cancel', 'owner', new Date());
+        if (!result.ok) return;
+        const card = await buildOrderCardText(rest, ctx.tenant.id, ctx.tenant.currency);
+        if (card) {
+          await ctx.port.editMessageText(chatId, messageId, card, { parseMode: 'HTML' });
+        }
+        await notifyCustomer(ctx.port, rest, (n) => `Заказ №${n} отменён мастером.`);
+        return;
+      }
+
+      if (action === 'date') {
+        const orderId = rest;
+        const db = getDb();
+        const rows = await db.select().from(orders).where(eq(orders.id, orderId)).limit(1);
+        const order = rows[0];
+        if (!order || order.tenantId !== ctx.tenant.id || order.status !== 'new') return;
+
+        const monthStart = `${order.dueDate.slice(0, 7)}-01`;
+        const monthEndDate = addDays(addDays(monthStart, 32).slice(0, 8) + '01', -1);
+        const itemRows = await db.select().from(orderItems).where(eq(orderItems.orderId, orderId));
+        const cartLines = itemRows
+          .filter((i) => i.productId !== null)
+          .map((i, idx) => ({
+            lineId: `l${idx}`,
+            productId: i.productId!,
+            qty: i.qty,
+            optionIds: [] as string[],
+          }));
+        const avail = await getDateAvailability(
+          ctx.tenant.id,
+          monthStart,
+          monthEndDate,
+          { lines: cartLines },
+          new Date()
+        );
+
+        const kbRows: InlineKeyboard['inline_keyboard'] = [];
+        for (const [date, entry] of Object.entries(avail)) {
+          if (entry.available) {
+            kbRows.push([{ text: date, callback_data: `adm:ord:pd:${orderId}:${date}` }]);
+          }
+        }
+        await ctx.port.editMessageText(
+          chatId,
+          messageId,
+          `Предложите новую дату для заказа №${order.number}:`,
+          { keyboard: { inline_keyboard: kbRows } }
+        );
+        return;
+      }
+
+      if (action === 'pd') {
+        const parts = rest.split(':');
+        const orderId = parts[0]!;
+        const iso = parts[1]!;
+        const db = getDb();
+        const rows = await db.select().from(orders).where(eq(orders.id, orderId)).limit(1);
+        const order = rows[0];
+        if (!order || order.tenantId !== ctx.tenant.id || order.status !== 'new') return;
+
+        await db.update(orders).set({ proposedDate: iso }).where(eq(orders.id, orderId));
+
+        const crows = await db
+          .select()
+          .from(customers)
+          .where(eq(customers.id, order.customerId))
+          .limit(1);
+        const cust = crows[0];
+        if (cust && !cust.botBlocked) {
+          await ctx.port.sendMessage(
+            cust.telegramId,
+            `Мастер предлагает сдвинуть заказ №${order.number} на ${iso}. Подходит?`,
+            {
+              keyboard: {
+                inline_keyboard: [
+                  [{ text: 'Подходит', callback_data: `pd:yes:${orderId}` }],
+                  [{ text: 'Не подходит', callback_data: `pd:no:${orderId}` }],
+                ],
+              },
+            }
+          );
+        }
+
+        const card = await buildOrderCardText(orderId, ctx.tenant.id, ctx.tenant.currency);
+        if (card) {
+          await ctx.port.editMessageText(chatId, messageId, card, { parseMode: 'HTML' });
+        }
+        return;
+      }
+
+      if (action === 'rr') {
+        const [orderId, code] = rest.split(':');
+        const reason = REJECT_REASONS[code!];
+        if (!orderId || !reason) return;
+        const result = await applyOrderEvent(orderId, 'owner_reject', 'owner', new Date());
+        if (!result.ok) return;
+        // store reason text
+        const db = getDb();
+        await db.update(orders).set({ rejectReason: reason }).where(eq(orders.id, orderId));
+        const card = await buildOrderCardText(orderId, ctx.tenant.id, ctx.tenant.currency);
+        if (card) {
+          await ctx.port.editMessageText(chatId, messageId, card, {
+            keyboard: orderCardKeyboard(orderId, result.value.status),
+            parseMode: 'HTML',
+          });
+        }
+        await notifyCustomer(ctx.port, orderId, (n) => `Заказ №${n} отклонён: ${reason}`);
+        return;
+      }
     }
-  });
+  );
 }
 
 async function notifyCustomer(
