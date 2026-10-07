@@ -1,8 +1,9 @@
 # ТЗ: Telegram-бот приема заказов для кондитеров
 
-**Версия ядра: v1.14**
+**Версия ядра: v1.15**
 
 Changelog:
+
 - v1.0: первая редакция.
 - v1.1: `SessionData` дополнен полем `selections?: Record<string, string[]>` (productId -> выбранные optionId по группам) для выбора опций на карточке товара.
 - v1.2: добавлен callback `adm:relay:block:<customerId>` — блокировка клиента из сообщения-шапки relay.
@@ -18,6 +19,7 @@ Changelog:
 - v1.12: `ADMIN_TELEGRAM_IDS` теперь задаётся по магазинам: `slug=id1,id2;another-slug=id3`; роль `owner` даётся только в этом tenant.
 - v1.13: добавлена Стадия 8 — UX/перформанс/платежи/референсы/нумерация заказов и оптимальные пояснения.
 - v1.14: перенесён пилот 6.5 в Stage 9.1, бот не готов к использованию до полного закрытия Stage 8.
+- v1.15: в контракты воздействия на карточку добавлены `cart:open:<lineId>` и `prd:qty:inc/dec:<lineId>`; add в корзину теперь отвечает toast-ом и остаётся в карточке кнопка «Перейти в корзину».
 
 Правила изменения этого файла: менять только append-only. Любое изменение контракта (схема БД, типы, callback-данные, джобы, статусы заказа) поднимает версию и записывается в changelog до написания кода, который от него зависит.
 
@@ -43,32 +45,33 @@ Telegram-бот-витрина и приемщик заказов для кон�
 
 Вынести рутинную часть диалога из директа в бота. Кондитер ставит ссылку на бота в шапку профиля, в закрепленный комментарий под рилсом и в автоответ директа. Бот сам отвечает на типовые вопросы, показывает каталог, собирает заказ целиком (состав, дата, самовывоз или доставка, контакты, надпись, референсы), проверяет загрузку мастера на дату и ведет до оплаты. Мастеру приходит готовая карточка заказа с кнопками. Нетиповые вопросы бот пересылает мастеру, ответ идет клиенту через бота.
 
-| Боль | Функция |
-|---|---|
-| Не успеваю отвечать всем | Бот отвечает сам: каталог, цены, FAQ, оформление 24/7 |
-| Повторяю одно и то же | FAQ и каталог редактируются владельцем, отвечают без него |
-| Тяжело собрать детали заказа | Пошаговое оформление, карточка заказа целиком |
-| Беру больше, чем могу испечь | Лимит заказов на дату, закрытые дни, режим «перегруз» |
-| Путаница с оплатой | Предоплата, реквизиты, чек в бот, подтверждение кнопкой |
-| Сообщения в спаме и теряются | Все заказы в одном месте со статусами |
-| Не знаю, какой рилс привел клиентов | Метки источника в ссылках, статистика по источникам |
+| Боль                                | Функция                                                   |
+| ----------------------------------- | --------------------------------------------------------- |
+| Не успеваю отвечать всем            | Бот отвечает сам: каталог, цены, FAQ, оформление 24/7     |
+| Повторяю одно и то же               | FAQ и каталог редактируются владельцем, отвечают без него |
+| Тяжело собрать детали заказа        | Пошаговое оформление, карточка заказа целиком             |
+| Беру больше, чем могу испечь        | Лимит заказов на дату, закрытые дни, режим «перегруз»     |
+| Путаница с оплатой                  | Предоплата, реквизиты, чек в бот, подтверждение кнопкой   |
+| Сообщения в спаме и теряются        | Все заказы в одном месте со статусами                     |
+| Не знаю, какой рилс привел клиентов | Метки источника в ссылках, статистика по источникам       |
 
 ### 1.4 Ключевое ограничение: Instagram
 
 Бот не читает и не отправляет сообщения Instagram. Официальный API сообщений требует app review Meta и бизнес-верификацию, это долго и не бесплатно по усилиям. Бот работает как мост: клиент переходит из Instagram в Telegram по ссылке. Часть аудитории не перейдет. Это принятый риск (раздел 18).
 
 Что делается для конверсии перехода:
+
 - генерация ссылок с метками источника (`t.me/<bot>?start=<code>`) и QR;
 - готовые тексты для шапки профиля, закрепленного комментария, сохраненного ответа или автоответа в директе (встроенные инструменты Instagram, если доступны в аккаунте);
 - короткий путь: клиент нажимает ссылку, нажимает Start, видит каталог за 2 действия.
 
 ### 1.5 Роли
 
-| Роль | Кто | Как определяется |
-|---|---|---|
-| Клиент | Любой пользователь Telegram | Любой, кто не владелец |
-| Владелец | Кондитер | `tenants.ownerTelegramId`, привязка через одноразовый claim-код |
-| Суперадмин | Разработчик | `SUPERADMIN_TELEGRAM_ID` из конфига |
+| Роль                      | Кто                                                   | Как определяется                                                                       |
+| ------------------------- | ----------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| Клиент                    | Любой пользователь Telegram                           | Любой, кто не владелец                                                                 |
+| Владелец                  | Кондитер                                              | `tenants.ownerTelegramId`, привязка через одноразовый claim-код                        |
+| Суперадмин                | Разработчик                                           | `SUPERADMIN_TELEGRAM_ID` из конфига                                                    |
 | Админ с правами владельца | Сотрудник разработчика/оператор в конкретном магазине | `ADMIN_TELEGRAM_IDS` в формате `slug=id1,id2;...`; в этом tenant получает role `owner` |
 
 ### 1.6 Допущения (можно менять, версия ядра поднимается)
@@ -101,22 +104,22 @@ Telegram-бот-витрина и приемщик заказов для кон�
 
 ## 3. Стек (все бесплатное)
 
-| Слой | Выбор | Примечание |
-|---|---|---|
-| Рантайм | Node.js LTS (>=22), TypeScript strict | |
-| Telegram | grammY | плагины: `@grammyjs/runner`, `@grammyjs/auto-retry`, `@grammyjs/transformer-throttler` |
-| Режим получения апдейтов | Long polling | Домен и входящие порты не нужны. Несколько ботов в одном процессе через runner |
-| БД | SQLite (`better-sqlite3`), режим WAL | Один файл, бэкап копированием |
-| ORM и миграции | Drizzle ORM + drizzle-kit | Миграции генерируются из схемы |
-| Валидация | zod | payload джобов, callback-данные, сессии, конфиг |
-| Планировщик | Собственный, таблица `jobs` | Опрос раз в 30 секунд, in-process |
-| Файлы | Только Telegram `file_id` | Диска и S3 не нужно. `file_id` валиден для бота, который его получил |
-| QR | `qrcode` (npm) | Локально, PNG в памяти |
-| Логи | `pino` в stdout | |
-| Тесты | vitest, fast-check | Раздел 13 |
-| Линт | eslint, prettier, `tsc --noEmit` | |
-| CI | GitHub Actions | Бесплатно для публичного репо, лимиты минут для приватного |
-| Запуск | pm2 или systemd | Docker опционально |
+| Слой                     | Выбор                                 | Примечание                                                                             |
+| ------------------------ | ------------------------------------- | -------------------------------------------------------------------------------------- |
+| Рантайм                  | Node.js LTS (>=22), TypeScript strict |                                                                                        |
+| Telegram                 | grammY                                | плагины: `@grammyjs/runner`, `@grammyjs/auto-retry`, `@grammyjs/transformer-throttler` |
+| Режим получения апдейтов | Long polling                          | Домен и входящие порты не нужны. Несколько ботов в одном процессе через runner         |
+| БД                       | SQLite (`better-sqlite3`), режим WAL  | Один файл, бэкап копированием                                                          |
+| ORM и миграции           | Drizzle ORM + drizzle-kit             | Миграции генерируются из схемы                                                         |
+| Валидация                | zod                                   | payload джобов, callback-данные, сессии, конфиг                                        |
+| Планировщик              | Собственный, таблица `jobs`           | Опрос раз в 30 секунд, in-process                                                      |
+| Файлы                    | Только Telegram `file_id`             | Диска и S3 не нужно. `file_id` валиден для бота, который его получил                   |
+| QR                       | `qrcode` (npm)                        | Локально, PNG в памяти                                                                 |
+| Логи                     | `pino` в stdout                       |                                                                                        |
+| Тесты                    | vitest, fast-check                    | Раздел 13                                                                              |
+| Линт                     | eslint, prettier, `tsc --noEmit`      |                                                                                        |
+| CI                       | GitHub Actions                        | Бесплатно для публичного репо, лимиты минут для приватного                             |
+| Запуск                   | pm2 или systemd                       | Docker опционально                                                                     |
 
 ### 3.1 Хостинг без денег
 
@@ -128,13 +131,13 @@ Telegram-бот-витрина и приемщик заказов для кон�
 
 ### 3.2 Принятые решения
 
-| Решение | Причина | Цена решения |
-|---|---|---|
-| Polling вместо webhook | Нет домена | Нужен всегда работающий процесс |
-| SQLite вместо Postgres | 0 затрат, 0 администрирования | Один процесс пишет в БД, горизонтально не масштабируется. Для десятков магазинов достаточно |
-| Собственный планировщик вместо pg-boss | pg-boss требует Postgres | Простая таблица, идемпотентные хендлеры |
-| `file_id` вместо хранения файлов | Бесплатно и просто | Фото привязаны к боту магазина. Загружать фото нужно через бота этого магазина |
-| Ручная оплата | Нет эквайринга | Владелец вручную сверяет чек |
+| Решение                                | Причина                       | Цена решения                                                                                |
+| -------------------------------------- | ----------------------------- | ------------------------------------------------------------------------------------------- |
+| Polling вместо webhook                 | Нет домена                    | Нужен всегда работающий процесс                                                             |
+| SQLite вместо Postgres                 | 0 затрат, 0 администрирования | Один процесс пишет в БД, горизонтально не масштабируется. Для десятков магазинов достаточно |
+| Собственный планировщик вместо pg-boss | pg-boss требует Postgres      | Простая таблица, идемпотентные хендлеры                                                     |
+| `file_id` вместо хранения файлов       | Бесплатно и просто            | Фото привязаны к боту магазина. Загружать фото нужно через бота этого магазина              |
+| Ручная оплата                          | Нет эквайринга                | Владелец вручную сверяет чек                                                                |
 
 ## 4. Архитектура и структура папок
 
@@ -180,6 +183,7 @@ docs/
 ```
 
 Правила слоев:
+
 - `domain/` чистые функции. Не импортируют БД, grammY, `Date.now()` напрямую (время приходит параметром).
 - `services/` знают про БД, не знают про Telegram.
 - `bot/` знает про Telegram и вызывает `services/` и `domain/`. Отправка сообщений только через `TelegramPort`.
@@ -190,218 +194,347 @@ docs/
 Время: `integer({ mode: 'timestamp' })`. Даты заказа: `text` формата `YYYY-MM-DD` в часовом поясе магазина. Деньги: целые числа в минорных единицах (`*Minor`).
 
 ```ts
-import { sqliteTable, text, integer, index, uniqueIndex, primaryKey } from 'drizzle-orm/sqlite-core';
+import {
+  sqliteTable,
+  text,
+  integer,
+  index,
+  uniqueIndex,
+  primaryKey,
+} from 'drizzle-orm/sqlite-core';
 
 const ts = (n: string) => integer(n, { mode: 'timestamp' });
 
 export const tenants = sqliteTable('tenants', {
-  id: text('id').primaryKey(),                              // nanoid
+  id: text('id').primaryKey(), // nanoid
   slug: text('slug').notNull().unique(),
-  botTokenEnc: text('bot_token_enc').notNull(),             // AES-256-GCM, ключ из APP_SECRET
+  botTokenEnc: text('bot_token_enc').notNull(), // AES-256-GCM, ключ из APP_SECRET
   botId: integer('bot_id').notNull().unique(),
   botUsername: text('bot_username').notNull(),
-  ownerTelegramId: integer('owner_telegram_id'),            // null до привязки
+  ownerTelegramId: integer('owner_telegram_id'), // null до привязки
   claimCodeHash: text('claim_code_hash'),
   claimExpiresAt: ts('claim_expires_at'),
   shopName: text('shop_name').notNull(),
   currency: text('currency').notNull().default('₽'),
   timezone: text('timezone').notNull().default('Europe/Moscow'),
-  status: text('status', { enum: ['active', 'paused'] }).notNull().default('active'),
+  status: text('status', { enum: ['active', 'paused'] })
+    .notNull()
+    .default('active'),
   acceptOrders: integer('accept_orders', { mode: 'boolean' }).notNull().default(true), // false = режим «перегруз»
   greetingText: text('greeting_text'),
   aboutText: text('about_text'),
   contactsText: text('contacts_text'),
   deliveryText: text('delivery_text'),
-  paymentText: text('payment_text'),                        // реквизиты
-  busyText: text('busy_text'),                              // текст в режиме «перегруз»
+  paymentText: text('payment_text'), // реквизиты
+  busyText: text('busy_text'), // текст в режиме «перегруз»
   replySlaText: text('reply_sla_text').notNull().default('в течение нескольких часов'),
-  prepaymentPercent: integer('prepayment_percent').notNull().default(50),  // 0..100
+  prepaymentPercent: integer('prepayment_percent').notNull().default(50), // 0..100
   minLeadDays: integer('min_lead_days').notNull().default(2),
   maxAdvanceDays: integer('max_advance_days').notNull().default(60),
   defaultDailyCapacity: integer('default_daily_capacity').notNull().default(5),
   paymentDeadlineHours: integer('payment_deadline_hours').notNull().default(24),
   deliveryFeeMinor: integer('delivery_fee_minor').notNull().default(0),
-  digestHour: integer('digest_hour').notNull().default(9),  // час ежедневной сводки, локальное время
+  digestHour: integer('digest_hour').notNull().default(9), // час ежедневной сводки, локальное время
   createdAt: ts('created_at').notNull(),
 });
 
-export const categories = sqliteTable('categories', {
-  id: text('id').primaryKey(),
-  tenantId: text('tenant_id').notNull().references(() => tenants.id),
-  title: text('title').notNull(),
-  sortOrder: integer('sort_order').notNull().default(0),
-  isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
-}, (t) => [index('categories_tenant_idx').on(t.tenantId)]);
+export const categories = sqliteTable(
+  'categories',
+  {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id')
+      .notNull()
+      .references(() => tenants.id),
+    title: text('title').notNull(),
+    sortOrder: integer('sort_order').notNull().default(0),
+    isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
+  },
+  (t) => [index('categories_tenant_idx').on(t.tenantId)]
+);
 
-export const products = sqliteTable('products', {
-  id: text('id').primaryKey(),
-  tenantId: text('tenant_id').notNull().references(() => tenants.id),
-  categoryId: text('category_id').notNull().references(() => categories.id),
-  title: text('title').notNull(),
-  description: text('description'),
-  priceMinor: integer('price_minor').notNull(),
-  unit: text('unit').notNull().default('шт'),               // шт, кг, набор
-  minQty: integer('min_qty').notNull().default(1),
-  maxQty: integer('max_qty').notNull().default(50),
-  leadDays: integer('lead_days'),                           // переопределяет tenant.minLeadDays, если больше
-  capacityUnits: integer('capacity_units').notNull().default(1), // сколько «слотов» занимает 1 единица
-  photoFileId: text('photo_file_id'),
-  sortOrder: integer('sort_order').notNull().default(0),
-  isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
-}, (t) => [index('products_tenant_cat_idx').on(t.tenantId, t.categoryId)]);
+export const products = sqliteTable(
+  'products',
+  {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id')
+      .notNull()
+      .references(() => tenants.id),
+    categoryId: text('category_id')
+      .notNull()
+      .references(() => categories.id),
+    title: text('title').notNull(),
+    description: text('description'),
+    priceMinor: integer('price_minor').notNull(),
+    unit: text('unit').notNull().default('шт'), // шт, кг, набор
+    minQty: integer('min_qty').notNull().default(1),
+    maxQty: integer('max_qty').notNull().default(50),
+    leadDays: integer('lead_days'), // переопределяет tenant.minLeadDays, если больше
+    capacityUnits: integer('capacity_units').notNull().default(1), // сколько «слотов» занимает 1 единица
+    photoFileId: text('photo_file_id'),
+    sortOrder: integer('sort_order').notNull().default(0),
+    isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
+  },
+  (t) => [index('products_tenant_cat_idx').on(t.tenantId, t.categoryId)]
+);
 
 // Каждая непустая группа опций = выбор ровно одной опции (начинка, размер).
-export const productOptions = sqliteTable('product_options', {
-  id: text('id').primaryKey(),
-  productId: text('product_id').notNull().references(() => products.id),
-  groupTitle: text('group_title').notNull(),
-  title: text('title').notNull(),
-  priceDeltaMinor: integer('price_delta_minor').notNull().default(0),
-  sortOrder: integer('sort_order').notNull().default(0),
-  isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
-}, (t) => [index('options_product_idx').on(t.productId)]);
+export const productOptions = sqliteTable(
+  'product_options',
+  {
+    id: text('id').primaryKey(),
+    productId: text('product_id')
+      .notNull()
+      .references(() => products.id),
+    groupTitle: text('group_title').notNull(),
+    title: text('title').notNull(),
+    priceDeltaMinor: integer('price_delta_minor').notNull().default(0),
+    sortOrder: integer('sort_order').notNull().default(0),
+    isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
+  },
+  (t) => [index('options_product_idx').on(t.productId)]
+);
 
-export const faqItems = sqliteTable('faq_items', {
-  id: text('id').primaryKey(),
-  tenantId: text('tenant_id').notNull().references(() => tenants.id),
-  question: text('question').notNull(),
-  answer: text('answer').notNull(),
-  sortOrder: integer('sort_order').notNull().default(0),
-}, (t) => [index('faq_tenant_idx').on(t.tenantId)]);
+export const faqItems = sqliteTable(
+  'faq_items',
+  {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id')
+      .notNull()
+      .references(() => tenants.id),
+    question: text('question').notNull(),
+    answer: text('answer').notNull(),
+    sortOrder: integer('sort_order').notNull().default(0),
+  },
+  (t) => [index('faq_tenant_idx').on(t.tenantId)]
+);
 
-export const customers = sqliteTable('customers', {
-  id: text('id').primaryKey(),
-  tenantId: text('tenant_id').notNull().references(() => tenants.id),
-  telegramId: integer('telegram_id').notNull(),
-  username: text('username'),
-  firstName: text('first_name'),
-  phone: text('phone'),
-  source: text('source'),                                   // first-touch start-параметр
-  isBlocked: integer('is_blocked', { mode: 'boolean' }).notNull().default(false),   // владелец заблокировал
-  botBlocked: integer('bot_blocked', { mode: 'boolean' }).notNull().default(false), // клиент заблокировал бота
-  firstSeenAt: ts('first_seen_at').notNull(),
-  lastSeenAt: ts('last_seen_at').notNull(),
-}, (t) => [uniqueIndex('customers_tenant_tg_uq').on(t.tenantId, t.telegramId)]);
+export const customers = sqliteTable(
+  'customers',
+  {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id')
+      .notNull()
+      .references(() => tenants.id),
+    telegramId: integer('telegram_id').notNull(),
+    username: text('username'),
+    firstName: text('first_name'),
+    phone: text('phone'),
+    source: text('source'), // first-touch start-параметр
+    isBlocked: integer('is_blocked', { mode: 'boolean' }).notNull().default(false), // владелец заблокировал
+    botBlocked: integer('bot_blocked', { mode: 'boolean' }).notNull().default(false), // клиент заблокировал бота
+    firstSeenAt: ts('first_seen_at').notNull(),
+    lastSeenAt: ts('last_seen_at').notNull(),
+  },
+  (t) => [uniqueIndex('customers_tenant_tg_uq').on(t.tenantId, t.telegramId)]
+);
 
-export const orders = sqliteTable('orders', {
-  id: text('id').primaryKey(),
-  tenantId: text('tenant_id').notNull().references(() => tenants.id),
-  number: integer('number').notNull(),                      // последовательный в пределах магазина
-  customerId: text('customer_id').notNull().references(() => customers.id),
-  status: text('status', { enum: ['new','awaiting_payment','payment_review','confirmed','ready','completed','rejected','cancelled','expired'] }).notNull(),
-  dueDate: text('due_date').notNull(),                      // YYYY-MM-DD
-  proposedDate: text('proposed_date'),                      // встречное предложение владельца
-  dueTimeText: text('due_time_text'),                       // «к 15:00», свободный текст
-  fulfillment: text('fulfillment', { enum: ['pickup', 'delivery'] }).notNull(),
-  address: text('address'),
-  contactName: text('contact_name').notNull(),
-  contactPhone: text('contact_phone').notNull(),
-  comment: text('comment'),                                 // надпись, пожелания
-  itemsTotalMinor: integer('items_total_minor').notNull(),
-  deliveryFeeMinor: integer('delivery_fee_minor').notNull().default(0),
-  totalMinor: integer('total_minor').notNull(),
-  prepaymentMinor: integer('prepayment_minor').notNull(),
-  capacityUnits: integer('capacity_units').notNull(),
-  source: text('source'),
-  idempotencyKey: text('idempotency_key').notNull(),        // checkoutId из сессии
-  paymentDueAt: ts('payment_due_at'),
-  rejectReason: text('reject_reason'),
-  createdAt: ts('created_at').notNull(),
-  decidedAt: ts('decided_at'),
-  updatedAt: ts('updated_at').notNull(),
-}, (t) => [
-  uniqueIndex('orders_tenant_number_uq').on(t.tenantId, t.number),
-  uniqueIndex('orders_idem_uq').on(t.tenantId, t.idempotencyKey),
-  index('orders_tenant_status_idx').on(t.tenantId, t.status),
-  index('orders_tenant_due_idx').on(t.tenantId, t.dueDate),
-]);
+export const orders = sqliteTable(
+  'orders',
+  {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id')
+      .notNull()
+      .references(() => tenants.id),
+    number: integer('number').notNull(), // последовательный в пределах магазина
+    customerId: text('customer_id')
+      .notNull()
+      .references(() => customers.id),
+    status: text('status', {
+      enum: [
+        'new',
+        'awaiting_payment',
+        'payment_review',
+        'confirmed',
+        'ready',
+        'completed',
+        'rejected',
+        'cancelled',
+        'expired',
+      ],
+    }).notNull(),
+    dueDate: text('due_date').notNull(), // YYYY-MM-DD
+    proposedDate: text('proposed_date'), // встречное предложение владельца
+    dueTimeText: text('due_time_text'), // «к 15:00», свободный текст
+    fulfillment: text('fulfillment', { enum: ['pickup', 'delivery'] }).notNull(),
+    address: text('address'),
+    contactName: text('contact_name').notNull(),
+    contactPhone: text('contact_phone').notNull(),
+    comment: text('comment'), // надпись, пожелания
+    itemsTotalMinor: integer('items_total_minor').notNull(),
+    deliveryFeeMinor: integer('delivery_fee_minor').notNull().default(0),
+    totalMinor: integer('total_minor').notNull(),
+    prepaymentMinor: integer('prepayment_minor').notNull(),
+    capacityUnits: integer('capacity_units').notNull(),
+    source: text('source'),
+    idempotencyKey: text('idempotency_key').notNull(), // checkoutId из сессии
+    paymentDueAt: ts('payment_due_at'),
+    rejectReason: text('reject_reason'),
+    createdAt: ts('created_at').notNull(),
+    decidedAt: ts('decided_at'),
+    updatedAt: ts('updated_at').notNull(),
+  },
+  (t) => [
+    uniqueIndex('orders_tenant_number_uq').on(t.tenantId, t.number),
+    uniqueIndex('orders_idem_uq').on(t.tenantId, t.idempotencyKey),
+    index('orders_tenant_status_idx').on(t.tenantId, t.status),
+    index('orders_tenant_due_idx').on(t.tenantId, t.dueDate),
+  ]
+);
 
-export const orderItems = sqliteTable('order_items', {
-  id: text('id').primaryKey(),
-  orderId: text('order_id').notNull().references(() => orders.id),
-  productId: text('product_id'),                            // без FK: товар можно удалить
-  titleSnapshot: text('title_snapshot').notNull(),
-  optionsSnapshot: text('options_snapshot', { mode: 'json' }).$type<{ group: string; title: string; deltaMinor: number }[]>().notNull(),
-  unitPriceMinor: integer('unit_price_minor').notNull(),    // цена + дельты опций
-  qty: integer('qty').notNull(),
-  capacityUnits: integer('capacity_units').notNull(),       // capacityUnits товара * qty
-}, (t) => [index('order_items_order_idx').on(t.orderId)]);
+export const orderItems = sqliteTable(
+  'order_items',
+  {
+    id: text('id').primaryKey(),
+    orderId: text('order_id')
+      .notNull()
+      .references(() => orders.id),
+    productId: text('product_id'), // без FK: товар можно удалить
+    titleSnapshot: text('title_snapshot').notNull(),
+    optionsSnapshot: text('options_snapshot', { mode: 'json' })
+      .$type<{ group: string; title: string; deltaMinor: number }[]>()
+      .notNull(),
+    unitPriceMinor: integer('unit_price_minor').notNull(), // цена + дельты опций
+    qty: integer('qty').notNull(),
+    capacityUnits: integer('capacity_units').notNull(), // capacityUnits товара * qty
+  },
+  (t) => [index('order_items_order_idx').on(t.orderId)]
+);
 
-export const orderAttachments = sqliteTable('order_attachments', {
-  id: text('id').primaryKey(),
-  orderId: text('order_id').notNull().references(() => orders.id),
-  kind: text('kind', { enum: ['reference', 'receipt'] }).notNull(),
-  fileId: text('file_id').notNull(),
-  fileType: text('file_type', { enum: ['photo', 'document'] }).notNull(),
-  createdAt: ts('created_at').notNull(),
-}, (t) => [index('attachments_order_idx').on(t.orderId)]);
+export const orderAttachments = sqliteTable(
+  'order_attachments',
+  {
+    id: text('id').primaryKey(),
+    orderId: text('order_id')
+      .notNull()
+      .references(() => orders.id),
+    kind: text('kind', { enum: ['reference', 'receipt'] }).notNull(),
+    fileId: text('file_id').notNull(),
+    fileType: text('file_type', { enum: ['photo', 'document'] }).notNull(),
+    createdAt: ts('created_at').notNull(),
+  },
+  (t) => [index('attachments_order_idx').on(t.orderId)]
+);
 
-export const orderEvents = sqliteTable('order_events', {     // аудит
-  id: text('id').primaryKey(),
-  orderId: text('order_id').notNull().references(() => orders.id),
-  type: text('type').notNull(),                             // OrderEvent или системное
-  actor: text('actor', { enum: ['customer', 'owner', 'system'] }).notNull(),
-  payload: text('payload', { mode: 'json' }),
-  createdAt: ts('created_at').notNull(),
-}, (t) => [index('order_events_order_idx').on(t.orderId)]);
+export const orderEvents = sqliteTable(
+  'order_events',
+  {
+    // аудит
+    id: text('id').primaryKey(),
+    orderId: text('order_id')
+      .notNull()
+      .references(() => orders.id),
+    type: text('type').notNull(), // OrderEvent или системное
+    actor: text('actor', { enum: ['customer', 'owner', 'system'] }).notNull(),
+    payload: text('payload', { mode: 'json' }),
+    createdAt: ts('created_at').notNull(),
+  },
+  (t) => [index('order_events_order_idx').on(t.orderId)]
+);
 
-export const capacityOverrides = sqliteTable('capacity_overrides', {
-  tenantId: text('tenant_id').notNull().references(() => tenants.id),
-  date: text('date').notNull(),
-  capacity: integer('capacity').notNull(),
-  isClosed: integer('is_closed', { mode: 'boolean' }).notNull().default(false),
-}, (t) => [primaryKey({ columns: [t.tenantId, t.date] })]);
+export const capacityOverrides = sqliteTable(
+  'capacity_overrides',
+  {
+    tenantId: text('tenant_id')
+      .notNull()
+      .references(() => tenants.id),
+    date: text('date').notNull(),
+    capacity: integer('capacity').notNull(),
+    isClosed: integer('is_closed', { mode: 'boolean' }).notNull().default(false),
+  },
+  (t) => [primaryKey({ columns: [t.tenantId, t.date] })]
+);
 
-export const sources = sqliteTable('sources', {             // метки ссылок для Instagram
-  tenantId: text('tenant_id').notNull().references(() => tenants.id),
-  code: text('code').notNull(),                             // [a-z0-9_-], до 32 символов, префикс claim_ зарезервирован
-  label: text('label').notNull(),                           // «Рилс с тортом-бенто»
-  createdAt: ts('created_at').notNull(),
-}, (t) => [primaryKey({ columns: [t.tenantId, t.code] })]);
+export const sources = sqliteTable(
+  'sources',
+  {
+    // метки ссылок для Instagram
+    tenantId: text('tenant_id')
+      .notNull()
+      .references(() => tenants.id),
+    code: text('code').notNull(), // [a-z0-9_-], до 32 символов, префикс claim_ зарезервирован
+    label: text('label').notNull(), // «Рилс с тортом-бенто»
+    createdAt: ts('created_at').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.tenantId, t.code] })]
+);
 
-export const relayMessages = sqliteTable('relay_messages', {
-  id: text('id').primaryKey(),
-  tenantId: text('tenant_id').notNull().references(() => tenants.id),
-  customerId: text('customer_id').notNull().references(() => customers.id),
-  ownerChatId: integer('owner_chat_id').notNull(),
-  ownerMessageId: integer('owner_message_id').notNull(),    // сообщение в чате владельца
-  customerChatId: integer('customer_chat_id').notNull(),
-  orderId: text('order_id'),
-  createdAt: ts('created_at').notNull(),
-}, (t) => [uniqueIndex('relay_owner_msg_uq').on(t.tenantId, t.ownerChatId, t.ownerMessageId)]);
+export const relayMessages = sqliteTable(
+  'relay_messages',
+  {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id')
+      .notNull()
+      .references(() => tenants.id),
+    customerId: text('customer_id')
+      .notNull()
+      .references(() => customers.id),
+    ownerChatId: integer('owner_chat_id').notNull(),
+    ownerMessageId: integer('owner_message_id').notNull(), // сообщение в чате владельца
+    customerChatId: integer('customer_chat_id').notNull(),
+    orderId: text('order_id'),
+    createdAt: ts('created_at').notNull(),
+  },
+  (t) => [uniqueIndex('relay_owner_msg_uq').on(t.tenantId, t.ownerChatId, t.ownerMessageId)]
+);
 
-export const sessions = sqliteTable('sessions', {
-  tenantId: text('tenant_id').notNull(),
-  telegramId: integer('telegram_id').notNull(),
-  state: text('state').notNull().default('idle'),           // SessionState
-  data: text('data', { mode: 'json' }).notNull(),           // SessionData, валидируется zod при чтении
-  updatedAt: ts('updated_at').notNull(),
-}, (t) => [primaryKey({ columns: [t.tenantId, t.telegramId] })]);
+export const sessions = sqliteTable(
+  'sessions',
+  {
+    tenantId: text('tenant_id').notNull(),
+    telegramId: integer('telegram_id').notNull(),
+    state: text('state').notNull().default('idle'), // SessionState
+    data: text('data', { mode: 'json' }).notNull(), // SessionData, валидируется zod при чтении
+    updatedAt: ts('updated_at').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.tenantId, t.telegramId] })]
+);
 
-export const funnelEvents = sqliteTable('funnel_events', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  tenantId: text('tenant_id').notNull(),
-  customerId: text('customer_id').notNull(),
-  type: text('type', { enum: ['start','catalog_view','product_view','cart_add','checkout_start','order_submit','faq_view','free_text'] }).notNull(),
-  source: text('source'),
-  at: ts('at').notNull(),
-}, (t) => [index('funnel_tenant_at_idx').on(t.tenantId, t.at)]);
+export const funnelEvents = sqliteTable(
+  'funnel_events',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    tenantId: text('tenant_id').notNull(),
+    customerId: text('customer_id').notNull(),
+    type: text('type', {
+      enum: [
+        'start',
+        'catalog_view',
+        'product_view',
+        'cart_add',
+        'checkout_start',
+        'order_submit',
+        'faq_view',
+        'free_text',
+      ],
+    }).notNull(),
+    source: text('source'),
+    at: ts('at').notNull(),
+  },
+  (t) => [index('funnel_tenant_at_idx').on(t.tenantId, t.at)]
+);
 
-export const jobs = sqliteTable('jobs', {
-  id: text('id').primaryKey(),
-  type: text('type').notNull(),
-  tenantId: text('tenant_id'),
-  payload: text('payload', { mode: 'json' }).notNull(),
-  runAt: ts('run_at').notNull(),
-  status: text('status', { enum: ['pending', 'done', 'failed'] }).notNull().default('pending'),
-  attempts: integer('attempts').notNull().default(0),
-  dedupeKey: text('dedupe_key').notNull().unique(),
-  lastError: text('last_error'),
-  createdAt: ts('created_at').notNull(),
-}, (t) => [index('jobs_due_idx').on(t.status, t.runAt)]);
+export const jobs = sqliteTable(
+  'jobs',
+  {
+    id: text('id').primaryKey(),
+    type: text('type').notNull(),
+    tenantId: text('tenant_id'),
+    payload: text('payload', { mode: 'json' }).notNull(),
+    runAt: ts('run_at').notNull(),
+    status: text('status', { enum: ['pending', 'done', 'failed'] })
+      .notNull()
+      .default('pending'),
+    attempts: integer('attempts').notNull().default(0),
+    dedupeKey: text('dedupe_key').notNull().unique(),
+    lastError: text('last_error'),
+    createdAt: ts('created_at').notNull(),
+  },
+  (t) => [index('jobs_due_idx').on(t.status, t.runAt)]
+);
 ```
 
 Примечания:
+
 - Токены ботов в БД только в зашифрованном виде. Шифрование в `lib/crypto.ts`.
 - Номер заказа выдается внутри транзакции создания: `max(number) + 1` по магазину.
 - Фото и файлы в `order_attachments`, `products.photoFileId` ссылаются на `file_id` конкретного бота.
@@ -437,24 +570,38 @@ ready ──mark_completed──► completed
 ## 7. Общие типы (`src/types.ts`)
 
 ```ts
-export type Minor = number;                 // целое, минорные единицы валюты
-export type IsoDate = string;               // YYYY-MM-DD в часовом поясе магазина
+export type Minor = number; // целое, минорные единицы валюты
+export type IsoDate = string; // YYYY-MM-DD в часовом поясе магазина
 export type Result<T, E extends string> = { ok: true; value: T } | { ok: false; error: E };
 
 export type OrderStatus =
-  | 'new' | 'awaiting_payment' | 'payment_review' | 'confirmed'
-  | 'ready' | 'completed' | 'rejected' | 'cancelled' | 'expired';
+  | 'new'
+  | 'awaiting_payment'
+  | 'payment_review'
+  | 'confirmed'
+  | 'ready'
+  | 'completed'
+  | 'rejected'
+  | 'cancelled'
+  | 'expired';
 
 export type OrderEvent =
-  | 'owner_accept' | 'owner_reject' | 'owner_cancel' | 'customer_cancel'
-  | 'receipt_uploaded' | 'payment_confirmed' | 'payment_rejected' | 'payment_timeout'
-  | 'mark_ready' | 'mark_completed';
+  | 'owner_accept'
+  | 'owner_reject'
+  | 'owner_cancel'
+  | 'customer_cancel'
+  | 'receipt_uploaded'
+  | 'payment_confirmed'
+  | 'payment_rejected'
+  | 'payment_timeout'
+  | 'mark_ready'
+  | 'mark_completed';
 
 export type CartLine = { lineId: string; productId: string; qty: number; optionIds: string[] };
 export type Cart = { lines: CartLine[] };
 
 export type CheckoutDraft = {
-  checkoutId: string;                       // nanoid, он же idempotencyKey заказа
+  checkoutId: string; // nanoid, он же idempotencyKey заказа
   dueDate?: IsoDate;
   dueTimeText?: string;
   fulfillment?: 'pickup' | 'delivery';
@@ -467,11 +614,17 @@ export type CheckoutDraft = {
 
 export type SessionState =
   | 'idle'
-  | 'checkout.date' | 'checkout.time' | 'checkout.fulfillment' | 'checkout.address'
-  | 'checkout.contact' | 'checkout.comment' | 'checkout.photos' | 'checkout.confirm'
+  | 'checkout.date'
+  | 'checkout.time'
+  | 'checkout.fulfillment'
+  | 'checkout.address'
+  | 'checkout.contact'
+  | 'checkout.comment'
+  | 'checkout.photos'
+  | 'checkout.confirm'
   | 'payment.await_receipt'
-  | 'relay.compose'                         // клиент пишет мастеру
-  | 'owner.edit_field'                      // владелец вводит текст поля, контекст в ownerDraft
+  | 'relay.compose' // клиент пишет мастеру
+  | 'owner.edit_field' // владелец вводит текст поля, контекст в ownerDraft
   | 'owner.reply_to_customer';
 
 export type SessionData = {
@@ -479,9 +632,9 @@ export type SessionData = {
   checkout?: CheckoutDraft;
   ownerDraft?: { kind: string; targetId?: string; extra?: Record<string, string> };
   paymentOrderId?: string;
-  lastAutoReplyAt?: number;                 // unix seconds
+  lastAutoReplyAt?: number; // unix seconds
   antispam?: { windowStart: number; count: number };
-  selections?: Record<string, string[]>;    // productId -> выбранные optionIds (по одной опции на группу)
+  selections?: Record<string, string[]>; // productId -> выбранные optionIds (по одной опции на группу)
 };
 
 export type TelegramErrorCode = 'BLOCKED' | 'RATE_LIMIT' | 'NOT_FOUND' | 'NETWORK' | 'OTHER';
@@ -494,11 +647,25 @@ export type TelegramErrorCode = 'BLOCKED' | 'RATE_LIMIT' | 'NOT_FOUND' | 'NETWOR
 ```ts
 export interface TelegramPort {
   sendMessage(chatId: number, text: string, opts?: SendOpts): Promise<{ messageId: number }>;
-  sendPhoto(chatId: number, photo: string | Buffer, caption?: string, opts?: SendOpts): Promise<{ messageId: number }>;
+  sendPhoto(
+    chatId: number,
+    photo: string | Buffer,
+    caption?: string,
+    opts?: SendOpts
+  ): Promise<{ messageId: number }>;
   editMessageText(chatId: number, messageId: number, text: string, opts?: SendOpts): Promise<void>;
   answerCallback(callbackQueryId: string, text?: string): Promise<void>;
-  copyMessage(toChatId: number, fromChatId: number, messageId: number): Promise<{ messageId: number }>;
-  sendDocument(chatId: number, document: string | Buffer, caption?: string, opts?: SendOpts): Promise<{ messageId: number }>;
+  copyMessage(
+    toChatId: number,
+    fromChatId: number,
+    messageId: number
+  ): Promise<{ messageId: number }>;
+  sendDocument(
+    chatId: number,
+    document: string | Buffer,
+    caption?: string,
+    opts?: SendOpts
+  ): Promise<{ messageId: number }>;
 }
 // SendOpts: { keyboard?: InlineKeyboard; parseMode: 'HTML' }. Ошибки: TelegramError { code: TelegramErrorCode }
 ```
@@ -511,36 +678,37 @@ export interface TelegramPort {
 
 Формат: `<ns>:<action>[:<arg>...]`. Разделитель `:`, в аргументах двоеточий нет. Длина не более 64 байт UTF-8. Кодек и разбор (zod discriminated union) в `bot/callbacks.ts`. Идентификаторы в callback: nanoid длиной 10.
 
-| Callback | Смысл |
-|---|---|
-| `cat:list` | список категорий |
-| `cat:open:<categoryId>` | товары категории |
-| `prd:open:<productId>` | карточка товара |
-| `prd:opt:<productId>:<optionId>` | выбор опции |
-| `prd:add:<productId>` | в корзину |
-| `cart:show` / `cart:inc:<lineId>` / `cart:dec:<lineId>` / `cart:clear` | корзина |
-| `chk:start` | начать оформление |
-| `chk:date:<YYYY-MM-DD>` / `chk:datepage:<YYYY-MM>` | выбор даты, листание месяца |
-| `chk:ful:<pickup\|delivery>` | способ получения |
-| `chk:skip` / `chk:back` / `chk:cancel` | пропуск шага, назад, отмена |
-| `chk:submit:<checkoutId>` | отправить заказ (идемпотентно) |
-| `my:list` / `my:view:<orderId>` | мои заказы |
-| `nav:menu` | главное меню текущей роли |
-| `my:cancel:<orderId>` | отмена клиентом (только `new`, `awaiting_payment`) |
-| `pay:sent:<orderId>` | «я оплатил», ждем чек |
-| `faq:list` / `faq:view:<faqId>` | FAQ |
-| `rel:start` | «Написать мастеру» |
-| `adm:ord:accept:<orderId>` | принять |
-| `adm:ord:list` | список последних заказов владельца |
-| `adm:ord:view:<orderId>` | карточка заказа в режиме владельца |
-| `adm:ord:msg:<orderId>` | написать клиенту |
-| `adm:ord:reject:<orderId>` / `adm:ord:rr:<orderId>:<reasonCode>` | отклонить, код причины |
-| `adm:ord:date:<orderId>` / `adm:ord:pd:<orderId>:<YYYY-MM-DD>` | предложить дату |
-| `adm:ord:paid:<orderId>` / `adm:ord:badpay:<orderId>` | оплата верна, оплата неверна |
-| `adm:ord:ready:<orderId>` / `adm:ord:done:<orderId>` / `adm:ord:cancel:<orderId>` | статусы |
-| `pd:yes:<orderId>` / `pd:no:<orderId>` | клиент принимает или отклоняет предложенную дату |
-| `adm:cat:*`, `adm:prd:*`, `adm:faq:*`, `adm:set:*`, `adm:cal:*`, `adm:src:*` | редакторы владельца |
-| `adm:relay:block:<customerId>` | блокировка клиента из relay-шапки |
+| Callback                                                                                      | Смысл                                                                |
+| --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| `cat:list`                                                                                    | список категорий                                                     |
+| `cat:open:<categoryId>`                                                                       | товары категории                                                     |
+| `prd:open:<productId>`                                                                        | карточка товара                                                      |
+| `prd:opt:<productId>:<optionId>`                                                              | выбор опции                                                          |
+| `prd:qty:inc:<lineId>` / `prd:qty:dec:<lineId>`                                               | изменить количество строки корзины прямо из карточки товара          |
+| `prd:add:<productId>`                                                                         | в корзину                                                            |
+| `cart:show` / `cart:inc:<lineId>` / `cart:dec:<lineId>` / `cart:clear` / `cart:open:<lineId>` | корзина; `cart:open` открывает карточку строки с опциями/количеством |
+| `chk:start`                                                                                   | начать оформление                                                    |
+| `chk:date:<YYYY-MM-DD>` / `chk:datepage:<YYYY-MM>`                                            | выбор даты, листание месяца                                          |
+| `chk:ful:<pickup\|delivery>`                                                                  | способ получения                                                     |
+| `chk:skip` / `chk:back` / `chk:cancel`                                                        | пропуск шага, назад, отмена                                          |
+| `chk:submit:<checkoutId>`                                                                     | отправить заказ (идемпотентно)                                       |
+| `my:list` / `my:view:<orderId>`                                                               | мои заказы                                                           |
+| `nav:menu`                                                                                    | главное меню текущей роли                                            |
+| `my:cancel:<orderId>`                                                                         | отмена клиентом (только `new`, `awaiting_payment`)                   |
+| `pay:sent:<orderId>`                                                                          | «я оплатил», ждем чек                                                |
+| `faq:list` / `faq:view:<faqId>`                                                               | FAQ                                                                  |
+| `rel:start`                                                                                   | «Написать мастеру»                                                   |
+| `adm:ord:accept:<orderId>`                                                                    | принять                                                              |
+| `adm:ord:list`                                                                                | список последних заказов владельца                                   |
+| `adm:ord:view:<orderId>`                                                                      | карточка заказа в режиме владельца                                   |
+| `adm:ord:msg:<orderId>`                                                                       | написать клиенту                                                     |
+| `adm:ord:reject:<orderId>` / `adm:ord:rr:<orderId>:<reasonCode>`                              | отклонить, код причины                                               |
+| `adm:ord:date:<orderId>` / `adm:ord:pd:<orderId>:<YYYY-MM-DD>`                                | предложить дату                                                      |
+| `adm:ord:paid:<orderId>` / `adm:ord:badpay:<orderId>`                                         | оплата верна, оплата неверна                                         |
+| `adm:ord:ready:<orderId>` / `adm:ord:done:<orderId>` / `adm:ord:cancel:<orderId>`             | статусы                                                              |
+| `pd:yes:<orderId>` / `pd:no:<orderId>`                                                        | клиент принимает или отклоняет предложенную дату                     |
+| `adm:cat:*`, `adm:prd:*`, `adm:faq:*`, `adm:set:*`, `adm:cal:*`, `adm:src:*`                  | редакторы владельца                                                  |
+| `adm:relay:block:<customerId>`                                                                | блокировка клиента из relay-шапки                                    |
 
 Новые callback добавляются только с правкой этого раздела и поднятием версии.
 
@@ -548,13 +716,13 @@ export interface TelegramPort {
 
 Все джобы идемпотентны: хендлер сначала читает актуальное состояние и выходит, если действие уже не нужно. Ретраи: до 3 попыток, задержки 60 с, 300 с, 1800 с. После третьей неудачи статус `failed` и сообщение суперадмину.
 
-| type | payload | runAt | dedupeKey | Действие |
-|---|---|---|---|---|
-| `order.payment_reminder` | `{ orderId }` | `paymentDueAt - 50% окна` | `payrem:<orderId>` | Если статус `awaiting_payment`, напомнить клиенту |
-| `order.expire` | `{ orderId }` | `paymentDueAt` | `expire:<orderId>` | Если статус `awaiting_payment`, `payment_timeout`, освободить дату, уведомить обе стороны |
-| `customer.pickup_reminder` | `{ orderId }` | за день до `dueDate`, 10:00 локально | `pickup:<orderId>` | Если статус `confirmed` или `ready`, напомнить клиенту детали получения |
-| `owner.daily_digest` | `{ tenantId, date }` | `digestHour` локально | `digest:<tenantId>:<date>` | Сводка: заказы на сегодня и завтра, заказы без решения |
-| `backup.db` | `{}` | 03:00 UTC ежедневно | `backup:<YYYY-MM-DD>` | Бэкап и отправка суперадмину |
+| type                       | payload              | runAt                                | dedupeKey                  | Действие                                                                                  |
+| -------------------------- | -------------------- | ------------------------------------ | -------------------------- | ----------------------------------------------------------------------------------------- |
+| `order.payment_reminder`   | `{ orderId }`        | `paymentDueAt - 50% окна`            | `payrem:<orderId>`         | Если статус `awaiting_payment`, напомнить клиенту                                         |
+| `order.expire`             | `{ orderId }`        | `paymentDueAt`                       | `expire:<orderId>`         | Если статус `awaiting_payment`, `payment_timeout`, освободить дату, уведомить обе стороны |
+| `customer.pickup_reminder` | `{ orderId }`        | за день до `dueDate`, 10:00 локально | `pickup:<orderId>`         | Если статус `confirmed` или `ready`, напомнить клиенту детали получения                   |
+| `owner.daily_digest`       | `{ tenantId, date }` | `digestHour` локально                | `digest:<tenantId>:<date>` | Сводка: заказы на сегодня и завтра, заказы без решения                                    |
+| `backup.db`                | `{}`                 | 03:00 UTC ежедневно                  | `backup:<YYYY-MM-DD>`      | Бэкап и отправка суперадмину                                                              |
 
 Правило создания: джобы заказа создаются в той же транзакции, что и смена статуса. Отмена джоба не нужна, хендлер проверяет статус.
 
@@ -597,6 +765,7 @@ requiredLeadDays(cartProductLeadDays: (number|null)[], tenantMinLead: number): n
 ## 9. Сценарии клиента
 
 Общие правила UX:
+
 - Один экран равно одно сообщение. Навигация редактирует сообщение (`editMessageText`), новое не отправляется.
 - Кнопка «Назад» на каждом экране. `/start` и `/menu` всегда возвращают в главное меню и сбрасывают состояние в `idle` (корзина сохраняется).
 - Весь пользовательский ввод экранируется перед подстановкой в HTML-сообщения (`domain/escape.ts`).
@@ -605,16 +774,21 @@ requiredLeadDays(cartProductLeadDays: (number|null)[], tenantMinLead: number): n
 - Если `acceptOrders = false`: каталог и FAQ доступны, оформление заменено текстом `busyText` и кнопкой «Написать мастеру».
 
 ### 9.1 Старт
+
 Приветствие (`greetingText` или дефолт с `shopName`), кнопки: «Каталог», «Корзина», «Мои заказы», «Вопросы и ответы», «Написать мастеру». Сохраняется `source`. Событие воронки `start`.
 
 ### 9.2 Каталог
+
 Категории, затем товары категории, затем карточка: фото, название, описание, цена («от X» если есть опции с доплатой), выбор опций (по группам), количество, «В корзину». Неактивные товары и категории не показываются. Событие `catalog_view`, `product_view`, `cart_add`.
 
 ### 9.3 Корзина
+
 Список строк с ценой, `+` и `−`, удаление, итог. «Оформить заказ» запускает `checkout`.
 
 ### 9.4 Оформление
+
 Шаги (состояния `checkout.*`), на каждом «Назад»:
+
 1. **Дата.** Календарь ближайших `maxAdvanceDays`. Недоступные даты (`TOO_SOON`, `CLOSED`, `FULL`, `TOO_FAR`) помечены и не выбираются. Минимальный срок равен `requiredLeadDays(...)`.
 2. **Время.** Свободный текст, можно пропустить.
 3. **Получение.** Самовывоз или доставка. Доставка: плата `deliveryFeeMinor` добавляется к итогу, `deliveryText` показывается.
@@ -627,46 +801,59 @@ requiredLeadDays(cartProductLeadDays: (number|null)[], tenantMinLead: number): n
 Отправка: `createOrder` в транзакции с повторной проверкой загрузки. Двойное нажатие дает один заказ (идемпотентность по `checkoutId`). `CAPACITY_EXCEEDED` или `DATE_UNAVAILABLE`: клиента возвращают к выбору даты с пояснением и сохраненным остальным. После успеха: корзина и черновик очищаются, клиенту «Заказ №N отправлен, мастер ответит {replySlaText}», владельцу карточка заказа (9.5).
 
 ### 9.5 Оплата
+
 После `owner_accept` с предоплатой клиент получает: сумму предоплаты, `paymentText` (реквизиты), срок (`paymentDeadlineHours`), кнопку «Я оплатил». Нажатие включает `payment.await_receipt`, клиент присылает фото или файл чека, состояние `receipt_uploaded`, владельцу уходит чек с кнопками «Оплата верна» и «Оплата не пришла». Джобы `order.payment_reminder` и `order.expire` создаются при переходе в `awaiting_payment`.
 
 ### 9.6 Мои заказы
+
 Список заказов клиента со статусами, карточка заказа, отмена в `new` и `awaiting_payment`. Клиент видит только свои заказы (проверка по `customerId` в каждом обработчике).
 
 ### 9.7 FAQ
+
 Кнопки-вопросы из `faq_items`, ответ текстом. Стартовый набор при создании магазина: цены, сроки, доставка, оплата и предоплата, как заказать, адрес.
 
 ## 10. Сценарии владельца
 
 ### 10.1 Привязка
+
 `scripts/tenant-create.ts` создает магазин и печатает ссылку `t.me/<bot>?start=claim_<code>`. Код одноразовый, хранится хешем, срок 24 часа. Первый пользователь, открывший ссылку, становится владельцем (`ownerTelegramId`). Повторное использование кода невозможно.
 
 ### 10.2 Меню владельца
+
 `/menu` для владельца показывает меню владельца. Разделы: «Заказы», «Каталог», «Календарь», «Настройки», «Ссылки для Instagram», «Статистика», «Как видит клиент» (предпросмотр главного меню клиента).
 
 ### 10.3 Заказы
+
 Новый заказ приходит карточкой: номер, клиент (имя, ссылка на профиль), состав с опциями, дата и время, получение и адрес, контакт, комментарий, референсы (фото), сумма и предоплата, источник, текущая загрузка даты («на 12.10 занято 3 из 5»). Кнопки: «Принять», «Отклонить» (выбор причины из списка или свой текст), «Другая дата», «Написать клиенту». Списки: новые, в работе (`awaiting_payment`, `payment_review`, `confirmed`), готовые, на сегодня и завтра. Кнопки статусов соответствуют событиям раздела 6. Каждая смена статуса уведомляет клиента шаблонным сообщением.
 
 ### 10.4 Каталог
+
 Создание, редактирование, скрытие, удаление категорий, товаров, опций. Поля товара вводятся по одному. Фото: владелец присылает фото боту, сохраняется `file_id`. Порядок: кнопки «Выше» и «Ниже». Удаление товара не ломает старые заказы (снимок в `order_items`).
 
 ### 10.5 FAQ и настройки
+
 Редактирование всех текстов и числовых параметров из `tenants` (раздел 5). Каждый параметр редактируется в одном шаге с валидацией (проценты 0..100, дни не отрицательные). Режим «перегруз»: переключатель `acceptOrders` и текст `busyText`.
 
 ### 10.6 Календарь
+
 Месяц с загрузкой по дням. Действия по дате: закрыть день, изменить лимит, открыть день. Лимит по умолчанию `defaultDailyCapacity`.
 
 ### 10.7 Ссылки для Instagram
+
 Список меток, создание новой (название, код автоматически), выдача ссылки, QR и готовых текстов. Справка по установке в шапку, закрепленный комментарий, автоответ.
 
 ### 10.8 Статистика
+
 Периоды 7 и 30 дней. Показатели: новые клиенты (по источникам), шаги воронки (старт, каталог, корзина, оформление, заказ), заказы по статусам, выручка по подтвержденным заказам, среднее время до решения владельца, число обращений, обработанных ботом без участия владельца (события `catalog_view`, `faq_view` без последующего `free_text`).
 
 ### 10.9 Ежедневная сводка
+
 Джоб `owner.daily_digest`: сколько заказов на сегодня и завтра, сколько заказов ждут решения, сколько ждут оплаты.
 
 ## 11. Команды суперадмина
 
 Доступны только для `SUPERADMIN_TELEGRAM_ID` в любом боте и в отдельном чате с любым из ботов:
+
 - `/status`: аптайм, число запущенных ботов, размер очереди джобов, число `failed` джобов, размер БД.
 - `/tenants`: список магазинов со статусом.
 - `/pause <slug>` и `/resume <slug>`.
@@ -679,12 +866,14 @@ requiredLeadDays(cartProductLeadDays: (number|null)[], tenantMinLead: number): n
 **Лимиты Telegram.** Исходящие сообщения идут через throttler и auto-retry. При `RATE_LIMIT` ожидание и повтор. Сообщения владельцу приоритетнее сообщений клиентам при очереди (отдельная очередь владельца).
 
 **Надежность.**
+
 - Состояние хранится в БД (`sessions`), рестарт процесса не теряет прогресс клиента.
 - Доставка апдейтов at-least-once: все обработчики повторно безопасны (идемпотентность `createOrder`, `applyOrderEvent` отклоняет повторные события как `ILLEGAL_TRANSITION` без побочных эффектов).
 - Падение одного бота (например, отозванный токен) не останавливает остальные.
 - Graceful shutdown: остановка runner, завершение текущих обработчиков, закрытие БД.
 
 **Безопасность.**
+
 - Токены ботов шифруются (AES-256-GCM), ключ в `APP_SECRET`, файл `.env` вне репозитория.
 - Каждый обработчик проверяет роль и принадлежность объекта: заказ, товар, категория должны принадлежать `ctx.tenant`. Действия `adm:*` выполняются только если `ctx.from.id === tenant.ownerTelegramId` или пользователь есть в `ADMIN_TELEGRAM_IDS` для этого slug.
 - Claim-коды одноразовые, хранятся хешем, живут 24 часа.
@@ -720,6 +909,7 @@ requiredLeadDays(cartProductLeadDays: (number|null)[], tenantMinLead: number): n
 6. **Сценарные (flow) тесты.** Фейковые апдейты подаются напрямую в `bot.handleUpdate`, исходящие вызовы перехватывает фейковый `TelegramPort`. Сети нет. Обязательные сценарии: путь клиента от `/start` до заказа, принятие с предоплатой и без, отклонение, встречная дата, истечение оплаты, вопрос вне сценария и ответ владельца, привязка владельца и повторное использование claim-кода, доступ клиента к чужому заказу (запрещен), доступ не-владельца к `adm:*` (запрещен).
 
 ### 13.5 Симуляция наплыва
+
 `scripts/load-sim.ts`: эмуляция 300 клиентов, проходящих каталог и оформление на одном магазине, с фейковым портом. Проверяется: нет потерянных и задвоенных заказов, загрузка дат не превышена, p95 времени обработки апдейта меньше 200 мс.
 
 ### 13.6 Регрессионный QA-проход
@@ -746,6 +936,7 @@ requiredLeadDays(cartProductLeadDays: (number|null)[], tenantMinLead: number): n
 - **Деньги и даты.** Только целые минорные единицы. Даты заказа как `IsoDate` в часовом поясе магазина, преобразования только в `lib/time.ts`.
 
 ### Definition of Done (одна задача)
+
 - Критерии приемки задачи выполнены и отмечены.
 - Тесты по разделу 13 написаны из критериев приемки и проходят.
 - `eslint`, `prettier --check`, `tsc --noEmit`, `vitest run`, `build` зеленые.
@@ -774,7 +965,9 @@ GitHub Actions на PR и push в `main`: установка, `eslint`, `prettie
 Каждая задача равна одному вертикальному слайсу и одному PR. Стадия N+1 не начинается, пока чек-лист стадии N не выполнен.
 
 ### Стадия 0. Скелет
+
 Задачи:
+
 - 0.1 Репозиторий, `tsconfig`, eslint, prettier, vitest, CI, `.env.example`, конфиг-модуль с zod.
 - 0.2 `db/schema.ts`, drizzle-kit, миграции на старте, клиент SQLite в режиме WAL, `lib/crypto.ts`.
 - 0.3 `TelegramPort`, `grammy-port`, `fake-port` с инъекцией ошибок.
@@ -784,6 +977,7 @@ GitHub Actions на PR и push в `main`: установка, `eslint`, `prettie
 - 0.7 Эталонная вертикаль: `/start` для клиента, список категорий и товаров из БД (эталон структуры слайса), тесты, сценарный тест через фейк.
 
 Чек-лист «скелет готов»:
+
 - CI зелен на тривиальном PR;
 - миграции применяются на пустой БД в CI;
 - два тестовых магазина работают параллельно в одном процессе;
@@ -793,12 +987,14 @@ GitHub Actions на PR и push в `main`: установка, `eslint`, `prettie
 - бот запущен на целевой машине под pm2 или systemd и переживает рестарт.
 
 ### Стадия 1. Каталог и привязка владельца
+
 - 1.1 Привязка владельца по claim-коду. Критерии: код одноразовый, повтор отклонен, истекший отклонен, не-владелец не видит меню владельца.
 - 1.2 Редактор категорий и товаров (с опциями и фото). Критерии: изменения видны клиенту сразу, скрытое не показывается, удаление не ломает старые заказы.
 - 1.3 FAQ: клиентский просмотр и редактор владельца.
 - 1.4 Настройки текстов магазина (приветствие, о нас, доставка, реквизиты, контакты).
 
 ### Стадия 2. Корзина, оформление, загрузка
+
 - 2.1 Корзина: `domain/pricing.ts`, экраны, сохранение в сессии.
 - 2.2 `domain/capacity.ts`, `dates.ts`, `getDateAvailability`, календарь выбора даты. Критерии: недоступные даты не выбираются, причины показаны.
 - 2.3 Оформление: шаги 1 - 8, черновик в сессии, возврат назад, отмена.
@@ -807,6 +1003,7 @@ GitHub Actions на PR и push в `main`: установка, `eslint`, `prettie
 - 2.6 Календарь владельца: закрытые дни и лимиты.
 
 ### Стадия 3. Оплата и статусы
+
 - 3.1 Предоплата: запрос реквизитов, «Я оплатил», прием чека, подтверждение и отклонение владельцем.
 - 3.2 Джобы `order.payment_reminder` и `order.expire`. Критерии: идемпотентны, освобождают дату при истечении.
 - 3.3 Статусы `ready` и `completed`, уведомления клиенту, джоб `customer.pickup_reminder`.
@@ -814,16 +1011,19 @@ GitHub Actions на PR и push в `main`: установка, `eslint`, `prettie
 - 3.5 Встречная дата: предложение владельца, ответ клиента.
 
 ### Стадия 4. Диалог и защита от наплыва
+
 - 4.1 Пересылка клиент - владелец, reply владельца, автоответ, кнопка «Написать клиенту».
 - 4.2 Режим «перегруз» (`acceptOrders`, `busyText`).
 - 4.3 Антиспам и блокировка клиента владельцем, обработка `BLOCKED`.
 
 ### Стадия 5. Инструменты для продвижения
+
 - 5.1 Метки источников, генератор ссылок, QR, шаблоны текстов для Instagram.
 - 5.2 Статистика: воронка, источники, выручка, время до решения.
 - 5.3 Ежедневная сводка владельцу.
 
 ### Стадия 6. Надежность и пилот
+
 - 6.1 Бэкап и `docs/restore.md`, проверка восстановления.
 - 6.2 `scripts/load-sim.ts`, прохождение порога из 13.5.
 - 6.3 `/deleteme`, команды суперадмина, уведомления об ошибках.
@@ -838,12 +1038,14 @@ GitHub Actions на PR и push в `main`: установка, `eslint`, `prettie
 - 6.12 Удаление заказчика из tenant. Критерии: команда `scripts/tenant-delete.ts`, удаление связанных строк в правильном порядке, бэкап перед удалением, защита от удаления активного магазина без подтверждения, docs, тесты.
 
 ### Стадия 7. Кастомизация для одного магазина
+
 - 7.1 Потребности клиентов: как быстро проверять фичу только у нужного tenant.
 - 7.2 Вариант: вводится таблица/объект per-tenant настроек и feature flags, без хардкода tenantId в обработчиках.
 - 7.3 Админский UI для включения/выключения фич per-tenant.
 - 7.4 Сценарий внедрения: shared-код, tests, возможность включить для одного магазина без эффекта на остальные.
 
 ### Стадия 8. Полировка UX, платежей и перформанса
+
 - 8.1 Добавление товара в корзину показывать toast/popup, а не отдельным сообщением; на карточке товара после добавления оставить кнопку «В корзину».
 - 8.2 Корзина: нажать на количество товара («× N») открывает карточку этого товара с его текущим количеством и опциями; из карточки можно добавлять/убавлять количество и менять вес/опции.
 - 8.3 Отдельный номер заказа для каждого клиента: номер в сообщении клиенту должен начинаться с 1 для него; для владельца можно хранить глобальный `tenant order number`.
@@ -859,19 +1061,23 @@ GitHub Actions на PR и push в `main`: установка, `eslint`, `prettie
 - 8.13 Для постоянно доступных действий продумать inline-кнопки в каждом ключевом экране: «В меню», «Каталог», «Корзина», «Отмена».
 
 ### Стадия 9. Пилотное подключение
+
 - 9.1 Подключение первых 3 - 5 пилотных кондитеров только после закрытия Stage 8 и полного регрессионного прогона.
 
 ### После MVP (по результатам пилота)
+
 Self-service онбординг через мастер-бота, Mini App на бесплатном статическом хостинге (при появлении HTTPS-бэкенда), webhook-режим, несколько администраторов, рассылки по opt-in, автоучет оплаты, биллинг.
 
 ## 18. Проверка спроса и риски
 
 ### 18.1 Проверка спроса до и во время разработки
+
 - После стадии 2 показать демо-бот 5 - 10 кондитерам из ниши. Вопрос: «Вставили бы ссылку на этого бота в шапку профиля?»
 - Критерий продолжения: минимум 3 из 10 готовы подключить бота к своему аккаунту на бесплатный пилот.
 - Критерий успеха пилота (2 - 4 недели): не менее 30% заказов у пилотного магазина приходит через бота, владелец подтверждает экономию времени на переписке, никто из пилотных владельцев не отказывается из-за неудобства.
 
 ### 18.2 Аргументы для продажи
+
 - Первые полчаса работы после рилса не теряются: бот отвечает мгновенно.
 - Клиент получает цены и каталог без ожидания, мастер получает готовую карточку вместо переписки.
 - Загрузка по датам защищает от перебронирования.
@@ -880,16 +1086,16 @@ Self-service онбординг через мастер-бота, Mini App на 
 
 ### 18.3 Риски
 
-| Риск | Вероятность | Митигация |
-|---|---|---|
-| Клиенты не переходят из Instagram в Telegram | Высокая | Короткий путь, автоответ директа со ссылкой, закрепленный комментарий, метки источников для измерения конверсии, честное позиционирование «бот дополняет директ» |
-| Хост падает, бот недоступен | Средняя | Автоперезапуск, хранение апдейтов Telegram 24 часа, `/status`, уведомления суперадмину |
-| Потеря БД | Низкая | Ежедневный бэкап в Telegram, регулярная проверка восстановления |
-| Владельцу сложно создать бота в @BotFather | Средняя | Пошаговая инструкция `docs/owner-setup.md`, первые магазины заводятся совместно |
-| Блокировка бота Telegram за спам | Низкая | Нет рассылок в MVP, только ответы на инициативу клиента |
-| Кондитеры не доверяют передачу токена | Средняя | Объяснение: токен можно отозвать в @BotFather в любой момент, токены хранятся зашифрованными |
-| Ручное подтверждение оплаты ошибочно | Низкая | Чек пересылается владельцу, решение принимает он |
-| SQLite не справится с ростом | Низкая на старте | Порог 20 магазинов на процесс, миграция на Postgres как отдельная стадия при необходимости |
+| Риск                                         | Вероятность      | Митигация                                                                                                                                                        |
+| -------------------------------------------- | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Клиенты не переходят из Instagram в Telegram | Высокая          | Короткий путь, автоответ директа со ссылкой, закрепленный комментарий, метки источников для измерения конверсии, честное позиционирование «бот дополняет директ» |
+| Хост падает, бот недоступен                  | Средняя          | Автоперезапуск, хранение апдейтов Telegram 24 часа, `/status`, уведомления суперадмину                                                                           |
+| Потеря БД                                    | Низкая           | Ежедневный бэкап в Telegram, регулярная проверка восстановления                                                                                                  |
+| Владельцу сложно создать бота в @BotFather   | Средняя          | Пошаговая инструкция `docs/owner-setup.md`, первые магазины заводятся совместно                                                                                  |
+| Блокировка бота Telegram за спам             | Низкая           | Нет рассылок в MVP, только ответы на инициативу клиента                                                                                                          |
+| Кондитеры не доверяют передачу токена        | Средняя          | Объяснение: токен можно отозвать в @BotFather в любой момент, токены хранятся зашифрованными                                                                     |
+| Ручное подтверждение оплаты ошибочно         | Низкая           | Чек пересылается владельцу, решение принимает он                                                                                                                 |
+| SQLite не справится с ростом                 | Низкая на старте | Порог 20 магазинов на процесс, миграция на Postgres как отдельная стадия при необходимости                                                                       |
 
 ## 19. Открытые вопросы (не блокируют старт, действуют допущения из 1.6)
 

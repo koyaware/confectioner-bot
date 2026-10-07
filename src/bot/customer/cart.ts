@@ -42,7 +42,7 @@ async function cartKeyboard(
     );
     rows.push([
       { text: '−', callback_data: `cart:dec:${line.lineId}` },
-      { text: String(line.qty), callback_data: 'cart:noop' },
+      { text: String(line.qty), callback_data: `cart:open:${line.lineId}` },
       { text: '+', callback_data: `cart:inc:${line.lineId}` },
     ]);
   }
@@ -68,7 +68,7 @@ export function registerCartHandlers(bot: Bot<BotContextWithSession>): void {
     });
   });
 
-  bot.callbackQuery(/^cart:(show|inc|dec|clear|noop)/, async (ctx) => {
+  bot.callbackQuery(/^cart:(show|inc|dec|clear|noop|open)/, async (ctx) => {
     await ctx.port.answerCallback(ctx.callbackQuery.id);
 
     const data = ctx.callbackQuery.data;
@@ -77,6 +77,19 @@ export function registerCartHandlers(bot: Bot<BotContextWithSession>): void {
     if (!chatId || !messageId) return;
 
     if (data === 'cart:noop') return;
+
+    if (data.startsWith('cart:open:')) {
+      const lineId = data.slice('cart:open:'.length);
+      const line = ctx.session.cart.lines.find((l) => l.lineId === lineId);
+      if (!line) return;
+      const product = await getProductById(ctx.tenant.id, line.productId);
+      if (!product) return;
+      const options = await listProductOptions(line.productId);
+      ctx.session.selections = ctx.session.selections ?? {};
+      ctx.session.selections[line.productId] = line.optionIds;
+      await renderProductCard(ctx, product, options, chatId, messageId);
+      return;
+    }
 
     if (data === 'cart:show') {
       const { text, rows } = await cartKeyboard(ctx);
@@ -133,7 +146,7 @@ export function registerCartHandlers(bot: Bot<BotContextWithSession>): void {
   });
 
   bot.callbackQuery(/^prd:add:/, async (ctx) => {
-    await ctx.port.answerCallback(ctx.callbackQuery.id);
+    await ctx.port.answerCallback(ctx.callbackQuery.id, ru.cart.added);
 
     const decoded = decodeCallback(ctx.callbackQuery.data);
     if (!decoded.ok) return;
@@ -157,8 +170,30 @@ export function registerCartHandlers(bot: Bot<BotContextWithSession>): void {
     ctx.session.cart.lines.push(line);
     delete ctx.session.selections?.[productId];
 
-    await ctx.port.sendMessage(ctx.callbackQuery.message!.chat.id, ru.cart.added);
     await trackFunnelEvent(ctx, 'cart_add');
+  });
+
+  bot.callbackQuery(/^prd:qty:/, async (ctx) => {
+    await ctx.port.answerCallback(ctx.callbackQuery.id);
+    const match = /^prd:qty:(inc|dec):(.+)$/.exec(ctx.callbackQuery.data);
+    if (!match) return;
+    const chatId = ctx.callbackQuery.message?.chat.id;
+    const messageId = ctx.callbackQuery.message?.message_id;
+    if (!chatId || !messageId) return;
+
+    const delta = match[1] === 'inc' ? 1 : -1;
+    const lineId = match[2]!;
+    const line = ctx.session.cart.lines.find((l) => l.lineId === lineId);
+    if (!line) return;
+
+    const product = await getProductById(ctx.tenant.id, line.productId);
+    if (!product) return;
+
+    line.qty = Math.max(product.minQty, Math.min(product.maxQty ?? 50, line.qty + delta));
+    const options = await listProductOptions(line.productId);
+    ctx.session.selections = ctx.session.selections ?? {};
+    ctx.session.selections[line.productId] = line.optionIds;
+    await renderProductCard(ctx, product, options, chatId, messageId);
   });
 
   bot.callbackQuery(/^prd:opt:/, async (ctx) => {

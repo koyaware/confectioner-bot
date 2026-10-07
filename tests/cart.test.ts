@@ -66,7 +66,7 @@ describe('cart', () => {
     const addBtn = JSON.stringify(edits[2]!.args[3]).match(/prd:add:[A-Za-z0-9_-]+/)![0];
 
     await bot.handleUpdate(cb(4, 'c4', 42, 10, addBtn));
-    expect(port.getCallsForMethod('sendMessage').map((c) => c.args[1])).toContain(
+    expect(port.getCallsForMethod('answerCallback').map((c) => c.args[1])).toContain(
       'Добавлено в корзину.'
     );
 

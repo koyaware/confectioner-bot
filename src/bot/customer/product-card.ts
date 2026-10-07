@@ -62,6 +62,20 @@ export async function renderProductCard(
     );
   }
   rows.push([{ text: ru.cart.addToCart, callback_data: `prd:add:${product.id}` }]);
+  const cartLine = ctx.session.cart.lines.find(
+    (line) =>
+      line.productId === product.id &&
+      line.optionIds.length === selected.length &&
+      line.optionIds.every((id) => selected.includes(id))
+  );
+  if (cartLine) {
+    rows.push([
+      { text: '−', callback_data: `prd:qty:dec:${cartLine.lineId}` },
+      { text: String(cartLine.qty), callback_data: 'cart:noop' },
+      { text: '+', callback_data: `prd:qty:inc:${cartLine.lineId}` },
+    ]);
+  }
+  rows.push([{ text: 'Перейти в корзину', callback_data: 'cart:show' }]);
   rows.push([{ text: ru.catalog.back, callback_data: `cat:open:${product.categoryId}` }]);
 
   await ctx.port.editMessageText(chatId, messageId, lines.join('\n'), {
