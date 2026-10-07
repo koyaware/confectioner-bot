@@ -17,15 +17,19 @@ const admActionSchema = z.enum([
   'optadd',
   'optdel',
   'opttoggle',
+  'q',
+  'a',
 ]);
 
 const callbackSchema = z.union([
   z.object({ ns: z.literal('cat'), action: z.literal('list') }),
   z.object({ ns: z.literal('cat'), action: z.literal('open'), arg: idSchema }),
   z.object({ ns: z.literal('prd'), action: z.literal('open'), arg: idSchema }),
+  z.object({ ns: z.literal('faq'), action: z.literal('list') }),
+  z.object({ ns: z.literal('faq'), action: z.literal('view'), arg: idSchema }),
   z.object({
     ns: z.literal('adm'),
-    area: z.enum(['cat', 'prd']),
+    area: z.enum(['cat', 'prd', 'faq']),
     action: admActionSchema,
     arg: idSchema.optional(),
     arg2: z.string().min(1).max(32).optional(),
@@ -42,6 +46,8 @@ export function encodeCallback(c: Callback): string {
       return c.action === 'list' ? 'cat:list' : `cat:open:${c.arg}`;
     case 'prd':
       return `prd:open:${c.arg}`;
+    case 'faq':
+      return c.action === 'list' ? 'faq:list' : `faq:view:${c.arg}`;
     case 'adm': {
       const base = `adm:${c.area}:${c.action}`;
       if (c.arg2) return `${base}:${c.arg}:${c.arg2}`;

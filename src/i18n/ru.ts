@@ -25,6 +25,22 @@ export const ru = {
   common: {
     error: 'Произошла ошибка. Попробуйте позже.',
   },
+  faq: {
+    title: 'Вопросы и ответы',
+    empty: 'Частые вопросы пока не добавлены.',
+    notFound: 'Вопрос не найден.',
+    button: 'Вопросы и ответы',
+  },
+  ownerFaq: {
+    title: 'Вопросы и ответы',
+    add: 'Добавить вопрос',
+    editQuestion: 'Вопрос',
+    editAnswer: 'Ответ',
+    delete: 'Удалить',
+    promptQuestion: 'Введите текст вопроса.',
+    promptAnswer: 'Введите ответ.',
+    deleteConfirm: 'Удалить вопрос?',
+  },
   ownerCatalog: {
     categoriesTitle: 'Категории',
     categoryTitle: 'Категория',

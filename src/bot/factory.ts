@@ -13,6 +13,9 @@ import { registerStartHandler } from './customer/start.js';
 import { registerCatalogHandlers } from './customer/catalog.js';
 import { registerMenuHandler } from './owner/menu.js';
 import { registerOwnerCatalogHandlers } from './owner/catalog-editor.js';
+import { registerFaqHandlers } from './customer/faq.js';
+import { registerOwnerFaqHandlers } from './owner/faq-editor.js';
+import { registerEditFieldHandlers } from './owner/edit-field.js';
 
 export interface TenantBot {
   tenantId: string;
@@ -101,6 +104,9 @@ export function createTenantBot(
   registerCatalogHandlers(bot);
   registerMenuHandler(bot);
   registerOwnerCatalogHandlers(bot);
+  registerFaqHandlers(bot);
+  registerOwnerFaqHandlers(bot);
+  registerEditFieldHandlers(bot);
 
   return {
     tenantId,

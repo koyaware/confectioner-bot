@@ -13,6 +13,7 @@ export function registerMenuHandler(bot: Bot<BotContextWithSession>): void {
         inline_keyboard: [
           [{ text: s.orders, callback_data: 'adm:ord:list' }],
           [{ text: s.catalog, callback_data: 'adm:cat:list' }],
+          [{ text: 'FAQ', callback_data: 'adm:faq:list' }],
           [{ text: s.calendar, callback_data: 'adm:cal:list' }],
           [{ text: s.settings, callback_data: 'adm:set:list' }],
           [{ text: s.links, callback_data: 'adm:src:list' }],
@@ -28,7 +29,10 @@ export function registerMenuHandler(bot: Bot<BotContextWithSession>): void {
     }
 
     const keyboard: InlineKeyboard = {
-      inline_keyboard: [[{ text: ru.start.buttonCatalog, callback_data: 'cat:list' }]],
+      inline_keyboard: [
+        [{ text: ru.start.buttonCatalog, callback_data: 'cat:list' }],
+        [{ text: ru.faq.button, callback_data: 'faq:list' }],
+      ],
     };
     await ctx.port.sendMessage(ctx.chat.id, ru.menu.customerTitle, {
       keyboard,

@@ -28,7 +28,10 @@ export function registerStartHandler(bot: Bot<BotContextWithSession>): void {
     const greeting = ctx.tenant.greetingText ?? ru.start.greeting(ctx.tenant.shopName);
 
     const keyboard: InlineKeyboard = {
-      inline_keyboard: [[{ text: ru.start.buttonCatalog, callback_data: 'cat:list' }]],
+      inline_keyboard: [
+        [{ text: ru.start.buttonCatalog, callback_data: 'cat:list' }],
+        [{ text: ru.faq.button, callback_data: 'faq:list' }],
+      ],
     };
 
     await ctx.port.sendMessage(ctx.chat.id, greeting, {
