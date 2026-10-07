@@ -53,7 +53,7 @@ const callbackSchema = z
     z.object({ ns: z.literal('pay'), action: z.literal('sent'), arg: idSchema }),
     z.object({ ns: z.literal('faq'), action: z.literal('list') }),
     z.object({ ns: z.literal('faq'), action: z.literal('view'), arg: idSchema }),
-    z.object({ ns: z.literal('rel'), action: z.literal('start') }),
+    z.object({ ns: z.literal('cnt'), action: z.literal('show') }),
     z.object({ ns: z.literal('pd'), action: z.enum(['yes', 'no']), arg: idSchema }),
     z.object({ ns: z.literal('adm'), area: z.literal('menu') }),
     z.object({ ns: z.literal('adm'), area: z.literal('preview') }),
@@ -102,7 +102,7 @@ const callbackSchema = z
       ns: z.literal('adm'),
       area: z.literal('set'),
       action: z.literal('lang'),
-      arg: z.enum(['ru', 'uz']).optional(),
+      arg: z.enum(['ru', 'uz', 'kk']).optional(),
     }),
     z.object({
       ns: z.literal('adm'),
@@ -182,12 +182,6 @@ const callbackSchema = z
       arg: idSchema,
       arg2: isoDateSchema,
     }),
-    z.object({
-      ns: z.literal('adm'),
-      area: z.literal('relay'),
-      action: z.literal('block'),
-      arg: idSchema,
-    }),
   ])
   .and(
     z.object({
@@ -226,8 +220,8 @@ export function encodeCallback(c: Callback): string {
       return `pay:sent:${c.arg}`;
     case 'faq':
       return c.action === 'list' ? 'faq:list' : `faq:view:${c.arg}`;
-    case 'rel':
-      return 'rel:start';
+    case 'cnt':
+      return 'cnt:show';
     case 'pd':
       return `pd:${c.action}:${c.arg}`;
     case 'adm': {

@@ -1,12 +1,5 @@
 import { getDb } from '../db/client.js';
-import {
-  customers,
-  orders,
-  sessions,
-  funnelEvents,
-  relayMessages,
-  orderAttachments,
-} from '../db/schema.js';
+import { customers, orders, sessions, funnelEvents, orderAttachments } from '../db/schema.js';
 import { and, eq, inArray } from 'drizzle-orm';
 
 const PLACEHOLDER = '[удалено]';
@@ -54,7 +47,6 @@ export async function eraseCustomerData(tenantId: string, telegramId: number): P
     await db.delete(orderAttachments).where(inArray(orderAttachments.orderId, orderIds));
   }
   await db.delete(funnelEvents).where(eq(funnelEvents.customerId, customer.id));
-  await db.delete(relayMessages).where(eq(relayMessages.customerId, customer.id));
 
   const rows = await db
     .select()

@@ -84,15 +84,10 @@ export const uz: Strings = {
     faq_view: 'FAQ',
     free_text: 'Erkin savol',
   },
-  relay: {
-    composePrompt: '✍️ Savolingizni yozing, ustaga yetkazaman.',
-    willAnswerSoon: '✅ Usta tez orada javob beradi.',
-    sentToClient: '✅ Mijozga yuborildi.',
-    clientBlocked: '🚫 Mijoz bloklandi.',
-    strayHint: '💬 Ustaga yozish uchun «✍️ Ustaga yozish» tugmasini bosing.',
-    writeButton: '✍️ Ustaga yozish',
-    blockButton: '🚫 Bloklash',
-    orderLabel: (n: number) => `, buyurtma №${n}`,
+  contacts: {
+    button: '📞 Kontaktlar',
+    title: '📞 Usta kontaktlari',
+    empty: 'Instagram profil shapkasida koʻrsatilgan telefon orqali usta bilan bogʻlaning.',
   },
   cart: {
     empty: '🛒 Savatcha boʻsh.',
@@ -297,7 +292,7 @@ export const uz: Strings = {
     overloadOff: 'Buyurtmalar qabuli oʻchirildi («band» rejimi).',
     langTitle: '🌐 Interfeys tili',
     curTitle: '💰 Valyuta',
-    langNames: { ru: 'Русский', uz: 'Oʻzbekcha' },
+    langNames: { ru: 'Русский', uz: 'Oʻzbekcha', kk: 'Қазақша' },
     curNames: { rub: '₽ · RUB', kzt: '₸ · KZT', uzs: 'UZS' },
   },
   ownerLinks: {

@@ -37,7 +37,7 @@ export function customerMenuKeyboard(ctx: BotContextWithSession): InlineKeyboard
         { text: ctx.t.my.button, callback_data: 'my:list' },
       ],
       [{ text: ctx.t.faq.button, callback_data: 'faq:list' }],
-      [{ text: ctx.t.relay.writeButton, callback_data: 'rel:start' }],
+      [{ text: ctx.t.contacts.button, callback_data: 'cnt:show' }],
     ],
   };
 }

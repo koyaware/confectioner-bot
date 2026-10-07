@@ -46,7 +46,6 @@ const sessionStateSchema = z.enum([
   'checkout.photos',
   'checkout.confirm',
   'payment.await_receipt',
-  'relay.compose',
   'owner.edit_field',
 ]);
 

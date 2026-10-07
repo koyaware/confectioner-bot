@@ -77,7 +77,7 @@ export function registerSettingsHandlers(bot: Bot<BotContextWithSession>): void 
     }
 
     if (action === 'lang' && !arg) {
-      const rows: InlineKeyboard['inline_keyboard'] = (['ru', 'uz'] as const).map((code) => [
+      const rows: InlineKeyboard['inline_keyboard'] = (['ru', 'uz', 'kk'] as const).map((code) => [
         {
           text: `${ctx.tenant.language === code ? '✅ ' : ''}${ctx.t.ownerSettings.langNames[code]}`,
           callback_data: `adm:set:lang:${code}`,

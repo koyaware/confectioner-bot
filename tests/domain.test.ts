@@ -32,6 +32,13 @@ const callbackArb = fc.oneof(
     arg: idArb,
   }),
   fc.constant({ ns: 'nav' as const, action: 'menu' as const }),
+  fc.constant({ ns: 'cnt' as const, action: 'show' as const }),
+  fc.record({
+    ns: fc.constant('adm' as const),
+    area: fc.constant('set' as const),
+    action: fc.constant('lang' as const),
+    arg: fc.constantFrom('ru' as const, 'uz' as const, 'kk' as const),
+  }),
   fc.record({
     ns: fc.constant('pay' as const),
     action: fc.constant('sent' as const),

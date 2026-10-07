@@ -286,33 +286,6 @@ export const sources = sqliteTable(
   })
 );
 
-export const relayMessages = sqliteTable(
-  'relay_messages',
-  {
-    id: text('id').primaryKey(),
-    tenantId: text('tenant_id')
-      .notNull()
-      .references(() => tenants.id),
-    customerId: text('customer_id')
-      .notNull()
-      .references(() => customers.id),
-    ownerChatId: integer('owner_chat_id').notNull(),
-    ownerMessageId: integer('owner_message_id').notNull(),
-    customerChatId: integer('customer_chat_id').notNull(),
-    orderId: text('order_id'),
-    customerDialogMessageId: integer('customer_dialog_message_id'),
-    createdAt: ts('created_at').notNull(),
-  },
-  (t) => ({
-    ownerMsgUq: uniqueIndex('relay_owner_msg_uq').on(t.tenantId, t.ownerChatId, t.ownerMessageId),
-    customerDialogIdx: index('relay_customer_dialog_idx').on(
-      t.tenantId,
-      t.customerId,
-      t.customerDialogMessageId
-    ),
-  })
-);
-
 export const featureFlags = sqliteTable(
   'feature_flags',
   {

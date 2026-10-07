@@ -283,7 +283,7 @@ export function registerCartHandlers(bot: Bot<BotContextWithSession>): void {
       if (chatId) {
         await ctx.port.sendMessage(chatId, ctx.tenant.busyText ?? ctx.t.checkout.busy, {
           keyboard: {
-            inline_keyboard: [[{ text: ctx.t.relay.writeButton, callback_data: 'rel:start' }]],
+            inline_keyboard: [[{ text: ctx.t.contacts.button, callback_data: 'cnt:show' }]],
           },
         });
       }

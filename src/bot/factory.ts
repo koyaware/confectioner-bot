@@ -30,7 +30,7 @@ import { registerSuperadminCommands } from './superadmin.js';
 import { registerPaymentHandlers } from './customer/payment-handler.js';
 import { registerMyOrdersHandlers } from './customer/my-orders.js';
 import { registerDeleteMeHandler } from './customer/deleteme.js';
-import { registerRelayHandlers } from './relay/relay.js';
+import { registerContactsHandlers } from './customer/contacts.js';
 
 export interface TenantBot {
   tenantId: string;
@@ -136,7 +136,7 @@ export function createTenantBot(
   registerStatsHandlers(bot);
   registerPaymentHandlers(bot);
   registerMyOrdersHandlers(bot);
-  registerRelayHandlers(bot);
+  registerContactsHandlers(bot);
   registerDeleteMeHandler(bot);
   registerSuperadminCommands(bot, runner);
 

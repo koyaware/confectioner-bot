@@ -70,6 +70,10 @@ describe('settings language/currency buttons', () => {
       ok: true,
       value: { ns: 'adm', area: 'set', action: 'cur', arg: 'kzt' },
     });
+    expect(decodeCallback('adm:set:lang:kk')).toEqual({
+      ok: true,
+      value: { ns: 'adm', area: 'set', action: 'lang', arg: 'kk' },
+    });
     expect(decodeCallback('adm:set:lang:en')).toEqual({ ok: false, error: 'BAD_CALLBACK' });
     expect(decodeCallback('adm:set:cur:usd')).toEqual({ ok: false, error: 'BAD_CALLBACK' });
     expect(
@@ -144,6 +148,20 @@ describe('settings language/currency buttons', () => {
     expect(edits[edits.length - 1]!.args[2]).toContain('Doʻkon sozlamalari');
   });
 
+  it('owner switches language to kk: list re-renders in Kazakh', async () => {
+    const { tenantId } = await seedDemo(appSecret, new Date());
+    await getDb().update(tenants).set({ ownerTelegramId: 555 }).where(eq(tenants.id, tenantId));
+
+    const port = new FakePort();
+    const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
+
+    await bot.handleUpdate(cb(1, 555, 1, 'adm:set:lang:kk'));
+
+    expect((await tenantRow(tenantId)).language).toBe('kk');
+    const edits = port.getCallsForMethod('editMessageTextOrSend');
+    expect(edits[edits.length - 1]!.args[2]).toContain('Дүкен баптаулары');
+  });
+
   it('invalid codes and non-owner attempts change nothing', async () => {
     const { tenantId } = await seedDemo(appSecret, new Date());
     await getDb().update(tenants).set({ ownerTelegramId: 555 }).where(eq(tenants.id, tenantId));
@@ -195,7 +213,7 @@ describe('settings language/currency buttons', () => {
     expect(labels).toContain('📦 Katalog');
     expect(labels).toContain('🛒 Savatcha');
     expect(labels).toContain('📋 Buyurtmalarim');
-    expect(labels).toContain('✍️ Ustaga yozish');
+    expect(labels).toContain('📞 Kontaktlar');
     expect(labels.some((t) => /[А-Яа-яЁё]/.test(t))).toBe(false);
   });
 });

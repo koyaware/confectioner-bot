@@ -107,21 +107,12 @@ describe('deleteme', () => {
   it('eraseCustomerData masks customer and order personal data', async () => {
     const tenantId = await seedTenantAndCustomer();
     const db = getDb();
-    const { funnelEvents, relayMessages, orderAttachments } = await import('../src/db/schema.js');
+    const { funnelEvents, orderAttachments } = await import('../src/db/schema.js');
     await db.insert(funnelEvents).values({
       tenantId,
       customerId: 'c1',
       type: 'catalog_view',
       at: now,
-    });
-    await db.insert(relayMessages).values({
-      id: 'r1',
-      tenantId,
-      customerId: 'c1',
-      ownerChatId: 555,
-      ownerMessageId: 10,
-      customerChatId: 42,
-      createdAt: now,
     });
     await db.insert(orderAttachments).values({
       id: 'a1',
@@ -147,7 +138,6 @@ describe('deleteme', () => {
     expect(ord[0]!.comment).toBe('[удалено]');
 
     expect(await getDb().select().from(funnelEvents)).toHaveLength(0);
-    expect(await getDb().select().from(relayMessages)).toHaveLength(0);
     expect(await getDb().select().from(orderAttachments)).toHaveLength(0);
 
     const sess = await getDb().select().from(sessions);

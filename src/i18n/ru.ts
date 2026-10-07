@@ -81,15 +81,10 @@ export const ru = {
     faq_view: 'FAQ',
     free_text: 'Свободный вопрос',
   },
-  relay: {
-    composePrompt: '✍️ Напишите ваш вопрос, передам мастеру.',
-    willAnswerSoon: '✅ Мастер скоро ответит.',
-    sentToClient: '✅ Отправлено клиенту.',
-    clientBlocked: '🚫 Клиент заблокирован.',
-    strayHint: '💬 Чтобы написать мастеру, нажмите кнопку «✍️ Написать мастеру».',
-    writeButton: '✍️ Написать мастеру',
-    blockButton: '🚫 Блокировать',
-    orderLabel: (n: number) => `, заказ №${n}`,
+  contacts: {
+    button: '📞 Контакты',
+    title: '📞 Контакты мастера',
+    empty: 'Свяжитесь с мастером по телефону, указанному в шапке профиля Instagram.',
   },
   cart: {
     empty: '🛒 Корзина пуста.',
@@ -292,7 +287,7 @@ export const ru = {
     overloadOff: 'Приём заказов выключен (режим «перегруз»).',
     langTitle: '🌐 Язык интерфейса',
     curTitle: '💰 Валюта',
-    langNames: { ru: 'Русский', uz: 'Oʻzbekcha' } as Record<string, string>,
+    langNames: { ru: 'Русский', uz: 'Oʻzbekcha', kk: 'Қазақша' } as Record<string, string>,
     curNames: { rub: '₽ · RUB', kzt: '₸ · KZT', uzs: 'UZS' } as Record<string, string>,
   },
   ownerLinks: {
