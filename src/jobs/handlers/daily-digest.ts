@@ -14,6 +14,9 @@ export function createDailyDigestHandler(ports: {
     if (!parsed.success) {
       return { success: false, error: `Invalid payload: ${parsed.error.message}` };
     }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(parsed.data.date)) {
+      return { success: false, error: 'Invalid digest date' };
+    }
 
     const db = getDb();
     const tenantRows = await db
@@ -22,7 +25,7 @@ export function createDailyDigestHandler(ports: {
       .where(eq(tenants.id, parsed.data.tenantId))
       .limit(1);
     const tenant = tenantRows[0];
-    if (!tenant || !tenant.ownerTelegramId) {
+    if (!tenant || tenant.status !== 'active' || !tenant.ownerTelegramId) {
       return { success: true };
     }
     const port = ports.getPort(tenant.id);

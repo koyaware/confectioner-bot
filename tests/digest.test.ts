@@ -101,17 +101,14 @@ describe('daily digest', () => {
     expect(d.awaitingPaymentCount).toBe(1);
   });
 
-  it('ensureDailyDigestJobs creates dedupe keyed jobs', async () => {
+  it('ensureDailyDigestJobs creates one deduped job for today', async () => {
     const tenantId = await setup();
     await ensureDailyDigestJobs(now);
     await ensureDailyDigestJobs(now);
     const all = await getDb().select().from(jobs);
     const digestJobs = all.filter((j) => j.type === 'owner.daily_digest');
-    expect(digestJobs).toHaveLength(2);
-    expect(digestJobs.map((j) => j.dedupeKey).sort()).toEqual([
-      `digest:${tenantId}:2026-10-02`,
-      `digest:${tenantId}:2026-10-03`,
-    ]);
+    expect(digestJobs).toHaveLength(1);
+    expect(digestJobs[0]!.dedupeKey).toBe(`digest:${tenantId}:2026-10-02`);
   });
 
   it('handler sends digest and is syntactically HTML formatted', async () => {

@@ -65,18 +65,17 @@ export async function ensureDailyDigestJobs(now: Date = new Date()): Promise<voi
     .where(eq(tenants.status, 'active'));
 
   for (const t of activeTenants) {
-    const todayIso = toIsoDate(now, t.timezone);
-    const dates = [todayIso, addDays(todayIso, 1)];
-    for (const date of dates) {
-      const runAt = zonedTimeToUtc(date, `${String(t.digestHour).padStart(2, '0')}:00`, t.timezone);
-      await createJob({
-        type: 'owner.daily_digest',
-        tenantId: t.id,
-        payload: { tenantId: t.id, date },
-        runAt,
-        dedupeKey: `digest:${t.id}:${date}`,
-      });
-    }
+    // Only today's digest: tomorrow's job is ensured when tomorrow arrives.
+    // A missed runAt fires immediately on the next poll.
+    const date = toIsoDate(now, t.timezone);
+    const runAt = zonedTimeToUtc(date, `${String(t.digestHour).padStart(2, '0')}:00`, t.timezone);
+    await createJob({
+      type: 'owner.daily_digest',
+      tenantId: t.id,
+      payload: { tenantId: t.id, date },
+      runAt,
+      dedupeKey: `digest:${t.id}:${date}`,
+    });
   }
 }
 
