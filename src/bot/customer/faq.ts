@@ -25,6 +25,7 @@ export function registerFaqHandlers(bot: Bot<BotContextWithSession>): void {
         { text: f.question, callback_data: `faq:view:${f.id}` },
       ]);
       const text = items.length > 0 ? ru.faq.title : ru.faq.empty;
+      rows.push([{ text: 'В меню', callback_data: 'nav:menu' }]);
       await ctx.port.editMessageText(chatId, messageId, text, {
         keyboard: { inline_keyboard: rows },
       });
@@ -34,7 +35,9 @@ export function registerFaqHandlers(bot: Bot<BotContextWithSession>): void {
     if (decoded.value.action === 'view') {
       const item = await getFaq(ctx.tenant.id, decoded.value.arg);
       if (!item) {
-        await ctx.port.editMessageText(chatId, messageId, ru.faq.notFound, {});
+        await ctx.port.editMessageText(chatId, messageId, ru.faq.notFound, {
+          keyboard: { inline_keyboard: [[{ text: ru.catalog.back, callback_data: 'faq:list' }]] },
+        });
         return;
       }
       await ctx.port.editMessageText(

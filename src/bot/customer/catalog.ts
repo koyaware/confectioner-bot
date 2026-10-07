@@ -30,7 +30,10 @@ export function registerCatalogHandlers(bot: Bot<BotContextWithSession>): void {
       const cats = await listActiveCategories(ctx.tenant.id);
       const text = cats.length > 0 ? ru.catalog.title : ru.catalog.categoriesEmpty;
       const keyboard: InlineKeyboard = {
-        inline_keyboard: cats.map((c) => [{ text: c.title, callback_data: `cat:open:${c.id}` }]),
+        inline_keyboard: [
+          ...cats.map((c) => [{ text: c.title, callback_data: `cat:open:${c.id}` }]),
+          [{ text: 'В меню', callback_data: 'nav:menu' }],
+        ],
       };
       await ctx.port.editMessageText(chatId, messageId, text, { keyboard, parseMode: 'HTML' });
       return;
@@ -40,6 +43,7 @@ export function registerCatalogHandlers(bot: Bot<BotContextWithSession>): void {
       const category = await getCategoryIfActive(ctx.tenant.id, decoded.value.arg);
       if (!category) {
         await ctx.port.editMessageText(chatId, messageId, ru.catalog.categoriesEmpty, {
+          keyboard: { inline_keyboard: [[{ text: ru.catalog.back, callback_data: 'cat:list' }]] },
           parseMode: 'HTML',
         });
         return;
@@ -71,7 +75,10 @@ export function registerCatalogHandlers(bot: Bot<BotContextWithSession>): void {
 
     const product = await getProductIfOwned(ctx.tenant.id, decoded.value.arg);
     if (!product) {
-      await ctx.port.editMessageText(chatId, messageId, ru.product.notFound, { parseMode: 'HTML' });
+      await ctx.port.editMessageText(chatId, messageId, ru.product.notFound, {
+        keyboard: { inline_keyboard: [[{ text: 'В меню', callback_data: 'nav:menu' }]] },
+        parseMode: 'HTML',
+      });
       return;
     }
 

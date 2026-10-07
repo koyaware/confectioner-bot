@@ -48,7 +48,7 @@ async function cartKeyboard(
   }
 
   if (lines.length === 0) {
-    return { text: ru.cart.empty, rows: [] };
+    return { text: ru.cart.empty, rows: [[{ text: 'В меню', callback_data: 'nav:menu' }]] };
   }
 
   const order = priceOrder([lineTotal], 0, 0);
@@ -200,7 +200,9 @@ export function registerCartHandlers(bot: Bot<BotContextWithSession>): void {
       const chatId = ctx.callbackQuery.message?.chat.id;
       const messageId = ctx.callbackQuery.message?.message_id;
       if (chatId && messageId) {
-        await ctx.port.editMessageText(chatId, messageId, ru.cart.empty, {});
+        await ctx.port.editMessageText(chatId, messageId, ru.cart.empty, {
+          keyboard: { inline_keyboard: [[{ text: 'В меню', callback_data: 'nav:menu' }]] },
+        });
       }
       return;
     }

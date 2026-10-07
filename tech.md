@@ -1,6 +1,6 @@
 # ТЗ: Telegram-бот приема заказов для кондитеров
 
-**Версия ядра: v1.9**
+**Версия ядра: v1.10**
 
 Changelog:
 - v1.0: первая редакция.
@@ -13,6 +13,7 @@ Changelog:
 - v1.7: добавлены в контракт owner-меню заказов callback `adm:ord:list`, `adm:ord:view:<orderId>` и подтвержден `adm:ord:msg:<orderId>`.
 - v1.8: разрешены QA-артефакты в `docs/qa/`: test-cases и bug table.
 - v1.9: добавлен раздел 13.6 — обязательный регрессионный QA-проход и правила обновления `docs/qa/*`.
+- v1.10: добавлен callback `nav:menu` для возврата в главное меню пользователя/владельца.
 
 Правила изменения этого файла: менять только append-only. Любое изменение контракта (схема БД, типы, callback-данные, джобы, статусы заказа) поднимает версию и записывается в changelog до написания кода, который от него зависит.
 
@@ -519,6 +520,7 @@ export interface TelegramPort {
 | `chk:skip` / `chk:back` / `chk:cancel` | пропуск шага, назад, отмена |
 | `chk:submit:<checkoutId>` | отправить заказ (идемпотентно) |
 | `my:list` / `my:view:<orderId>` | мои заказы |
+| `nav:menu` | главное меню текущей роли |
 | `my:cancel:<orderId>` | отмена клиентом (только `new`, `awaiting_payment`) |
 | `pay:sent:<orderId>` | «я оплатил», ждем чек |
 | `faq:list` / `faq:view:<faqId>` | FAQ |

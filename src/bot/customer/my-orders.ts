@@ -36,6 +36,7 @@ export function registerMyOrdersHandlers(bot: Bot<BotContextWithSession>): void 
       },
     ]);
     const text = list.length > 0 ? ru.my.listTitle : ru.my.empty;
+    rows.push([{ text: 'В меню', callback_data: 'nav:menu' }]);
     const chatId = ctx.callbackQuery.message?.chat.id;
     const messageId = ctx.callbackQuery.message?.message_id;
     if (chatId && messageId) {
@@ -65,7 +66,9 @@ export function registerMyOrdersHandlers(bot: Bot<BotContextWithSession>): void 
     if (!chatId || !messageId) return;
 
     if (!found) {
-      await ctx.port.editMessageText(chatId, messageId, ru.my.notFound, {});
+      await ctx.port.editMessageText(chatId, messageId, ru.my.notFound, {
+        keyboard: { inline_keyboard: [[{ text: ru.catalog.back, callback_data: 'my:list' }]] },
+      });
       return;
     }
 
@@ -116,7 +119,9 @@ export function registerMyOrdersHandlers(bot: Bot<BotContextWithSession>): void 
     if (!chatId || !messageId) return;
 
     if (!found) {
-      await ctx.port.editMessageText(chatId, messageId, ru.my.notFound, {});
+      await ctx.port.editMessageText(chatId, messageId, ru.my.notFound, {
+        keyboard: { inline_keyboard: [[{ text: ru.catalog.back, callback_data: 'my:list' }]] },
+      });
       return;
     }
 
@@ -158,7 +163,9 @@ export function registerMyOrdersHandlers(bot: Bot<BotContextWithSession>): void 
       found.order.status !== 'new' ||
       !found.order.proposedDate
     ) {
-      await ctx.port.editMessageText(chatId, messageId, ru.my.notFound, {});
+      await ctx.port.editMessageText(chatId, messageId, ru.my.notFound, {
+        keyboard: { inline_keyboard: [[{ text: ru.catalog.back, callback_data: 'my:list' }]] },
+      });
       return;
     }
 
