@@ -5,25 +5,40 @@ import { z } from 'zod';
  */
 
 export const orderPaymentReminderPayloadSchema = z.object({
-  orderId: z.string(),
+  orderId: z.string().min(1),
 });
 
 export const orderExpirePayloadSchema = z.object({
-  orderId: z.string(),
+  orderId: z.string().min(1),
 });
 
 export const customerPickupReminderPayloadSchema = z.object({
-  orderId: z.string(),
+  orderId: z.string().min(1),
 });
 
 export const ownerDailyDigestPayloadSchema = z.object({
-  tenantId: z.string(),
-  date: z.string(), // IsoDate
+  tenantId: z.string().min(1),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
 });
 
 export const backupDbPayloadSchema = z.object({});
 
 export type OrderPaymentReminderPayload = z.infer<typeof orderPaymentReminderPayloadSchema>;
+
+export function validateJobPayload(type: JobType, payload: unknown): boolean {
+  switch (type) {
+    case 'order.payment_reminder':
+      return orderPaymentReminderPayloadSchema.safeParse(payload).success;
+    case 'order.expire':
+      return orderExpirePayloadSchema.safeParse(payload).success;
+    case 'customer.pickup_reminder':
+      return customerPickupReminderPayloadSchema.safeParse(payload).success;
+    case 'owner.daily_digest':
+      return ownerDailyDigestPayloadSchema.safeParse(payload).success;
+    case 'backup.db':
+      return backupDbPayloadSchema.safeParse(payload).success;
+  }
+}
 export type OrderExpirePayload = z.infer<typeof orderExpirePayloadSchema>;
 export type CustomerPickupReminderPayload = z.infer<typeof customerPickupReminderPayloadSchema>;
 export type OwnerDailyDigestPayload = z.infer<typeof ownerDailyDigestPayloadSchema>;

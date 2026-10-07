@@ -1,6 +1,6 @@
 import { getDb } from '../db/client.js';
 import { jobs } from '../db/schema.js';
-import { JobType } from './types.js';
+import { JobType, validateJobPayload } from './types.js';
 import { nanoid } from 'nanoid';
 import { eq } from 'drizzle-orm';
 
@@ -16,6 +16,10 @@ export interface CreateJobInput {
  * Create a new job (idempotent by dedupeKey)
  */
 export async function createJob(input: CreateJobInput): Promise<{ id: string; created: boolean }> {
+  if (!validateJobPayload(input.type, input.payload)) {
+    throw new Error(`Invalid payload for job type ${input.type}`);
+  }
+
   const db = getDb();
   const id = nanoid();
   const now = new Date();

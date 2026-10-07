@@ -91,6 +91,20 @@ describe('job scheduler', () => {
       const allJobs = await db.select().from(jobs);
       expect(allJobs.length).toBe(1);
     });
+
+    it('rejects invalid payload before insert', async () => {
+      await expect(
+        createJob({
+          type: 'order.payment_reminder',
+          payload: {},
+          runAt: new Date(Date.now() + 60_000),
+          dedupeKey: 'test:bad',
+        })
+      ).rejects.toThrow('Invalid payload');
+
+      const db = getDb();
+      expect(await db.select().from(jobs)).toHaveLength(0);
+    });
   });
 
   describe('scheduler', () => {
