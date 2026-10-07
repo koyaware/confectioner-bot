@@ -60,13 +60,14 @@ describe('relay', () => {
     // customer writes to bot
     await bot.handleUpdate(msg(1, 42, 'Подскажите, есть ли доставка?'));
 
-    // owner got header + copy
+    // owner got a single combined message (header + text, no separate copy)
     const sent = port.getCallsForMethod('sendMessage');
-    expect(sent.some((c) => c.args[0] === 555 && (c.args[1] as string).includes('cust42'))).toBe(
-      true
-    );
+    const combined = sent.find((c) => c.args[0] === 555);
+    expect(combined).toBeTruthy();
+    expect(combined!.args[1] as string).toContain('cust42');
+    expect(combined!.args[1] as string).toContain('Подскажите, есть ли доставка?');
     const copies = port.getCallsForMethod('copyMessage');
-    expect(copies.some((c) => c.args[0] === 555)).toBe(true);
+    expect(copies).toHaveLength(0);
 
     // customer got auto-reply
     expect(
@@ -75,7 +76,7 @@ describe('relay', () => {
 
     // relay messages saved
     const rows = await getDb().select().from(relayMessages);
-    expect(rows.length).toBeGreaterThanOrEqual(2);
+    expect(rows.length).toBeGreaterThanOrEqual(1);
 
     // find owner header message id for reply
     const headerId = rows[0]!.ownerMessageId;

@@ -70,33 +70,50 @@ async function relayToOwner(ctx: BotContextWithSession): Promise<void> {
     ]);
   }
   headerKbRows.push([{ text: 'Заблокировать', callback_data: `adm:relay:block:${customer.id}` }]);
-  const header = await ctx.port.sendMessage(ownerId, headerText, {
-    keyboard: { inline_keyboard: headerKbRows },
-  });
+
   const customerChatId = ctx.chat!.id;
-
-  await db.insert(relayMessages).values({
-    id: nanoid(),
-    tenantId: ctx.tenant.id,
-    customerId: customer.id,
-    ownerChatId: ownerId,
-    ownerMessageId: header.messageId,
-    customerChatId,
-    createdAt: new Date(),
-  });
-
-  const srcMessageId = ctx.message?.message_id;
-  if (srcMessageId) {
-    const copy = await ctx.port.copyMessage(ownerId, customerChatId, srcMessageId);
+  const text = ctx.message?.text;
+  if (text) {
+    // Text goes as a single message: header + content, halving owner spam.
+    const combined = await ctx.port.sendMessage(ownerId, `${headerText}\n\n${text}`, {
+      keyboard: { inline_keyboard: headerKbRows },
+    });
     await db.insert(relayMessages).values({
       id: nanoid(),
       tenantId: ctx.tenant.id,
       customerId: customer.id,
       ownerChatId: ownerId,
-      ownerMessageId: copy.messageId,
+      ownerMessageId: combined.messageId,
       customerChatId,
       createdAt: new Date(),
     });
+  } else {
+    const header = await ctx.port.sendMessage(ownerId, headerText, {
+      keyboard: { inline_keyboard: headerKbRows },
+    });
+    await db.insert(relayMessages).values({
+      id: nanoid(),
+      tenantId: ctx.tenant.id,
+      customerId: customer.id,
+      ownerChatId: ownerId,
+      ownerMessageId: header.messageId,
+      customerChatId,
+      createdAt: new Date(),
+    });
+
+    const srcMessageId = ctx.message?.message_id;
+    if (srcMessageId) {
+      const copy = await ctx.port.copyMessage(ownerId, customerChatId, srcMessageId);
+      await db.insert(relayMessages).values({
+        id: nanoid(),
+        tenantId: ctx.tenant.id,
+        customerId: customer.id,
+        ownerChatId: ownerId,
+        ownerMessageId: copy.messageId,
+        customerChatId,
+        createdAt: new Date(),
+      });
+    }
   }
 
   await trackFunnelEvent(ctx, 'free_text');
