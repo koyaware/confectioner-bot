@@ -106,11 +106,21 @@ async function showProductEdit(ctx: BotContextWithSession, productId: string) {
 
   const rows: InlineKeyboard['inline_keyboard'] = [
     [{ text: ctx.t.ownerCatalog.fieldTitle, callback_data: `adm:prd:field:${productId}:title` }],
-    [{ text: ctx.t.ownerCatalog.fieldDesc, callback_data: `adm:prd:field:${productId}:description` }],
+    [
+      {
+        text: ctx.t.ownerCatalog.fieldDesc,
+        callback_data: `adm:prd:field:${productId}:description`,
+      },
+    ],
     [{ text: ctx.t.ownerCatalog.fieldPrice, callback_data: `adm:prd:field:${productId}:price` }],
     [{ text: ctx.t.ownerCatalog.fieldUnit, callback_data: `adm:prd:field:${productId}:unit` }],
     [{ text: ctx.t.ownerCatalog.fieldLead, callback_data: `adm:prd:field:${productId}:lead` }],
-    [{ text: ctx.t.ownerCatalog.fieldCapacity, callback_data: `adm:prd:field:${productId}:capacity` }],
+    [
+      {
+        text: ctx.t.ownerCatalog.fieldCapacity,
+        callback_data: `adm:prd:field:${productId}:capacity`,
+      },
+    ],
     [{ text: ctx.t.ownerCatalog.fieldPhoto, callback_data: `adm:prd:field:${productId}:photo` }],
     [
       {

@@ -128,9 +128,9 @@ export function registerMenuHandler(bot: Bot<BotContextWithSession>): void {
     const messageId = ctx.callbackQuery.message?.message_id;
     if (!chatId || !messageId) return;
 
-await ctx.port.editMessageTextOrSend(chatId, messageId, ctx.t.menu.ownerTitle, {
-        keyboard: ownerMenuKeyboard(ctx),
-        parseMode: 'HTML',
-      });
+    await ctx.port.editMessageTextOrSend(chatId, messageId, ctx.t.menu.ownerTitle, {
+      keyboard: ownerMenuKeyboard(ctx),
+      parseMode: 'HTML',
+    });
   });
 }

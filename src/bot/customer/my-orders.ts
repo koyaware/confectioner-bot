@@ -165,11 +165,17 @@ export function registerMyOrdersHandlers(bot: Bot<BotContextWithSession>): void 
     }
 
     const sentIds: number[] = [];
-await ctx.port.editMessageTextOrSend(
+    await ctx.port.editMessageTextOrSend(
       chatId,
       messageId,
       `Референсы заказа №${(await getCustomerOrderNumber(found.order.id)) ?? found.order.number} (${refs.length} шт.)`,
-      { keyboard: { inline_keyboard: [[{ text: ctx.t.catalog.back, callback_data: `my:view:${found.order.id}` }]] } }
+      {
+        keyboard: {
+          inline_keyboard: [
+            [{ text: ctx.t.catalog.back, callback_data: `my:view:${found.order.id}` }],
+          ],
+        },
+      }
     );
     for (const ref of refs) {
       if (ref.fileType === 'photo') {
@@ -250,9 +256,11 @@ await ctx.port.editMessageTextOrSend(
     if (!chatId || !messageId) return;
 
     const orderId = m[1]!;
-    const reasonRows: InlineKeyboard['inline_keyboard'] = Object.entries(ctx.t.my.cancelReasons).map(
-      ([code, label]) => [{ text: label, callback_data: `my:cancelreason:${orderId}:${code}` }]
-    );
+    const reasonRows: InlineKeyboard['inline_keyboard'] = Object.entries(
+      ctx.t.my.cancelReasons
+    ).map(([code, label]) => [
+      { text: label, callback_data: `my:cancelreason:${orderId}:${code}` },
+    ]);
     reasonRows.push([{ text: ctx.t.my.cancelSkip, callback_data: `my:cancelskip:${orderId}` }]);
     reasonRows.push([{ text: ctx.t.catalog.back, callback_data: `my:view:${orderId}` }]);
     await ctx.port.editMessageTextOrSend(chatId, messageId, ctx.t.my.cancelTitle, {
@@ -338,7 +346,13 @@ await ctx.port.editMessageTextOrSend(
         await ctx.port.sendMessage(
           ownerId,
           `🚫 Клиент отклонил предложенную дату по заказу №${found.order.number}.`,
-          { keyboard: { inline_keyboard: [[{ text: '👁 Перейти к заказу', callback_data: `adm:ord:view:${found.order.id}` }]] } }
+          {
+            keyboard: {
+              inline_keyboard: [
+                [{ text: '👁 Перейти к заказу', callback_data: `adm:ord:view:${found.order.id}` }],
+              ],
+            },
+          }
         );
       }
       return;

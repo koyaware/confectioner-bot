@@ -73,7 +73,9 @@ export function registerPaymentHandlers(bot: Bot<BotContextWithSession>): void {
       if (chatId) {
         await ctx.port.sendMessage(
           chatId,
-          order.status === 'payment_review' ? ctx.t.payment.alreadyReview : ctx.t.payment.notAwaiting
+          order.status === 'payment_review'
+            ? ctx.t.payment.alreadyReview
+            : ctx.t.payment.notAwaiting
         );
       }
       return;
@@ -203,9 +205,16 @@ async function handleReceipt(
   const screen = receiptScreen(ctx);
   ctx.session.paymentScreenId = undefined;
   if (screen) {
-    await ctx.port.editMessageTextOrSend(screen.chatId, screen.messageId, ctx.t.payment.receiptSent, {
-      keyboard: { inline_keyboard: [[{ text: ctx.t.menu.customerTitle, callback_data: 'nav:menu' }]] },
-    });
+    await ctx.port.editMessageTextOrSend(
+      screen.chatId,
+      screen.messageId,
+      ctx.t.payment.receiptSent,
+      {
+        keyboard: {
+          inline_keyboard: [[{ text: ctx.t.menu.customerTitle, callback_data: 'nav:menu' }]],
+        },
+      }
+    );
   }
 
   // Send receipt to owner

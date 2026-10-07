@@ -30,7 +30,10 @@ export const tenantMiddleware: MiddlewareFn<BotContextWithSession> = async (ctx,
   if (tenant.status === 'paused' && !isSuperadmin) {
     try {
       if (ctx.chat) {
-        await ctx.port.sendMessage(ctx.chat.id, tenant.busyText ?? stringsFor(tenant.language).tenant.paused);
+        await ctx.port.sendMessage(
+          ctx.chat.id,
+          tenant.busyText ?? stringsFor(tenant.language).tenant.paused
+        );
       }
     } catch (sendError) {
       console.error('Failed to send paused notice:', sendError);

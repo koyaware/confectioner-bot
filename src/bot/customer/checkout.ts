@@ -379,7 +379,11 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
     ctx.session.checkout = ctx.session.checkout ?? { checkoutId: nanoid(10), referenceFileIds: [] };
     ctx.session.checkout.dueDate = iso;
     ctx.sessionState = 'checkout.time';
-    await ctx.port.editMessageTextOrSend(chatId, messageId, `${ctx.t.checkout.dateSelected}: ${iso}`);
+    await ctx.port.editMessageTextOrSend(
+      chatId,
+      messageId,
+      `${ctx.t.checkout.dateSelected}: ${iso}`
+    );
     await showCurrentStep(ctx);
   });
 

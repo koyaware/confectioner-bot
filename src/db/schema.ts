@@ -194,7 +194,10 @@ export const orders = sqliteTable(
     idemUq: uniqueIndex('orders_idem_uq').on(t.tenantId, t.idempotencyKey),
     tenantStatusIdx: index('orders_tenant_status_idx').on(t.tenantId, t.status),
     tenantDueIdx: index('orders_tenant_due_idx').on(t.tenantId, t.dueDate),
-    ownerCardMessageIdx: index('orders_owner_card_message_idx').on(t.tenantId, t.ownerCardMessageId),
+    ownerCardMessageIdx: index('orders_owner_card_message_idx').on(
+      t.tenantId,
+      t.ownerCardMessageId
+    ),
   })
 );
 
@@ -302,7 +305,11 @@ export const relayMessages = sqliteTable(
   },
   (t) => ({
     ownerMsgUq: uniqueIndex('relay_owner_msg_uq').on(t.tenantId, t.ownerChatId, t.ownerMessageId),
-    customerDialogIdx: index('relay_customer_dialog_idx').on(t.tenantId, t.customerId, t.customerDialogMessageId),
+    customerDialogIdx: index('relay_customer_dialog_idx').on(
+      t.tenantId,
+      t.customerId,
+      t.customerDialogMessageId
+    ),
   })
 );
 

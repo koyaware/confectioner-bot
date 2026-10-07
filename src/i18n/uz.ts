@@ -115,7 +115,8 @@ export const uz: Strings = {
     addressPrompt: '📍 Yetkazib berish manzili.',
     contactPrompt: (phoneExample: string) =>
       `📞 Aloqa uchun: ism va telefon (vergul bilan) yoki Telegram kontaktingizni yuboring. Masalan: Ivan, ${phoneExample}`,
-    contactInvalid: (phoneExample: string) => `❌ Tushunmadim. Bunday yozing: Ivan, ${phoneExample}`,
+    contactInvalid: (phoneExample: string) =>
+      `❌ Tushunmadim. Bunday yozing: Ivan, ${phoneExample}`,
     contactNameMissing: (phoneExample: string) =>
       `📞 Telefon qabul qilindi. Endi ismingizni yozing, masalan: Ivan, ${phoneExample}`,
     orderMore: '🔁 Yana buyurtma',
@@ -194,7 +195,8 @@ export const uz: Strings = {
     paidButton: 'Men toʻladim',
     kindPhoto: 'foto',
     kindFile: 'fayl',
-    invalidReceipt: '❌ Chek fotosini yuboring. Fayllar, matn, audio yoki boshqa formatlar mos kelmaydi.',
+    invalidReceipt:
+      '❌ Chek fotosini yuboring. Fayllar, matn, audio yoki boshqa formatlar mos kelmaydi.',
     receiptToOwner: (client: string, orderNumber: number, kind: string) =>
       `💳 Mijoz ${client} toʻlov tasdigʻini yubordi (${kind}), buyurtma №${orderNumber}`,
     receiptSent: '✅ Chek ustaga tekshirish uchun yuborildi.',
@@ -230,7 +232,8 @@ export const uz: Strings = {
     refsNone: 'Referenslar yoʻq.',
     pdYes: '✅ Roziman',
     pdNo: '❌ Rozimasman',
-    propose: (n: number, d: string) => `Usta №${n} buyurtmani ${d} ga koʻchirishni taklif qiladi. Rozimisiz?`,
+    propose: (n: number, d: string) =>
+      `Usta №${n} buyurtmani ${d} ga koʻchirishni taklif qiladi. Rozimisiz?`,
     pdDeclinedOwner: (n: number) => `🚫 Mijoz №${n} buyurtma uchun taklif etilgan sanani rad etdi.`,
     viewOrder: '👁 Buyurtmaga oʻtish',
   },
@@ -399,9 +402,12 @@ export const uz: Strings = {
   jobs: {
     payRemind: (n: number, amount: string, deadline: string) =>
       `Eslatma: №${n} buyurtma uchun oldindan toʻlov — ${amount}. Muddati ${deadline} gacha.`,
-    payExpiredCustomer: (n: number) => `№${n} buyurtma bekor qilindi: oldindan toʻlov oʻz vaqtida kelmadi.`,
-    payExpiredOwner: (n: number) => `№${n} buyurtma bekor qilindi: mijoz oldindan toʻlovni oʻz vaqtida qilmadi.`,
-    pickup: (n: number, when: string, detail: string) => `Eslatma: №${n} buyurtma — ${when}. ${detail}.`,
+    payExpiredCustomer: (n: number) =>
+      `№${n} buyurtma bekor qilindi: oldindan toʻlov oʻz vaqtida kelmadi.`,
+    payExpiredOwner: (n: number) =>
+      `№${n} buyurtma bekor qilindi: mijoz oldindan toʻlovni oʻz vaqtida qilmadi.`,
+    pickup: (n: number, when: string, detail: string) =>
+      `Eslatma: №${n} buyurtma — ${when}. ${detail}.`,
     pickupDelivery: 'yetkazib berish',
     pickupDeliveryAddr: (a: string) => `yetkazib berish, manzil: ${a}`,
     pickupPickup: 'olib ketish',
@@ -414,7 +420,6 @@ export const uz: Strings = {
     backupCaption: (date: string) => `MB dayjesti ${date}`,
   },
   notify: {
-    blocked: (client: string) =>
-      `Mijoz ${client} botni blokladi. Bildirishnomalar unga yetmaydi.`,
+    blocked: (client: string) => `Mijoz ${client} botni blokladi. Bildirishnomalar unga yetmaydi.`,
   },
 };

@@ -3,8 +3,8 @@ export const ru = {
     paused: 'Магазин временно приостановлен.',
   },
   start: {
-greeting: (shopName: string) => `Привет! Я бот магазина «${shopName}». Выберите раздел ниже.`,
-  buttonCatalog: '📦 Каталог',
+    greeting: (shopName: string) => `Привет! Я бот магазина «${shopName}». Выберите раздел ниже.`,
+    buttonCatalog: '📦 Каталог',
     claimSuccess: (shopName: string) =>
       `Готово! Вы теперь владелец магазина «${shopName}». /menu покажет меню владельца.`,
     claimInvalid: 'Ссылка для привязки недействительна.',
@@ -145,8 +145,7 @@ greeting: (shopName: string) => `Привет! Я бот магазина «${sh
     confirmDeliveryFee: (a: string) => `Доставка: ${a}`,
     confirmTotal: (a: string) => `Итого: ${a}`,
     confirmPrepay: (a: string) => `Предоплата: ${a}`,
-    confirmConsent:
-      'Отправляя заказ, вы соглашаетесь на обработку данных для выполнения заказа.',
+    confirmConsent: 'Отправляя заказ, вы соглашаетесь на обработку данных для выполнения заказа.',
     cancelled: '❌ Оформление отменено.',
     staleSubmit: '❌ Черновик заказа устарел, начните оформление заново.',
     incomplete: '❌ Не хватает данных для заказа. Начните оформление заново.',
@@ -236,9 +235,12 @@ greeting: (shopName: string) => `Привет! Я бот магазина «${sh
     newCustomers: 'Новые клиенты',
     funnelTitle: 'Воронка:',
     byStatusTitle: 'Заказы по статусам:',
-    revenue: (amount: string, count: number) => `Выручка (подтверждённые): ${amount} (${count} шт.)`,
+    revenue: (amount: string, count: number) =>
+      `Выручка (подтверждённые): ${amount} (${count} шт.)`,
     avgDecision: (minutes: number | null) =>
-      minutes === null ? 'Время до решения владельца: —' : `Время до решения владельца: ${minutes} мин`,
+      minutes === null
+        ? 'Время до решения владельца: —'
+        : `Время до решения владельца: ${minutes} мин`,
     botOnly: (n: number) => `Обрабатывал бот без владельца: ${n} клиентов`,
     days7: '7 дней',
     days30: '30 дней',
@@ -397,7 +399,8 @@ greeting: (shopName: string) => `Привет! Я бот магазина «${sh
       `Напоминаем: предоплата по заказу №${n} — ${amount}. Срок до ${deadline}.`,
     payExpiredCustomer: (n: number) => `Заказ №${n} снят: предоплата не поступила вовремя.`,
     payExpiredOwner: (n: number) => `Заказ №${n} снят: клиент не оплатил предоплату вовремя.`,
-    pickup: (n: number, when: string, detail: string) => `Напоминание: заказ №${n} — ${when}. ${detail}.`,
+    pickup: (n: number, when: string, detail: string) =>
+      `Напоминание: заказ №${n} — ${when}. ${detail}.`,
     pickupDelivery: 'доставка',
     pickupDeliveryAddr: (a: string) => `доставка, адрес: ${a}`,
     pickupPickup: 'самовывоз',
@@ -410,7 +413,6 @@ greeting: (shopName: string) => `Привет! Я бот магазина «${sh
     backupCaption: (date: string) => `Бэкап БД ${date}`,
   },
   notify: {
-    blocked: (client: string) =>
-      `Клиент ${client} заблокировал бота. Уведомления ему не дойдут.`,
+    blocked: (client: string) => `Клиент ${client} заблокировал бота. Уведомления ему не дойдут.`,
   },
 };

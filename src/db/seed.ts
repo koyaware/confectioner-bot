@@ -84,26 +84,63 @@ export async function seedDemo(
   const options = optionsData.map((o) => {
     let productId: string;
     switch (o.productTitleKey) {
-      case 'cake1': productId = cake1; break;
-      case 'cake2': productId = cake2; break;
-      case 'cake3': productId = cake3; break;
-      case 'cake4': productId = cake4; break;
-      case 'cake5': productId = cake5; break;
-      case 'bento1': productId = bento1; break;
-      case 'bento2': productId = bento2; break;
-      case 'cupcake1': productId = cupcake1; break;
-      case 'macaron1': productId = macaron1; break;
-      case 'jar1': productId = jar1; break;
-      case 'box1': productId = box1; break;
-      default: productId = cake1;
+      case 'cake1':
+        productId = cake1;
+        break;
+      case 'cake2':
+        productId = cake2;
+        break;
+      case 'cake3':
+        productId = cake3;
+        break;
+      case 'cake4':
+        productId = cake4;
+        break;
+      case 'cake5':
+        productId = cake5;
+        break;
+      case 'bento1':
+        productId = bento1;
+        break;
+      case 'bento2':
+        productId = bento2;
+        break;
+      case 'cupcake1':
+        productId = cupcake1;
+        break;
+      case 'macaron1':
+        productId = macaron1;
+        break;
+      case 'jar1':
+        productId = jar1;
+        break;
+      case 'box1':
+        productId = box1;
+        break;
+      default:
+        productId = cake1;
     }
-    return { id: nanoid(), tenantId, productId, groupTitle: o.groupTitle, title: o.title, priceDeltaMinor: o.priceDeltaMinor, sortOrder: o.sortOrder };
+    return {
+      id: nanoid(),
+      tenantId,
+      productId,
+      groupTitle: o.groupTitle,
+      title: o.title,
+      priceDeltaMinor: o.priceDeltaMinor,
+      sortOrder: o.sortOrder,
+    };
   });
 
   await db.insert(productOptions).values(options);
 
   await db.insert(faqItems).values(
-    faqData.map((f, i) => ({ id: nanoid(), tenantId, question: f.q, answer: f.a, sortOrder: i + 1 }))
+    faqData.map((f, i) => ({
+      id: nanoid(),
+      tenantId,
+      question: f.q,
+      answer: f.a,
+      sortOrder: i + 1,
+    }))
   );
 
   return { tenantId, created: true };

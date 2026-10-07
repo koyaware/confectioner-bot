@@ -34,7 +34,10 @@ export function registerCatalogHandlers(bot: Bot<BotContextWithSession>): void {
           [{ text: 'В меню', callback_data: 'nav:menu' }],
         ],
       };
-      await ctx.port.editMessageTextOrSend(chatId, messageId, text, { keyboard, parseMode: 'HTML' });
+      await ctx.port.editMessageTextOrSend(chatId, messageId, text, {
+        keyboard,
+        parseMode: 'HTML',
+      });
       return;
     }
 
@@ -42,7 +45,9 @@ export function registerCatalogHandlers(bot: Bot<BotContextWithSession>): void {
       const category = await getCategoryIfActive(ctx.tenant.id, decoded.value.arg);
       if (!category) {
         await ctx.port.editMessageTextOrSend(chatId, messageId, ctx.t.catalog.categoriesEmpty, {
-          keyboard: { inline_keyboard: [[{ text: ctx.t.catalog.back, callback_data: 'cat:list' }]] },
+          keyboard: {
+            inline_keyboard: [[{ text: ctx.t.catalog.back, callback_data: 'cat:list' }]],
+          },
           parseMode: 'HTML',
         });
         return;

@@ -35,7 +35,9 @@ export function registerFaqHandlers(bot: Bot<BotContextWithSession>): void {
       const item = await getFaq(ctx.tenant.id, decoded.value.arg);
       if (!item) {
         await ctx.port.editMessageTextOrSend(chatId, messageId, ctx.t.faq.notFound, {
-          keyboard: { inline_keyboard: [[{ text: ctx.t.catalog.back, callback_data: 'faq:list' }]] },
+          keyboard: {
+            inline_keyboard: [[{ text: ctx.t.catalog.back, callback_data: 'faq:list' }]],
+          },
         });
         return;
       }

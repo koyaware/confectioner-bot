@@ -2,7 +2,13 @@ import { Bot } from 'grammy';
 import { canAccessOwner } from '../permissions.js';
 import { BotContextWithSession } from '../context.js';
 import { InlineKeyboard } from '../../telegram/port.js';
-import { createCategory, updateCategoryTitle, createProduct, updateProduct, addOption } from '../../services/catalog-editor.js';
+import {
+  createCategory,
+  updateCategoryTitle,
+  createProduct,
+  updateProduct,
+  addOption,
+} from '../../services/catalog-editor.js';
 import { createFaq, updateFaq } from '../../services/faq.js';
 import {
   validateSetting,
@@ -90,7 +96,7 @@ function backTargetForDraft(draft: { kind: string }): string | null {
   if (draft.kind === 'set_field') {
     return 'adm:set:list';
   }
-  
+
   return null;
 }
 

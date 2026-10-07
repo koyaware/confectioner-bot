@@ -148,7 +148,11 @@ export async function loadOwnedOrder(
   return rows[0] ?? null;
 }
 
-export async function orderCardKeyboard(ctx: BotContextWithSession, orderId: string, status: string): Promise<InlineKeyboard> {
+export async function orderCardKeyboard(
+  ctx: BotContextWithSession,
+  orderId: string,
+  status: string
+): Promise<InlineKeyboard> {
   const rows: InlineKeyboard['inline_keyboard'] = [];
   if (status === 'new') {
     rows.push([{ text: ctx.t.ownerOrders.accept, callback_data: `adm:ord:accept:${orderId}` }]);
@@ -179,7 +183,10 @@ export async function orderCardKeyboard(ctx: BotContextWithSession, orderId: str
     .where(and(eq(orderAttachments.orderId, orderId), eq(orderAttachments.kind, 'reference')));
   if (refs.length > 0) {
     rows.push([
-      { text: `${ctx.t.ownerOrders.refs} (${refs.length})`, callback_data: `adm:ord:refs:${orderId}` },
+      {
+        text: `${ctx.t.ownerOrders.refs} (${refs.length})`,
+        callback_data: `adm:ord:refs:${orderId}`,
+      },
     ]);
   }
   rows.push([{ text: ctx.t.common.back, callback_data: 'adm:ord:list' }]);
@@ -344,8 +351,6 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
     });
   });
 
-  
-
   bot.callbackQuery(/^adm:ord:refs:(.+)$/, async (ctx) => {
     if (!canAccessOwner(ctx)) {
       await ctx.port.answerCallback(ctx.callbackQuery.id, ctx.t.ownerCatalog.notOwner);
@@ -383,7 +388,13 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
       chatId,
       messageId,
       `Референсы заказа №${order.number} (${refs.length} шт.)`,
-      { keyboard: { inline_keyboard: [[{ text: ctx.t.common.back, callback_data: `adm:ord:view:${order.id}` }]] } }
+      {
+        keyboard: {
+          inline_keyboard: [
+            [{ text: ctx.t.common.back, callback_data: `adm:ord:view:${order.id}` }],
+          ],
+        },
+      }
     );
     for (const ref of refs) {
       if (ref.fileType === 'photo') {
@@ -503,7 +514,12 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
             parseMode: 'HTML',
           });
         }
-        await notifyCustomer(ctx.port, rest, (n) => `Заказ №${n} готов! Ожидайте, мастер скоро свяжется с вами для согласования выдачи.`);
+        await notifyCustomer(
+          ctx.port,
+          rest,
+          (n) =>
+            `Заказ №${n} готов! Ожидайте, мастер скоро свяжется с вами для согласования выдачи.`
+        );
         return;
       }
 
@@ -517,7 +533,11 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
             parseMode: 'HTML',
           });
         }
-        await notifyCustomer(ctx.port, rest, (n) => `✅ Заказ №${n} завершён! Спасибо за заказ, будем рады видеть вас снова! 🍰`);
+        await notifyCustomer(
+          ctx.port,
+          rest,
+          (n) => `✅ Заказ №${n} завершён! Спасибо за заказ, будем рады видеть вас снова! 🍰`
+        );
         return;
       }
 
