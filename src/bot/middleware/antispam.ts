@@ -62,6 +62,11 @@ export const antispamMiddleware: MiddlewareFn<BotContextWithSession> = async (ct
     return next();
   }
 
+  // Don't apply antispam to callback queries (button presses)
+  if (ctx.callbackQuery) {
+    return next();
+  }
+
   const now = Math.floor(Date.now() / 1000);
   const decision = evaluateAntispam(ctx.session.antispam, now);
   ctx.session.antispam = decision.next;
@@ -69,8 +74,9 @@ export const antispamMiddleware: MiddlewareFn<BotContextWithSession> = async (ct
     console.warn(
       `antispam block: tenant=${ctx.tenant?.id} user=${ctx.from?.id} until=${decision.next.windowStart + ANTISPAM_BLOCK_SECONDS}`
     );
-    if (ctx.callbackQuery) {
-      await ctx.port.answerCallback(ctx.callbackQuery.id);
+    const cbq = ctx.callbackQuery as { id: string } | undefined;
+    if (cbq) {
+      await ctx.port.answerCallback(cbq.id);
     }
     return;
   }

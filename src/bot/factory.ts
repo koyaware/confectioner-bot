@@ -31,6 +31,7 @@ import { registerPaymentHandlers } from './customer/payment.js';
 import { registerMyOrdersHandlers } from './customer/my-orders.js';
 import { registerDeleteMeHandler } from './customer/deleteme.js';
 import { registerRelayHandlers } from './relay/relay.js';
+import { registerDialogHandlers } from './relay/dialog.js';
 
 export interface TenantBot {
   tenantId: string;
@@ -136,6 +137,7 @@ export function createTenantBot(
   registerPaymentHandlers(bot);
   registerMyOrdersHandlers(bot);
   registerRelayHandlers(bot);
+  registerDialogHandlers(bot);
   registerDeleteMeHandler(bot);
   registerSuperadminCommands(bot, runner);
 

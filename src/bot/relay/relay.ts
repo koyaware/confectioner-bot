@@ -18,7 +18,7 @@ async function relayToOwner(ctx: BotContextWithSession): Promise<void> {
   if (!ctx.from || canAccessOwner(ctx)) return;
   if (ctx.sessionState.startsWith('checkout.') || ctx.sessionState === 'payment.await_receipt')
     return;
-  if (ctx.sessionState === 'owner.edit_field' || ctx.sessionState === 'owner.reply_to_customer' || ctx.sessionState === 'owner.dialog')
+  if (ctx.sessionState === 'owner.edit_field' || ctx.sessionState === 'owner.reply_to_customer')
     return;
 
   // Customers reach the owner only through an explicit dialog state
@@ -193,7 +193,7 @@ export function registerRelayHandlers(bot: Bot<BotContextWithSession>): void {
       await next();
       return;
     }
-    if (canAccessOwner(ctx) && (ctx.sessionState === 'owner.edit_field' || ctx.sessionState === 'owner.reply_to_customer')) {
+    if (canAccessOwner(ctx) && (ctx.sessionState === 'owner.edit_field' || ctx.sessionState === 'owner.reply_to_customer' || ctx.sessionState === 'owner.dialog')) {
       await next();
       return;
     }

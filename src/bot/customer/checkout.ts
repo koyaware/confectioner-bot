@@ -685,6 +685,7 @@ function advanceFromSkip(ctx: BotContextWithSession): void {
       ctx.sessionState = 'checkout.photos';
       break;
     case 'checkout.photos':
+      ctx.session.checkout!.referenceFileIds = [];
       ctx.sessionState = 'checkout.confirm';
       break;
     default:

@@ -334,27 +334,7 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
     });
   });
 
-  bot.callbackQuery(/^adm:ord:msg:([A-Za-z0-9_-]+)$/, async (ctx) => {
-    if (!canAccessOwner(ctx)) {
-      await ctx.port.answerCallback(ctx.callbackQuery.id, ru.ownerCatalog.notOwner);
-      return;
-    }
-    await ctx.port.answerCallback(ctx.callbackQuery.id);
-
-    const m = /^adm:ord:msg:([A-Za-z0-9_-]+)$/.exec(ctx.callbackQuery.data);
-    if (!m) return;
-
-    ctx.sessionState = 'owner.reply_to_customer';
-    ctx.session.ownerDraft = { kind: 'ord_msg', targetId: m[1] };
-
-    const chatId = ctx.callbackQuery.message?.chat.id;
-    const messageId = ctx.callbackQuery.message?.message_id;
-    if (chatId && messageId) {
-      await ctx.port.editMessageTextOrSend(chatId, messageId, 'Напишите сообщение клиенту.', {
-        keyboard: { inline_keyboard: [[{ text: 'Отмена', callback_data: 'adm:ord:list' }]] },
-      });
-    }
-  });
+  
 
   bot.callbackQuery(/^adm:ord:refs:(.+)$/, async (ctx) => {
     if (!canAccessOwner(ctx)) {

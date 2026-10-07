@@ -212,7 +212,7 @@ describe('middleware', () => {
       expect(nextCalled).toBe(false);
     });
 
-    it('answers dropped callbacks so the spinner does not hang', async () => {
+    it('passes through callback queries without antispam check', async () => {
       const { antispamMiddleware } = await import('../src/bot/middleware/antispam.js');
 
       const answered: string[] = [];
@@ -237,8 +237,8 @@ describe('middleware', () => {
         return Promise.resolve();
       });
 
-      expect(nextCalled).toBe(false);
-      expect(answered).toEqual(['cb1']);
+      expect(nextCalled).toBe(true);
+      expect(answered).toEqual([]);
     });
 
     it('enforces 20/min then silence for 5 minutes', async () => {
