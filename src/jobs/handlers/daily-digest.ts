@@ -2,7 +2,7 @@ import { JobResult } from '../types.js';
 import { getDb } from '../../db/client.js';
 import { tenants } from '../../db/schema.js';
 import { eq } from 'drizzle-orm';
-import { TelegramPort } from '../../telegram/port.js';
+import { TelegramError, TelegramPort } from '../../telegram/port.js';
 import { ownerDailyDigestPayloadSchema } from '../types.js';
 import { computeDigest, formatDigest } from '../../services/digest.js';
 
@@ -31,9 +31,17 @@ export function createDailyDigestHandler(ports: {
     }
 
     const summary = await computeDigest(tenant.id, parsed.data.date);
-    await port.sendMessage(tenant.ownerTelegramId, formatDigest(summary), {
-      parseMode: 'HTML',
-    });
+    try {
+      await port.sendMessage(tenant.ownerTelegramId, formatDigest(summary), {
+        parseMode: 'HTML',
+      });
+    } catch (error) {
+      if (error instanceof TelegramError && error.code === 'BLOCKED') {
+        // Owner blocked the bot: retrying cannot help.
+        return { success: true };
+      }
+      return { success: false, error: String(error) };
+    }
     return { success: true };
   };
 }

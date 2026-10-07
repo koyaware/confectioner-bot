@@ -125,4 +125,15 @@ describe('daily digest', () => {
     expect(sent[0]!.args[0]).toBe(555);
     expect(sent[0]!.args[1]).toContain('Сводка на 2026-10-02');
   });
+
+  it('owner BLOCKED is terminal, not retried', async () => {
+    const tenantId = await setup();
+    const port = new FakePort();
+    port.addBlockedOnFirstCall('sendMessage');
+    const handler = createDailyDigestHandler({ getPort: () => port });
+
+    const result = await handler({ tenantId, date: '2026-10-02' }, 'job1');
+    expect(result.success).toBe(true);
+    expect(port.getCallsForMethod('sendMessage')).toHaveLength(1);
+  });
 });
