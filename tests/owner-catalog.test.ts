@@ -13,7 +13,15 @@ import {
   getProductById,
 } from '../src/services/catalog.js';
 import * as editor from '../src/services/catalog-editor.js';
-import { orderItems, products, tenants, categories, orders, customers } from '../src/db/schema.js';
+import {
+  orderItems,
+  products,
+  tenants,
+  categories,
+  orders,
+  customers,
+  sessions,
+} from '../src/db/schema.js';
 import { eq } from 'drizzle-orm';
 
 describe('owner catalog editor', () => {
@@ -199,5 +207,42 @@ describe('owner catalog editor', () => {
     // session must stay in idle with empty cart
     const cats = await listCategoriesAll(tenantId);
     expect(cats).toHaveLength(4);
+  });
+
+  it('photo field rejects text and re-prompts for a photo', async () => {
+    const { tenantId } = await seedDemo(appSecret, new Date());
+    await getDb().update(tenants).set({ ownerTelegramId: 555 }).where(eq(tenants.id, tenantId));
+    const db = getDb();
+    const cats = await listCategoriesAll(tenantId);
+    const productId = (await listProductsAll(tenantId, cats[0]!.id))[0]!.id;
+    await db.insert(sessions).values({
+      tenantId,
+      telegramId: 555,
+      state: 'owner.edit_field',
+      data: {
+        cart: { lines: [] },
+        ownerDraft: { kind: 'prd_field', targetId: productId, extra: { field: 'photo' } },
+      },
+      updatedAt: new Date(),
+    });
+
+    const port = new FakePort();
+    const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
+
+    await bot.handleUpdate({
+      update_id: 1,
+      message: {
+        message_id: 1,
+        date: 1,
+        chat: { id: 555, type: 'private' },
+        from: { id: 555, is_bot: false, first_name: 'O' },
+        text: 'not a photo',
+        entities: [],
+      },
+    } as never);
+
+    const sent = port.getCallsForMethod('sendMessage').map((c) => c.args[1] as string);
+    expect(sent).toContain('Пришлите фото товара.');
+    expect(sent).not.toContain('Сохранено.');
   });
 });

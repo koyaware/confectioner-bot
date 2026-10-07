@@ -88,6 +88,12 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
       case 'prd_field': {
         const field = draft.extra?.field;
         if (draft.targetId && field) {
+          if (field === 'photo') {
+            ctx.sessionState = 'owner.edit_field';
+            ctx.session.ownerDraft = draft;
+            await ctx.port.sendMessage(ctx.chat.id, ru.ownerCatalog.promptPhoto);
+            return;
+          }
           if (field === 'title') {
             await editor.updateProduct(ctx.tenant.id, draft.targetId, { title: text });
           } else if (field === 'description') {

@@ -166,6 +166,7 @@ export const ru = {
     promptProductTitle: 'Введите название товара.',
     promptProductPrice: 'Введите цену в рублях.',
     promptField: 'Введите новое значение',
+    promptPhoto: 'Пришлите фото товара.',
     promptOptionGroup: 'Введите название группы опций (например, Начинка).',
     promptOptionTitle: 'Введите название опции.',
     promptOptionDelta: 'Доплата в рублях (0 если нет).',
