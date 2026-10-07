@@ -3,6 +3,7 @@ import { BotContextWithSession } from '../context.js';
 import { getDb } from '../../db/client.js';
 import { tenants } from '../../db/schema.js';
 import { eq } from 'drizzle-orm';
+import { ru } from '../../i18n/ru.js';
 
 /**
  * Tenant middleware - loads tenant info from DB
@@ -21,6 +22,19 @@ export const tenantMiddleware: MiddlewareFn<BotContextWithSession> = async (ctx,
   const tenant = results[0];
   if (!tenant) {
     console.error(`Tenant ${tenantId} is null in database`);
+    return;
+  }
+
+  const superadminId = parseInt(process.env.SUPERADMIN_TELEGRAM_ID || '0', 10);
+  const isSuperadmin = ctx.from ? ctx.from.id === superadminId : false;
+  if (tenant.status === 'paused' && !isSuperadmin) {
+    try {
+      if (ctx.chat) {
+        await ctx.port.sendMessage(ctx.chat.id, tenant.busyText ?? ru.tenant.paused);
+      }
+    } catch (sendError) {
+      console.error('Failed to send paused notice:', sendError);
+    }
     return;
   }
 

@@ -133,6 +133,45 @@ describe('middleware', () => {
     });
   });
 
+  describe('tenant middleware', () => {
+    it('blocks paused tenants for customers but allows superadmin', async () => {
+      const { tenantMiddleware } = await import('../src/bot/middleware/tenant.js');
+      const { seedDemo } = await import('../src/db/seed.js');
+      const { tenants } = await import('../src/db/schema.js');
+      const { eq } = await import('drizzle-orm');
+      const { getDb } = await import('../src/db/client.js');
+
+      const { tenantId } = await seedDemo('a'.repeat(32), new Date());
+      await getDb().update(tenants).set({ status: 'paused' }).where(eq(tenants.id, tenantId));
+
+      const sent: unknown[][] = [];
+      const customerCtx: any = {
+        from: { id: 42 },
+        chat: { id: 42 },
+        tenant: { id: tenantId },
+        port: { sendMessage: async (...args: unknown[]) => void sent.push(args) },
+      };
+      let nextCalled = false;
+      await tenantMiddleware(customerCtx, async () => {
+        nextCalled = true;
+      });
+      expect(nextCalled).toBe(false);
+      expect(sent).toHaveLength(1);
+
+      const adminCtx: any = {
+        from: { id: 123456789 },
+        chat: { id: 123456789 },
+        tenant: { id: tenantId },
+        port: { sendMessage: async (...args: unknown[]) => void sent.push(args) },
+      };
+      let adminNextCalled = false;
+      await tenantMiddleware(adminCtx, async () => {
+        adminNextCalled = true;
+      });
+      expect(adminNextCalled).toBe(true);
+    });
+  });
+
   describe('antispam middleware', () => {
     it('allows messages under limit', async () => {
       const { antispamMiddleware } = await import('../src/bot/middleware/antispam.js');

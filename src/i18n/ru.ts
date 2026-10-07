@@ -1,4 +1,7 @@
 export const ru = {
+  tenant: {
+    paused: 'Магазин временно приостановлен.',
+  },
   start: {
     greeting: (shopName: string) => `Привет! Я бот магазина «${shopName}». Выберите раздел ниже.`,
     buttonCatalog: 'Каталог',
