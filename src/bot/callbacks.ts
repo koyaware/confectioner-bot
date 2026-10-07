@@ -98,6 +98,18 @@ const callbackSchema = z
       arg: idSchema,
     }),
     z.object({ ns: z.literal('adm'), area: z.literal('set'), action: z.literal('list') }),
+    z.object({
+      ns: z.literal('adm'),
+      area: z.literal('set'),
+      action: z.literal('lang'),
+      arg: z.enum(['ru', 'uz']).optional(),
+    }),
+    z.object({
+      ns: z.literal('adm'),
+      area: z.literal('set'),
+      action: z.literal('cur'),
+      arg: z.enum(['rub', 'kzt', 'uzs']).optional(),
+    }),
     z.object({ ns: z.literal('adm'), area: z.literal('set'), action: z.literal('featadd') }),
     z.object({
       ns: z.literal('adm'),

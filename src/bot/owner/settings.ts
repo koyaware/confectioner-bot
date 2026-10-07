@@ -3,30 +3,56 @@ import { canAccessOwner } from '../permissions.js';
 import { BotContextWithSession } from '../context.js';
 import { decodeCallback } from '../callbacks.js';
 import { escapeHtml } from '../../domain/escape.js';
-import { SETTINGS_FIELDS, isSettingsField, SettingsField } from '../../services/settings.js';
+import { SETTINGS_FIELDS, isSettingsField } from '../../services/settings.js';
+import { stringsFor, isLang, currencyForCode, type Strings } from '../../i18n/index.js';
 import { getDb } from '../../db/client.js';
 import { tenants } from '../../db/schema.js';
 import { eq } from 'drizzle-orm';
 import { InlineKeyboard } from '../../telegram/port.js';
 import { beginOwnerDraft } from './edit-field.js';
 
-const FIELD_LABELS: Record<SettingsField, string> = {
-  greetingText: 'Приветствие',
-  aboutText: 'О нас',
-  contactsText: 'Контакты',
-  deliveryText: 'Доставка',
-  paymentText: 'Реквизиты',
-  busyText: 'Текст «перегруз»',
-  replySlaText: 'SLA ответа',
-  prepaymentPercent: 'Предоплата %',
-  minLeadDays: 'Мин. срок, дней',
-  maxAdvanceDays: 'Макс. горизонт, дней',
-  defaultDailyCapacity: 'Лимит заказов в день',
-  paymentDeadlineHours: 'Срок оплаты, часов',
-  deliveryFeeMinor: 'Стоимость доставки, ₽',
-  digestHour: 'Час сводки',
-  currency: 'Валюта',
-};
+function currencyCodeForSymbol(symbol: string): 'rub' | 'kzt' | 'uzs' | null {
+  if (symbol === '₽') return 'rub';
+  if (symbol === '₸') return 'kzt';
+  if (symbol === 'UZS') return 'uzs';
+  return null;
+}
+
+async function showSettingsList(
+  ctx: BotContextWithSession,
+  chatId: number,
+  messageId: number,
+  t: Strings = ctx.t
+): Promise<void> {
+  const curCode = currencyCodeForSymbol(ctx.tenant.currency);
+  const rows: InlineKeyboard['inline_keyboard'] = SETTINGS_FIELDS.map((f) => [
+    { text: t.ownerSettings.fields[f], callback_data: `adm:set:edit:${f}` },
+  ]);
+  rows.push([
+    {
+      text: `${t.ownerSettings.langTitle}: ${t.ownerSettings.langNames[ctx.tenant.language] ?? ctx.tenant.language}`,
+      callback_data: 'adm:set:lang',
+    },
+  ]);
+  rows.push([
+    {
+      text: `${t.ownerSettings.curTitle}: ${curCode ? t.ownerSettings.curNames[curCode] : ctx.tenant.currency}`,
+      callback_data: 'adm:set:cur',
+    },
+  ]);
+  rows.push([
+    {
+      text: ctx.tenant.acceptOrders
+        ? t.ownerSettings.overloadDisable
+        : t.ownerSettings.overloadEnable,
+      callback_data: 'adm:set:edit:toggle_accept',
+    },
+  ]);
+  rows.push([{ text: t.common.back, callback_data: 'adm:menu' }]);
+  await ctx.port.editMessageTextOrSend(chatId, messageId, t.ownerSettings.title, {
+    keyboard: { inline_keyboard: rows },
+  });
+}
 
 export function registerSettingsHandlers(bot: Bot<BotContextWithSession>): void {
   bot.callbackQuery(/^adm:set:/, async (ctx) => {
@@ -46,19 +72,59 @@ export function registerSettingsHandlers(bot: Bot<BotContextWithSession>): void 
     if (!chatId || !messageId) return;
 
     if (action === 'list') {
-      const rows: InlineKeyboard['inline_keyboard'] = SETTINGS_FIELDS.map((f) => [
-        { text: FIELD_LABELS[f], callback_data: `adm:set:edit:${f}` },
-      ]);
-      rows.push([
+      await showSettingsList(ctx, chatId, messageId);
+      return;
+    }
+
+    if (action === 'lang' && !arg) {
+      const rows: InlineKeyboard['inline_keyboard'] = (['ru', 'uz'] as const).map((code) => [
         {
-          text: ctx.tenant.acceptOrders ? 'Перегруз: выключить приём' : 'Перегруз: включить приём',
-          callback_data: 'adm:set:edit:toggle_accept',
+          text: `${ctx.tenant.language === code ? '✅ ' : ''}${ctx.t.ownerSettings.langNames[code]}`,
+          callback_data: `adm:set:lang:${code}`,
         },
       ]);
-      rows.push([{ text: ctx.t.common.back, callback_data: 'adm:menu' }]);
-      await ctx.port.editMessageTextOrSend(chatId, messageId, ctx.t.ownerSettings.title, {
+      rows.push([{ text: ctx.t.common.back, callback_data: 'adm:set:list' }]);
+      await ctx.port.editMessageTextOrSend(chatId, messageId, ctx.t.ownerSettings.langTitle, {
         keyboard: { inline_keyboard: rows },
       });
+      return;
+    }
+
+    if (action === 'lang' && arg && isLang(arg)) {
+      await getDb().update(tenants).set({ language: arg }).where(eq(tenants.id, ctx.tenant.id));
+      ctx.tenant.language = arg;
+      // ctx.t is stale (resolved from the old language): render with fresh strings.
+      await showSettingsList(ctx, chatId, messageId, stringsFor(arg));
+      return;
+    }
+
+    if (action === 'cur' && !arg) {
+      const curCode = currencyCodeForSymbol(ctx.tenant.currency);
+      const rows: InlineKeyboard['inline_keyboard'] = (['rub', 'kzt', 'uzs'] as const).map(
+        (code) => [
+          {
+            text: `${curCode === code ? '✅ ' : ''}${ctx.t.ownerSettings.curNames[code]}`,
+            callback_data: `adm:set:cur:${code}`,
+          },
+        ]
+      );
+      rows.push([{ text: ctx.t.common.back, callback_data: 'adm:set:list' }]);
+      await ctx.port.editMessageTextOrSend(chatId, messageId, ctx.t.ownerSettings.curTitle, {
+        keyboard: { inline_keyboard: rows },
+      });
+      return;
+    }
+
+    if (action === 'cur' && arg) {
+      const symbol = currencyForCode(arg);
+      if (symbol) {
+        await getDb()
+          .update(tenants)
+          .set({ currency: symbol })
+          .where(eq(tenants.id, ctx.tenant.id));
+        ctx.tenant.currency = symbol;
+      }
+      await showSettingsList(ctx, chatId, messageId);
       return;
     }
 
@@ -87,7 +153,7 @@ export function registerSettingsHandlers(bot: Bot<BotContextWithSession>): void 
         await ctx.port.editMessageTextOrSend(
           chatIdR,
           messageIdR,
-          nowAccept ? 'Приём заказов включён.' : 'Приём заказов выключен (режим «перегруз»).',
+          nowAccept ? ctx.t.ownerSettings.overloadOn : ctx.t.ownerSettings.overloadOff,
           {
             keyboard: {
               inline_keyboard: [[{ text: ctx.t.common.back, callback_data: 'adm:set:list' }]],
@@ -118,7 +184,7 @@ export function registerSettingsHandlers(bot: Bot<BotContextWithSession>): void 
       await ctx.port.editMessageTextOrSend(
         chatId,
         messageId,
-        `${ctx.t.ownerSettings.prompt}: ${FIELD_LABELS[arg]}\nТекущее значение: ${escapeHtml(currentText)}\n\n${ctx.t.ownerSettings.hint}`,
+        `${ctx.t.ownerSettings.prompt}: ${ctx.t.ownerSettings.fields[arg]}\nТекущее значение: ${escapeHtml(currentText)}\n\n${ctx.t.ownerSettings.hint}`,
         {
           keyboard: {
             inline_keyboard: [[{ text: ctx.t.common.back, callback_data: 'adm:set:list' }]],
