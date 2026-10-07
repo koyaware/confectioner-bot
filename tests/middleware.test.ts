@@ -107,6 +107,32 @@ describe('middleware', () => {
     });
   });
 
+  describe('error middleware', () => {
+    it('notifies the user through the port, not ctx.reply', async () => {
+      const { errorMiddleware } = await import('../src/bot/middleware/errors.js');
+      const { TelegramError } = await import('../src/telegram/port.js');
+
+      const sent: unknown[][] = [];
+      let replied = false;
+      const ctx: any = {
+        chat: { id: 42 },
+        port: { sendMessage: async (...args: unknown[]) => void sent.push(args) },
+        reply: async () => {
+          replied = true;
+        },
+      };
+
+      await errorMiddleware(ctx, async () => {
+        throw new TelegramError('RATE_LIMIT', 'slow down');
+      });
+
+      expect(sent).toHaveLength(2);
+      expect(sent[0]![0]).toBe(123456789);
+      expect(sent[1]![0]).toBe(42);
+      expect(replied).toBe(false);
+    });
+  });
+
   describe('antispam middleware', () => {
     it('allows messages under limit', async () => {
       const { antispamMiddleware } = await import('../src/bot/middleware/antispam.js');
