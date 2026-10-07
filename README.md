@@ -84,6 +84,7 @@ Owners manage products, calendar, payments, links, statistics, and FAQ from Tele
 - Useful docs:
   - [docs/owner-setup.md](./docs/owner-setup.md) — how to connect a shop.
   - [docs/restore.md](./docs/restore.md) — database backup/restore.
+  - [docs/delete-tenant.md](./docs/delete-tenant.md) — removing a shop tenant.
 
 ### Русский
 
@@ -97,3 +98,4 @@ Owners manage products, calendar, payments, links, statistics, and FAQ from Tele
 - Полезные документы:
   - [docs/owner-setup.md](./docs/owner-setup.md) — как подключить магазин.
   - [docs/restore.md](./docs/restore.md) — бэкап и восстановление БД.
+  - [docs/delete-tenant.md](./docs/delete-tenant.md) — удаление магазина из tenant.

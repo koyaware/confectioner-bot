@@ -17,7 +17,8 @@
     "typecheck": "tsc --noEmit",
     "seed": "tsx scripts/seed.ts",
     "tenant:create": "tsx scripts/tenant-create.ts",
-    "load:sim": "tsx scripts/load-sim.ts"
+    "load:sim": "tsx scripts/load-sim.ts",
+    "tenant:delete": "tsx scripts/tenant-delete.ts"
   },
   "keywords": [
     "telegram",
