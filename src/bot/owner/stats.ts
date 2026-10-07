@@ -7,6 +7,29 @@ import { computeStats } from '../../services/stats.js';
 import { formatMinor } from '../../lib/money.js';
 import { escapeHtml } from '../../domain/escape.js';
 
+const FUNNEL_LABELS: Record<string, string> = {
+  start: 'Старт',
+  catalog_view: 'Каталог',
+  product_view: 'Товар',
+  cart_add: 'Корзина',
+  checkout_start: 'Оформление',
+  order_submit: 'Заказ',
+  faq_view: 'FAQ',
+  free_text: 'Свободный вопрос',
+};
+
+const ORDER_STATUS_LABELS: Record<string, string> = {
+  new: 'Новый',
+  awaiting_payment: 'Ожидает оплаты',
+  payment_review: 'Чек на проверке',
+  confirmed: 'Подтверждён',
+  ready: 'Готов',
+  completed: 'Завершён',
+  rejected: 'Отклонён',
+  cancelled: 'Отменён',
+  expired: 'Истёк',
+};
+
 export function registerStatsHandlers(bot: Bot<BotContextWithSession>): void {
   bot.callbackQuery(/^adm:stats(:(7|30))?$/, async (ctx) => {
     if (!canAccessOwner(ctx)) {
@@ -31,12 +54,12 @@ export function registerStatsHandlers(bot: Bot<BotContextWithSession>): void {
     lines.push('');
     lines.push('Воронка:');
     for (const f of stats.funnel) {
-      lines.push(`  • ${f.type}: ${f.count}`);
+      lines.push(`  • ${FUNNEL_LABELS[f.type] ?? f.type}: ${f.count}`);
     }
     lines.push('');
     lines.push('Заказы по статусам:');
     for (const o of stats.ordersByStatus) {
-      lines.push(`  • ${o.status}: ${o.count}`);
+      lines.push(`  • ${ORDER_STATUS_LABELS[o.status] ?? o.status}: ${o.count}`);
     }
     lines.push('');
     lines.push(

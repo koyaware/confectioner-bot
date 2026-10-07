@@ -57,6 +57,7 @@ function calendarGrid(year: number, month: number, marks: Map<string, string>): 
     { text: `${MONTH_NAMES[month - 1]} ${year}`, callback_data: 'cart:noop' },
     { text: '»', callback_data: `adm:cal:page:${next}` },
   ]);
+  rows.push([{ text: 'Назад', callback_data: 'adm:menu' }]);
   return { inline_keyboard: rows };
 }
 
@@ -167,7 +168,9 @@ export function registerCalendarHandlers(bot: Bot<BotContextWithSession>): void 
       const date = setcapMatch[1]!;
       ctx.sessionState = 'owner.edit_field';
       ctx.session.ownerDraft = { kind: 'cal_capacity', targetId: date };
-      await ctx.port.editMessageText(chatId, messageId, ru.ownerCalendar.promptCapacity);
+      await ctx.port.editMessageText(chatId, messageId, ru.ownerCalendar.promptCapacity, {
+        keyboard: { inline_keyboard: [[{ text: 'Назад', callback_data: `adm:cal:day:${date}` }]] },
+      });
       return;
     }
   });

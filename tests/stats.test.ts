@@ -147,10 +147,7 @@ describe('stats', () => {
 
   it('renders stats to owner and supports 30d button screen', async () => {
     const tenantId = await seed();
-    await getDb()
-      .update(tenants)
-      .set({ ownerTelegramId: 555 })
-      .where(eq(tenants.id, tenantId));
+    await getDb().update(tenants).set({ ownerTelegramId: 555 }).where(eq(tenants.id, tenantId));
     const port = new FakePort();
     const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
 
@@ -158,6 +155,9 @@ describe('stats', () => {
     const edits = port.getCallsForMethod('editMessageText');
     expect(edits.length).toBeGreaterThan(0);
     expect(edits[0]!.args[2]).toContain('Статистика за 7 дней');
+    expect(edits[0]!.args[2]).toContain('Каталог');
+    expect(edits[0]!.args[2]).toContain('FAQ');
+    expect(edits[0]!.args[2]).not.toContain('catalog_view');
 
     await bot.handleUpdate(cb(2, 'c2', 555, 10, 'adm:stats:30'));
     const edits2 = port.getCallsForMethod('editMessageText');

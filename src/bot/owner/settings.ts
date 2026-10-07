@@ -25,6 +25,7 @@ const FIELD_LABELS: Record<SettingsField, string> = {
   paymentDeadlineHours: 'Срок оплаты, часов',
   deliveryFeeMinor: 'Стоимость доставки, ₽',
   digestHour: 'Час сводки',
+  currency: 'Валюта',
 };
 
 export function registerSettingsHandlers(bot: Bot<BotContextWithSession>): void {
