@@ -5,7 +5,7 @@ import { migrate } from '../src/db/migrate.js';
 import { seedDemo } from '../src/db/seed.js';
 import { createTenantBot } from '../src/bot/factory.js';
 import { FakePort } from '../src/telegram/fake-port.js';
-import { sessions, tenants } from '../src/db/schema.js';
+import { sessions, tenants, orders } from '../src/db/schema.js';
 import { eq } from 'drizzle-orm';
 import { addDays, toIsoDate } from '../src/domain/dates.js';
 
@@ -361,5 +361,41 @@ describe('checkout steps', () => {
     expect(data.checkout.referenceFileIds.map((f) => f.fileId).sort()).toEqual(
       ['race0', 'race1', 'race2', 'race3', 'race4'].sort()
     );
+  });
+
+  it('confirm without draft shows stale hint and no dead submit button', async () => {
+    const now = new Date();
+    const { tenantId } = await seedDemo(appSecret, now);
+    const port = new FakePort();
+    const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
+
+    const { freeDate } = await setupCartAndCheckout(port, bot);
+    void freeDate;
+
+    // Simulate a lost draft (expired/reset session) while the state lingers.
+    const db = getDb();
+    const sessRows = await db.select().from(sessions);
+    const data = (
+      typeof sessRows[0]!.data === 'string' ? JSON.parse(sessRows[0]!.data) : sessRows[0]!.data
+    ) as Record<string, unknown>;
+    delete data.checkout;
+    await db
+      .update(sessions)
+      .set({ data, state: 'checkout.confirm', updatedAt: now })
+      .where(eq(sessions.tenantId, tenantId));
+
+    await bot.handleUpdate(cb(50, 'c50', 42, 10, 'chk:photos:done'));
+
+    const edits = port.getCallsForMethod('editMessageTextOrSend');
+    const last = edits[edits.length - 1]!;
+    expect(last.args[2] as string).toContain('устарел');
+    const kb = JSON.stringify(last.args[3]);
+    expect(kb).not.toContain('chk:submit:');
+
+    // Tapping a draft-less submit is a no-op: no order, no crash.
+    const ordersBefore = await db.select().from(orders);
+    await bot.handleUpdate(cb(51, 'c51', 42, 10, 'chk:submit:'));
+    const ordersAfter = await db.select().from(orders);
+    expect(ordersAfter).toHaveLength(ordersBefore.length);
   });
 });

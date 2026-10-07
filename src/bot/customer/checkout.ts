@@ -245,13 +245,18 @@ async function showCurrentStep(ctx: BotContextWithSession): Promise<void> {
       break;
     }
     case 'checkout.confirm': {
+      if (!draft?.checkoutId) {
+        // Draft lost (e.g. expired session): no dead submit button, guide back to start.
+        await showScreen(ctx, ctx.t.checkout.staleSubmit, stepKeyboard(ctx));
+        break;
+      }
       const text = await buildConfirmText(ctx);
       const kb: InlineKeyboard = {
         inline_keyboard: [
           [
             {
               text: ctx.t.checkout.btnSubmit,
-              callback_data: `chk:submit:${draft?.checkoutId ?? ''}`,
+              callback_data: `chk:submit:${draft.checkoutId}`,
             },
           ],
           [{ text: ctx.t.common.back, callback_data: 'chk:back' }],

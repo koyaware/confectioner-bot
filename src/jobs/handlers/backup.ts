@@ -6,6 +6,7 @@ import { tenants } from '../../db/schema.js';
 import { eq } from 'drizzle-orm';
 import { createBackupFile } from '../../services/backup.js';
 import { readFile } from 'fs/promises';
+import { stringsFor } from '../../i18n/index.js';
 
 export function createBackupHandler(ports: {
   getPort: (tenantId: string) => TelegramPort | undefined;
@@ -40,7 +41,7 @@ export function createBackupHandler(ports: {
     await port.sendDocument(
       ports.superadminTelegramId,
       buffer,
-      `Бэкап БД ${new Date().toISOString().slice(0, 10)}`
+      stringsFor('ru').jobs.backupCaption(new Date().toISOString().slice(0, 10))
     );
 
     return { success: true };

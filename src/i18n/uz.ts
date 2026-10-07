@@ -29,13 +29,10 @@ export const uz: Strings = {
     categoriesEmpty: 'Kategoriyalar topilmadi.',
     productsEmpty: 'Bu kategoriyada hali mahsulotlar yoʻq.',
     back: '🔙 Orqaga',
-    backToCatalog: '🔙 Katalogga',
-    perUnit: (currency: string) => `${currency === '₽' ? 'dona' : 'birlik'} uchun`,
   },
   product: {
     notFound: 'Mahsulot topilmadi.',
     options: '⚙️ Variantlar:',
-    noOptions: 'Qoʻshimcha variantlarsiz',
     price: (p: string) => `Narxi: ${p}`,
   },
   common: {
@@ -43,7 +40,6 @@ export const uz: Strings = {
     badText: '⚠️ Matn boʻsh yoki juda uzun.',
     back: '🔙 Orqaga',
     toMenu: '🏠 Menyu',
-    guest: 'Mehmon',
     client: 'mijoz',
   },
   date: {
@@ -101,7 +97,6 @@ export const uz: Strings = {
     goToCart: '🛒 Savatchaga oʻtish',
   },
   checkout: {
-    startMsg: '📅 Buyurtmani rasmiylashtirish: olish sanasini tanlang.',
     dateTitle: '📅 Sanani tanlang',
     dateLegend: '✕ — mavjud emas (yopiq, barcha slotlar band yoki juda erta/kech)',
     dateUnavailable: '❌ Bu sana hozir mavjud emas.',
@@ -126,7 +121,6 @@ export const uz: Strings = {
     commentPrompt: '🎂 Tortdagi yozuv yoki tilaklar. Oʻtkazib yuborish mumkin.',
     commentTooLong: '⚠️ Matn juda uzun (maksimum 500 belgi). Qisqaroq yozing.',
     photosPrompt: '📸 Foto-referenslarni yuboring (5 tagacha) yoki «Oʻtkazib yuborish»ni bosing.',
-    photosLimit: '⚠️ Maksimum 5 ta fayl.',
     btnCancel: '❌ Bekor qilish',
     btnSkip: '⏭ Oʻtkazib yuborish',
     btnDone: '✅ Tayyor',
@@ -207,7 +201,6 @@ export const uz: Strings = {
     rejectedMsg: () => '❌ Toʻlov tasdiqlanmadi. Boshqa chek yuboring.',
     receiptReceived: (kind: string) => `📎 Chek qabul qilindi (${kind})`,
     kindPhoto: 'foto',
-    kindFile: 'fayl',
     invalidReceipt:
       '❌ Chek kerak: faqat foto. Fayllar, matn, audio yoki boshqa formatlar mos kelmaydi.',
     receiptToOwner: (client: string, orderNumber: number, kind: string) =>
@@ -216,10 +209,6 @@ export const uz: Strings = {
     alreadyReview: 'ℹ️ Chek allaqachon tekshirishga yuborilgan.',
     notAwaiting: 'ℹ️ Bu buyurtma endi toʻlovni kutmayapti.',
     failed: '❌ Chekni qabul qilib boʻlmadi. Qayta urinib koʻring.',
-  },
-  orderStatus: {
-    awaitingPayment: '⏳ Oldindan toʻlov kutilmoqda.',
-    confirmed: '✅ Buyurtmangiz tasdiqlandi.',
   },
   orderCard: {
     title: (n: number) => `<b>Buyurtma №${n}</b>`,
@@ -335,7 +324,6 @@ export const uz: Strings = {
     delete: '🗑 Oʻchirish',
     promptQuestion: '✍️ Savol matnini kiriting.',
     promptAnswer: '✍️ Javobni kiriting.',
-    deleteConfirm: '❓ Savol oʻchirilsinmi?',
   },
   ownerOrders: {
     paid: '✅ Toʻlov toʻgʻri',

@@ -50,7 +50,7 @@ export function registerLinksHandlers(bot: Bot<BotContextWithSession>): void {
       const code = viewMatch[1]!;
       const link = `https://t.me/${ctx.tenant.botUsername}?start=${code}`;
       const qr = await QRCode.toBuffer(link, { width: 320 });
-      await ctx.port.sendPhoto(chatId, qr, `${code}\n${link}`);
+      await ctx.port.sendPhoto(chatId, qr, `${code}\n${link}\n\n${ctx.t.ownerLinks.qrHint}`);
       await ctx.port.sendMessage(
         chatId,
         `${ctx.t.ownerLinks.linkCaption}\n\n${link}\n\n${ctx.t.ownerLinks.profileLabel}\n${ctx.t.ownerLinks.tplProfile(ctx.tenant.shopName, link)}\n\n${ctx.t.ownerLinks.commentLabel}\n${ctx.t.ownerLinks.tplComment(ctx.tenant.shopName, link)}\n\n${ctx.t.ownerLinks.autoLabel}\n${ctx.t.ownerLinks.tplAutoText(ctx.tenant.shopName, link)}`,

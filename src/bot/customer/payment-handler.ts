@@ -130,7 +130,7 @@ export function registerPaymentHandlers(bot: Bot<BotContextWithSession>): void {
     }
     const photo = ctx.message.photo[ctx.message.photo.length - 1];
     if (!photo) return;
-    await handleReceipt(ctx, photo.file_id, 'photo');
+    await handleReceipt(ctx, photo.file_id);
   });
 
   bot.on('message:document', async (ctx, next) => {
@@ -171,11 +171,7 @@ function receiptScreen(ctx: BotContextWithSession): { chatId: number; messageId:
   return { chatId, messageId };
 }
 
-async function handleReceipt(
-  ctx: BotContextWithSession,
-  fileId: string,
-  fileType: 'photo' | 'document'
-): Promise<void> {
+async function handleReceipt(ctx: BotContextWithSession, fileId: string): Promise<void> {
   const orderId = ctx.session.paymentOrderId;
   if (!orderId) return;
 
@@ -246,67 +242,38 @@ async function handleReceipt(
   const ownerCardMessageId = order.ownerCardMessageId;
 
   const receiptPhoto = ctx.message?.photo?.[ctx.message.photo.length - 1];
-  const receiptDoc = !receiptPhoto ? ctx.message?.document : undefined;
+  if (!receiptPhoto) return;
 
   if (!ownerCardMessageId) {
     // Fallback: send new message if no stored message ID
-    if (receiptPhoto) {
-      await ctx.port.sendPhoto(
-        ownerId,
-        receiptPhoto.file_id,
-        ctx.t.payment.receiptToOwner(clientLabel, order.number, ctx.t.payment.kindPhoto),
-        {
-          keyboard: {
-            inline_keyboard: [
-              [{ text: ctx.t.ownerOrders.paid, callback_data: `adm:ord:paid:${order.id}` }],
-              [{ text: ctx.t.ownerOrders.badpay, callback_data: `adm:ord:badpay:${order.id}` }],
-            ],
-          },
-        }
-      );
-    } else if (receiptDoc) {
-      await ctx.port.sendDocument(
-        ownerId,
-        receiptDoc.file_id,
-        ctx.t.payment.receiptToOwner(clientLabel, order.number, ctx.t.payment.kindFile),
-        {
-          keyboard: {
-            inline_keyboard: [
-              [{ text: ctx.t.ownerOrders.paid, callback_data: `adm:ord:paid:${order.id}` }],
-              [{ text: ctx.t.ownerOrders.badpay, callback_data: `adm:ord:badpay:${order.id}` }],
-            ],
-          },
-        }
-      );
-    }
+    await ctx.port.sendPhoto(
+      ownerId,
+      receiptPhoto.file_id,
+      ctx.t.payment.receiptToOwner(clientLabel, order.number, ctx.t.payment.kindPhoto),
+      {
+        keyboard: {
+          inline_keyboard: [
+            [{ text: ctx.t.ownerOrders.paid, callback_data: `adm:ord:paid:${order.id}` }],
+            [{ text: ctx.t.ownerOrders.badpay, callback_data: `adm:ord:badpay:${order.id}` }],
+          ],
+        },
+      }
+    );
     return;
   }
 
-  // Send the receipt photo/document to the owner with receipt info and paid/badpay buttons
-  const kindLabel = fileType === 'photo' ? ctx.t.payment.kindPhoto : ctx.t.payment.kindFile;
-  const receiptCaption = `${ctx.t.payment.receiptReceived(kindLabel)}\n\n${await buildOrderCardText(orderId, ctx.tenant.id, ctx.tenant.currency, ctx.tenant.language)}`;
+  // Send the receipt photo to the owner with receipt info and paid/badpay buttons
+  const receiptCaption = `${ctx.t.payment.receiptReceived(ctx.t.payment.kindPhoto)}\n\n${await buildOrderCardText(orderId, ctx.tenant.id, ctx.tenant.currency, ctx.tenant.language)}`;
 
-  if (receiptPhoto) {
-    await ctx.port.sendPhoto(ownerId, receiptPhoto.file_id, receiptCaption, {
-      keyboard: {
-        inline_keyboard: [
-          [{ text: ctx.t.ownerOrders.paid, callback_data: `adm:ord:paid:${order.id}` }],
-          [{ text: ctx.t.ownerOrders.badpay, callback_data: `adm:ord:badpay:${order.id}` }],
-        ],
-      },
-      parseMode: 'HTML',
-    });
-  } else if (receiptDoc) {
-    await ctx.port.sendDocument(ownerId, receiptDoc.file_id, receiptCaption, {
-      keyboard: {
-        inline_keyboard: [
-          [{ text: ctx.t.ownerOrders.paid, callback_data: `adm:ord:paid:${order.id}` }],
-          [{ text: ctx.t.ownerOrders.badpay, callback_data: `adm:ord:badpay:${order.id}` }],
-        ],
-      },
-      parseMode: 'HTML',
-    });
-  }
+  await ctx.port.sendPhoto(ownerId, receiptPhoto.file_id, receiptCaption, {
+    keyboard: {
+      inline_keyboard: [
+        [{ text: ctx.t.ownerOrders.paid, callback_data: `adm:ord:paid:${order.id}` }],
+        [{ text: ctx.t.ownerOrders.badpay, callback_data: `adm:ord:badpay:${order.id}` }],
+      ],
+    },
+    parseMode: 'HTML',
+  });
 
   // Also update the original order card message to show receipt status
   const card = await buildOrderCardText(
@@ -316,7 +283,7 @@ async function handleReceipt(
     ctx.tenant.language
   );
   if (card) {
-    const receiptInfo = ctx.t.payment.receiptReceived(kindLabel);
+    const receiptInfo = ctx.t.payment.receiptReceived(ctx.t.payment.kindPhoto);
     const updatedText = `${card}\n\n${receiptInfo}`;
     await ctx.port.editMessageTextOrSend(ownerId, ownerCardMessageId, updatedText, {
       keyboard: {

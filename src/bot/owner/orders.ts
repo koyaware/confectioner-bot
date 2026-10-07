@@ -176,9 +176,6 @@ export async function orderCardKeyboard(
   if (status === 'payment_review' || status === 'awaiting_payment') {
     rows.push([{ text: ctx.t.ownerOrders.cancel, callback_data: `adm:ord:cancel:${orderId}` }]);
   }
-  if (['new', 'awaiting_payment', 'payment_review', 'confirmed', 'ready'].includes(status)) {
-    // msg button removed
-  }
   const refs = await getDb()
     .select()
     .from(orderAttachments)

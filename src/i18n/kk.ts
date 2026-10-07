@@ -29,13 +29,10 @@ export const kk: Strings = {
     categoriesEmpty: 'Санаттар табылмады.',
     productsEmpty: 'Бұл санатта әзірге тауарлар жоқ.',
     back: '🔙 Артқа',
-    backToCatalog: '🔙 Каталогқа',
-    perUnit: (currency: string) => `${currency === '₸' ? 'дана' : 'бірлік'} үшін`,
   },
   product: {
     notFound: 'Тауар табылмады.',
     options: '⚙️ Опциялар:',
-    noOptions: 'Қосымша опцияларсыз',
     price: (p: string) => `Бағасы: ${p}`,
   },
   common: {
@@ -43,7 +40,6 @@ export const kk: Strings = {
     badText: '⚠️ Мәтін бос немесе тым ұзын.',
     back: '🔙 Артқа',
     toMenu: '🏠 Мәзір',
-    guest: 'Қонақ',
     client: 'клиент',
   },
   date: {
@@ -101,7 +97,6 @@ export const kk: Strings = {
     goToCart: '🛒 Себетке өту',
   },
   checkout: {
-    startMsg: '📅 Тапсырысты рәсімдеу: алу күнін таңдаңыз.',
     dateTitle: '📅 Күнді таңдаңыз',
     dateLegend: '✕ — қолжетімсіз (жабық, орындар толы немесе тым ерте/кеш)',
     dateUnavailable: '❌ Бұл күн қазір қолжетімсіз.',
@@ -132,7 +127,6 @@ export const kk: Strings = {
     commentPrompt: '🎂 Торттағы жазу немесе тілектер. Өткізіп жіберуге болады.',
     commentTooLong: '⚠️ Мәтін тым ұзын (максимум 500 таңба). Қысқартыңыз.',
     photosPrompt: '📸 Фото-референстер жіберіңіз (5-ке дейін) немесе «Өткізіп жіберу» басыңыз.',
-    photosLimit: '⚠️ Максимум 5 файл.',
     photosAttached: (n: number) => `Тіркелді: ${n}/5.`,
     photosAttachedMax: 'Тіркелді: 5/5 (максимум).',
     confirmTitle: '<b>Сіздің тапсырысыңыз</b>',
@@ -205,7 +199,6 @@ export const kk: Strings = {
     rejectedMsg: () => '❌ Төлем расталмады. Басқа чек жіберіңіз.',
     receiptReceived: (kind: string) => `📎 Чек алынды (${kind})`,
     kindPhoto: 'фото',
-    kindFile: 'файл',
     invalidReceipt:
       '❌ Чек керек: тек фото. Файлдар, мәтін, аудио немесе басқа форматтар жарамайды.',
     receiptToOwner: (client: string, orderNumber: number, kind: string) =>
@@ -214,10 +207,6 @@ export const kk: Strings = {
     alreadyReview: 'ℹ️ Чек тексеруге жіберілген.',
     notAwaiting: 'ℹ️ Бұл тапсырыс енді төлем күтпейді.',
     failed: '❌ Чекті қабылдау мүмкін болмады. Қайталаңыз.',
-  },
-  orderStatus: {
-    awaitingPayment: '⏳ Алдын ала төлем күтеміз.',
-    confirmed: '✅ Тапсырысыңыз расталды.',
   },
   orderCard: {
     title: (n: number) => `<b>№${n} тапсырыс</b>`,
@@ -334,7 +323,6 @@ export const kk: Strings = {
     delete: '🗑 Өшіру',
     promptQuestion: '✍️ Сұрақ мәтінін енгізіңіз.',
     promptAnswer: '✍️ Жауапты енгізіңіз.',
-    deleteConfirm: '❓ Сұрақ өшірілсін бе?',
   },
   ownerOrders: {
     paid: '✅ Төлем дұрыс',

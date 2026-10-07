@@ -26,13 +26,10 @@ export const ru = {
     categoriesEmpty: 'Категории не найдены.',
     productsEmpty: 'В этой категории пока нет товаров.',
     back: '🔙 Назад',
-    backToCatalog: '🔙 К каталогу',
-    perUnit: (currency: string) => `за ${currency === '₽' ? 'шт.' : 'единицу'}`,
   },
   product: {
     notFound: 'Товар не найден.',
     options: '⚙️ Опции:',
-    noOptions: 'Без дополнительных опций',
     price: (p: string) => `Цена: ${p}`,
   },
   common: {
@@ -40,7 +37,6 @@ export const ru = {
     badText: '⚠️ Текст пустой или слишком длинный.',
     back: '🔙 Назад',
     toMenu: '🏠 В меню',
-    guest: 'Гость',
     client: 'клиент',
   },
   date: {
@@ -98,7 +94,6 @@ export const ru = {
     goToCart: '🛒 Перейти в корзину',
   },
   checkout: {
-    startMsg: '📅 Оформление заказа: выберите дату получения.',
     dateTitle: '📅 Выберите дату',
     dateLegend: '✕ — недоступно (закрыто, все слоты заняты или слишком рано/поздно)',
     dateUnavailable: '❌ Эта дата сейчас недоступна.',
@@ -128,7 +123,6 @@ export const ru = {
     commentPrompt: '🎂 Надпись на торте или пожелания. Можно пропустить.',
     commentTooLong: '⚠️ Слишком длинный текст (максимум 500 символов). Напишите короче.',
     photosPrompt: '📸 Пришлите фото-референсы (до 5) или нажмите «Пропустить».',
-    photosLimit: '⚠️ Максимум 5 файлов.',
     photosAttached: (n: number) => `Прикреплено: ${n}/5.`,
     photosAttachedMax: 'Прикреплено: 5/5 (максимум).',
     confirmTitle: '<b>Ваш заказ</b>',
@@ -202,7 +196,6 @@ export const ru = {
     rejectedMsg: () => '❌ Оплата не подтверждена. Пришлите другой чек.',
     receiptReceived: (kind: string) => `📎 Чек получен (${kind})`,
     kindPhoto: 'фото',
-    kindFile: 'файл',
     invalidReceipt:
       '❌ Нужен чек: только фото. Файлы, текст, аудио или другие форматы не подходят.',
     receiptToOwner: (client: string, orderNumber: number, kind: string) =>
@@ -211,10 +204,6 @@ export const ru = {
     alreadyReview: 'ℹ️ Чек уже отправлен на проверку.',
     notAwaiting: 'ℹ️ Этот заказ уже не ждёт оплаты.',
     failed: '❌ Не удалось принять чек. Попробуйте ещё раз.',
-  },
-  orderStatus: {
-    awaitingPayment: '⏳ Ожидаем предоплату.',
-    confirmed: '✅ Ваш заказ подтверждён.',
   },
   orderCard: {
     title: (n: number) => `<b>Заказ №${n}</b>`,
@@ -331,7 +320,6 @@ export const ru = {
     delete: '🗑 Удалить',
     promptQuestion: '✍️ Введите текст вопроса.',
     promptAnswer: '✍️ Введите ответ.',
-    deleteConfirm: '❓ Удалить вопрос?',
   },
   ownerOrders: {
     paid: '✅ Оплата верна',
