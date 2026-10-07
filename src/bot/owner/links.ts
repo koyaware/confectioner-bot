@@ -25,7 +25,7 @@ export function registerLinksHandlers(bot: Bot<BotContextWithSession>): void {
         { text: s.label, callback_data: `adm:src:view:${s.code}` },
       ]);
       rows.push([{ text: ctx.t.ownerLinks.add, callback_data: 'adm:src:add' }]);
-      rows.push([{ text: 'Назад', callback_data: 'adm:menu' }]);
+      rows.push([{ text: ctx.t.common.back, callback_data: 'adm:menu' }]);
       await ctx.port.editMessageTextOrSend(
         chatId,
         messageId,
@@ -38,7 +38,9 @@ export function registerLinksHandlers(bot: Bot<BotContextWithSession>): void {
     if (data === 'adm:src:add') {
       beginOwnerDraft(ctx, { kind: 'src_add_label' });
       await ctx.port.editMessageTextOrSend(chatId, messageId, ctx.t.ownerLinks.promptLabel, {
-        keyboard: { inline_keyboard: [[{ text: 'Назад', callback_data: 'adm:menu' }]] },
+        keyboard: {
+          inline_keyboard: [[{ text: ctx.t.common.back, callback_data: 'adm:menu' }]],
+        },
       });
       return;
     }
@@ -51,12 +53,12 @@ export function registerLinksHandlers(bot: Bot<BotContextWithSession>): void {
       await ctx.port.sendPhoto(chatId, qr, `${code}\n${link}`);
       await ctx.port.sendMessage(
         chatId,
-        `${ctx.t.ownerLinks.linkCaption}\n\n${link}\n\nШапка профиля:\n${ctx.t.ownerLinks.tplProfile(ctx.tenant.shopName, link)}\n\nЗакреп. комментарий:\n${ctx.t.ownerLinks.tplComment(ctx.tenant.shopName, link)}\n\nАвтоответ директа:\n${ctx.t.ownerLinks.tplAutoText(ctx.tenant.shopName, link)}`,
+        `${ctx.t.ownerLinks.linkCaption}\n\n${link}\n\n${ctx.t.ownerLinks.profileLabel}\n${ctx.t.ownerLinks.tplProfile(ctx.tenant.shopName, link)}\n\n${ctx.t.ownerLinks.commentLabel}\n${ctx.t.ownerLinks.tplComment(ctx.tenant.shopName, link)}\n\n${ctx.t.ownerLinks.autoLabel}\n${ctx.t.ownerLinks.tplAutoText(ctx.tenant.shopName, link)}`,
         {
           keyboard: {
             inline_keyboard: [
-              [{ text: 'Удалить', callback_data: `adm:src:del:${code}` }],
-              [{ text: 'Назад', callback_data: 'adm:src:list' }],
+              [{ text: ctx.t.ownerCatalog.delete, callback_data: `adm:src:del:${code}` }],
+              [{ text: ctx.t.common.back, callback_data: 'adm:src:list' }],
             ],
           },
         }
@@ -72,7 +74,7 @@ export function registerLinksHandlers(bot: Bot<BotContextWithSession>): void {
         { text: s.label, callback_data: `adm:src:view:${s.code}` },
       ]);
       rows.push([{ text: ctx.t.ownerLinks.add, callback_data: 'adm:src:add' }]);
-      rows.push([{ text: 'Назад', callback_data: 'adm:menu' }]);
+      rows.push([{ text: ctx.t.common.back, callback_data: 'adm:menu' }]);
       await ctx.port.editMessageTextOrSend(chatId, messageId, ctx.t.ownerLinks.title, {
         keyboard: { inline_keyboard: rows },
       });

@@ -6,29 +6,6 @@ import { computeStats } from '../../services/stats.js';
 import { formatMinor } from '../../lib/money.js';
 import { escapeHtml } from '../../domain/escape.js';
 
-const FUNNEL_LABELS: Record<string, string> = {
-  start: 'Старт',
-  catalog_view: 'Каталог',
-  product_view: 'Товар',
-  cart_add: 'Корзина',
-  checkout_start: 'Оформление',
-  order_submit: 'Заказ',
-  faq_view: 'FAQ',
-  free_text: 'Свободный вопрос',
-};
-
-const ORDER_STATUS_LABELS: Record<string, string> = {
-  new: '🆕 Новый',
-  awaiting_payment: '💳 Ожидает оплаты',
-  payment_review: '📸 Чек на проверке',
-  confirmed: '✅ Подтверждён',
-  ready: '🎂 Готов',
-  completed: '✅ Завершён',
-  rejected: '❌ Отклонён',
-  cancelled: '🚫 Отменён',
-  expired: '⏰ Истёк',
-};
-
 export function registerStatsHandlers(bot: Bot<BotContextWithSession>): void {
   bot.callbackQuery(/^adm:stats(:(7|30))?$/, async (ctx) => {
     if (!canAccessOwner(ctx)) {
@@ -44,30 +21,33 @@ export function registerStatsHandlers(bot: Bot<BotContextWithSession>): void {
     const stats = await computeStats(ctx.tenant.id, days, new Date());
 
     const lines: string[] = [];
-    lines.push(`<b>Статистика за ${days} дней</b>`);
+    lines.push(ctx.t.stats.title(days));
     lines.push('');
-    lines.push(`Новые клиенты: ${stats.newCustomersTotal}`);
+    lines.push(`${ctx.t.stats.newCustomers}: ${stats.newCustomersTotal}`);
     for (const s of stats.newCustomersBySource) {
       lines.push(`  • ${escapeHtml(s.source)}: ${s.count}`);
     }
     lines.push('');
-    lines.push('Воронка:');
+    lines.push(ctx.t.stats.funnelTitle);
     for (const f of stats.funnel) {
-      lines.push(`  • ${FUNNEL_LABELS[f.type] ?? f.type}: ${f.count}`);
+      lines.push(`  • ${ctx.t.funnel[f.type as keyof typeof ctx.t.funnel] ?? f.type}: ${f.count}`);
     }
     lines.push('');
-    lines.push('Заказы по статусам:');
+    lines.push(ctx.t.stats.byStatusTitle);
     for (const o of stats.ordersByStatus) {
-      lines.push(`  • ${ORDER_STATUS_LABELS[o.status] ?? o.status}: ${o.count}`);
+      lines.push(
+        `  • ${ctx.t.orderStatuses[o.status as keyof typeof ctx.t.orderStatuses] ?? o.status}: ${o.count}`
+      );
     }
     lines.push('');
     lines.push(
-      `Выручка (подтверждённые): ${formatMinor(stats.revenueMinor, ctx.tenant.currency)} (${stats.confirmedOrders} шт.)`
+      ctx.t.stats.revenue(
+        formatMinor(stats.revenueMinor, ctx.tenant.currency),
+        stats.confirmedOrders
+      )
     );
-    lines.push(
-      `Время до решения владельца: ${stats.avgDecisionMinutes === null ? '—' : `${stats.avgDecisionMinutes} мин`}`
-    );
-    lines.push(`Обрабатывал бот без владельца: ${stats.botOnlyInteractions} клиентов`);
+    lines.push(ctx.t.stats.avgDecision(stats.avgDecisionMinutes));
+    lines.push(ctx.t.stats.botOnly(stats.botOnlyInteractions));
 
     const chatId = ctx.callbackQuery.message?.chat.id;
     const messageId = ctx.callbackQuery.message?.message_id;
@@ -76,10 +56,10 @@ export function registerStatsHandlers(bot: Bot<BotContextWithSession>): void {
     const kb: InlineKeyboard = {
       inline_keyboard: [
         [
-          { text: '7 дней', callback_data: 'adm:stats:7' },
-          { text: '30 дней', callback_data: 'adm:stats:30' },
+          { text: ctx.t.stats.days7, callback_data: 'adm:stats:7' },
+          { text: ctx.t.stats.days30, callback_data: 'adm:stats:30' },
         ],
-        [{ text: 'Назад', callback_data: 'adm:menu' }],
+        [{ text: ctx.t.common.back, callback_data: 'adm:menu' }],
       ],
     };
     await ctx.port.editMessageTextOrSend(chatId, messageId, lines.join('\n'), {

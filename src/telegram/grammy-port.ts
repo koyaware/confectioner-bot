@@ -5,6 +5,8 @@ import {
   SendMessageResult,
   TelegramError,
   InlineKeyboard as PortInlineKeyboard,
+  ReplyKeyboardMarkup,
+  ReplyKeyboardRemove,
 } from './port.js';
 import { TelegramErrorCode } from '../types.js';
 
@@ -72,9 +74,24 @@ export class GrammyPort implements TelegramPort {
   async sendMessage(chatId: number, text: string, opts?: SendOpts): Promise<SendMessageResult> {
     try {
       const keyboard = toGrammyKeyboard(opts?.keyboard);
-      const options: { reply_markup?: InlineKeyboard; parse_mode?: 'HTML' } = {};
-      if (keyboard) {
+      const options: {
+        reply_markup?: InlineKeyboard | ReplyKeyboardMarkup | ReplyKeyboardRemove;
+        parse_mode?: 'HTML';
+      } = {};
+      if (opts?.removeKeyboard) {
+        options.reply_markup = { remove_keyboard: true };
+      } else if (keyboard) {
         options.reply_markup = keyboard;
+      } else if (opts?.replyKeyboard) {
+        options.reply_markup = {
+          keyboard: opts.replyKeyboard.map((row) =>
+            row.map((b) =>
+              b.requestContact ? { text: b.text, request_contact: true } : { text: b.text }
+            )
+          ),
+          resize_keyboard: true,
+          one_time_keyboard: true,
+        };
       }
       if (opts?.parseMode) {
         options.parse_mode = opts.parseMode;

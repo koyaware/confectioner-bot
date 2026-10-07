@@ -2,6 +2,7 @@ import { Bot } from 'grammy';
 import { BotContextWithSession } from '../context.js';
 import { canAccessOwner } from '../permissions.js';
 import { InlineKeyboard } from '../../telegram/port.js';
+import { clearContactKeyboard } from '../customer/contact-keyboard.js';
 
 export function ownerMenuKeyboard(ctx: BotContextWithSession): InlineKeyboard {
   const s = ctx.t.menu.ownerSections;
@@ -36,12 +37,14 @@ export function customerMenuKeyboard(ctx: BotContextWithSession): InlineKeyboard
         { text: ctx.t.my.button, callback_data: 'my:list' },
       ],
       [{ text: ctx.t.faq.button, callback_data: 'faq:list' }],
+      [{ text: ctx.t.relay.writeButton, callback_data: 'rel:start' }],
     ],
   };
 }
 
 export function registerMenuHandler(bot: Bot<BotContextWithSession>): void {
   bot.command('menu', async (ctx) => {
+    await clearContactKeyboard(ctx);
     ctx.sessionState = 'idle';
     ctx.session.cart = ctx.session.cart ?? { lines: [] };
     ctx.session.checkout = undefined;
@@ -68,6 +71,7 @@ export function registerMenuHandler(bot: Bot<BotContextWithSession>): void {
   bot.callbackQuery(/^nav:menu$/, async (ctx) => {
     await ctx.port.answerCallback(ctx.callbackQuery.id);
 
+    await clearContactKeyboard(ctx);
     ctx.sessionState = 'idle';
     const chatId = ctx.callbackQuery.message?.chat.id;
     const messageId = ctx.callbackQuery.message?.message_id;
@@ -103,17 +107,22 @@ export function registerMenuHandler(bot: Bot<BotContextWithSession>): void {
           { text: ctx.t.my.button, callback_data: 'my:list' },
         ],
         [{ text: ctx.t.faq.button, callback_data: 'faq:list' }],
-        [{ text: 'Назад', callback_data: 'adm:menu' }],
+        [{ text: ctx.t.common.back, callback_data: 'adm:menu' }],
       ],
     };
 
     const chatId = ctx.callbackQuery.message?.chat.id;
     const messageId = ctx.callbackQuery.message?.message_id;
     if (chatId && messageId) {
-      await ctx.port.editMessageTextOrSend(chatId, messageId, `Клиент видит это:\n\n${greeting}`, {
-        keyboard,
-        parseMode: 'HTML',
-      });
+      await ctx.port.editMessageTextOrSend(
+        chatId,
+        messageId,
+        `${ctx.t.menu.clientPreview}\n\n${greeting}`,
+        {
+          keyboard,
+          parseMode: 'HTML',
+        }
+      );
     }
   });
 

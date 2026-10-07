@@ -6,6 +6,7 @@ import { applyOrderEvent, getCustomerOrderNumber } from '../../services/orders.j
 import { sendCustomerMessage } from '../../services/notify.js';
 import { TelegramPort } from '../../telegram/port.js';
 import { formatMinor } from '../../lib/money.js';
+import { stringsFor, localeFor } from '../../i18n/index.js';
 
 export interface PortResolver {
   getPort(tenantId: string): TelegramPort | undefined;
@@ -39,8 +40,9 @@ export function createPaymentReminderHandler(ports: PortResolver): JobHandler<{ 
       return { success: false, error: `no bot for tenant ${order.tenantId}` };
     }
     try {
+      const t = stringsFor(tenant.language);
       const deadline = order.paymentDueAt
-        ? new Intl.DateTimeFormat('ru-RU', {
+        ? new Intl.DateTimeFormat(localeFor(tenant.language), {
             timeZone: tenant.timezone,
             day: '2-digit',
             month: '2-digit',
@@ -53,7 +55,11 @@ export function createPaymentReminderHandler(ports: PortResolver): JobHandler<{ 
         port,
         order.tenantId,
         customer.id,
-        `Напоминаем: предоплата по заказу №${(await getCustomerOrderNumber(order.id)) ?? order.number} — ${formatMinor(order.prepaymentMinor, tenant.currency)}. Срок до ${deadline}.`
+        t.jobs.payRemind(
+          (await getCustomerOrderNumber(order.id)) ?? order.number,
+          formatMinor(order.prepaymentMinor, tenant.currency),
+          deadline
+        )
       );
       if (result === 'failed') {
         return { success: true };
@@ -78,13 +84,14 @@ export function createPaymentExpireHandler(ports: PortResolver): JobHandler<{ or
 
     const port = ports.getPort(order.tenantId);
     if (port) {
+      const t = stringsFor(tenant?.language);
       if (customer && !customer.botBlocked) {
         try {
           await sendCustomerMessage(
             port,
             order.tenantId,
             customer.id,
-            `Заказ №${(await getCustomerOrderNumber(order.id)) ?? order.number} снят: предоплата не поступила вовремя.`
+            t.jobs.payExpiredCustomer((await getCustomerOrderNumber(order.id)) ?? order.number)
           );
         } catch {
           // network errors are swallowed here: the order already expired
@@ -92,10 +99,7 @@ export function createPaymentExpireHandler(ports: PortResolver): JobHandler<{ or
       }
       if (tenant?.ownerTelegramId) {
         try {
-          await port.sendMessage(
-            tenant.ownerTelegramId,
-            `Заказ №${order.number} снят: клиент не оплатил предоплату вовремя.`
-          );
+          await port.sendMessage(tenant.ownerTelegramId, t.jobs.payExpiredOwner(order.number));
         } catch {
           // noop
         }

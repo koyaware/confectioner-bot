@@ -50,7 +50,7 @@ const sessionStateSchema = z.enum([
   'owner.edit_field',
 ]);
 
-const sessionDataSchema = z.object({
+export const sessionDataSchema = z.object({
   cart: z.object({
     lines: z.array(
       z.object({
@@ -65,6 +65,7 @@ const sessionDataSchema = z.object({
   ownerDraft: ownerDraftSchema.optional(),
   paymentOrderId: z.string().optional(),
   paymentScreenId: z.number().int().positive().optional(),
+  contactKbMsgId: z.number().int().positive().optional(),
   lastAutoReplyAt: z.number().optional(),
   refsMessageIds: z.array(z.number()).optional(),
   antispam: z

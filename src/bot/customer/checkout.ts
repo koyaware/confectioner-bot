@@ -11,27 +11,11 @@ import { nanoid } from 'nanoid';
 import { addDays, monthEndOf, toIsoDate } from '../../lib/time.js';
 import { InlineKeyboard } from '../../telegram/port.js';
 import { getProductById, listProductOptions } from '../../services/catalog.js';
+import { sendContactKeyboard, clearContactKeyboard } from './contact-keyboard.js';
 import { priceLine, priceOrder } from '../../domain/pricing.js';
 import { escapeHtml } from '../../domain/escape.js';
 import { formatMinor } from '../../lib/money.js';
 import { SessionState } from '../../types.js';
-
-const MONTH_NAMES = [
-  'Январь',
-  'Февраль',
-  'Март',
-  'Апрель',
-  'Май',
-  'Июнь',
-  'Июль',
-  'Август',
-  'Сентябрь',
-  'Октябрь',
-  'Ноябрь',
-  'Декабрь',
-];
-
-const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 
 async function findOrCreateCustomer(ctx: BotContextWithSession): Promise<string> {
   const db = getDb();
@@ -59,7 +43,12 @@ async function findOrCreateCustomer(ctx: BotContextWithSession): Promise<string>
 async function notifyOwnerOfOrder(ctx: BotContextWithSession, orderId: string): Promise<void> {
   const ownerId = ctx.tenant.ownerTelegramId;
   if (!ownerId) return;
-  const text = await buildOrderCardText(orderId, ctx.tenant.id, ctx.tenant.currency);
+  const text = await buildOrderCardText(
+    orderId,
+    ctx.tenant.id,
+    ctx.tenant.currency,
+    ctx.tenant.language
+  );
   if (!text) return;
   const sent = await ctx.port.sendMessage(ownerId, text, {
     keyboard: await orderCardKeyboard(ctx, orderId, 'new'),
@@ -71,13 +60,14 @@ async function notifyOwnerOfOrder(ctx: BotContextWithSession, orderId: string): 
 }
 
 export function calendarKeyboard(
+  ctx: BotContextWithSession,
   availability: DateAvailability,
   year: number,
   month: number
 ): InlineKeyboard {
   const firstDay = `${year}-${String(month).padStart(2, '0')}-01`;
   const rows: InlineKeyboard['inline_keyboard'] = [];
-  rows.push(WEEKDAYS.map((w) => ({ text: w, callback_data: 'cart:noop' })));
+  rows.push(ctx.t.date.weekdays.map((w) => ({ text: w, callback_data: 'cart:noop' })));
 
   const [y, m, d] = firstDay.split('-').map(Number);
   const startDate = new Date(Date.UTC(y!, m! - 1, d));
@@ -109,10 +99,10 @@ export function calendarKeyboard(
   const next = addDays(firstDay, 33).slice(0, 7);
   rows.push([
     { text: '«', callback_data: `chk:datepage:${prev}` },
-    { text: `${MONTH_NAMES[month - 1]} ${year}`, callback_data: 'cart:noop' },
+    { text: `${ctx.t.date.months[month - 1]} ${year}`, callback_data: 'cart:noop' },
     { text: '»', callback_data: `chk:datepage:${next}` },
   ]);
-  rows.push([{ text: 'Отмена', callback_data: 'chk:cancel' }]);
+  rows.push([{ text: ctx.t.checkout.btnCancel, callback_data: 'chk:cancel' }]);
 
   return { inline_keyboard: rows };
 }
@@ -138,18 +128,21 @@ async function showCalendar(ctx: BotContextWithSession, edit: boolean): Promise<
 
   if (edit && chatId && messageId) {
     await ctx.port.editMessageTextOrSend(chatId, messageId, text, {
-      keyboard: calendarKeyboard(availability, year, month),
+      keyboard: calendarKeyboard(ctx, availability, year, month),
     });
   } else if (chatId) {
-    await showScreen(ctx, text, calendarKeyboard(availability, year, month));
+    await showScreen(ctx, text, calendarKeyboard(ctx, availability, year, month));
   }
 }
 
-function stepKeyboard(opts?: { skip?: boolean; back?: boolean }): InlineKeyboard {
+function stepKeyboard(
+  ctx: BotContextWithSession,
+  opts?: { skip?: boolean; back?: boolean }
+): InlineKeyboard {
   const rows: InlineKeyboard['inline_keyboard'] = [];
-  if (opts?.skip) rows.push([{ text: 'Пропустить', callback_data: 'chk:skip' }]);
-  if (opts?.back !== false) rows.push([{ text: 'Назад', callback_data: 'chk:back' }]);
-  rows.push([{ text: 'Отмена', callback_data: 'chk:cancel' }]);
+  if (opts?.skip) rows.push([{ text: ctx.t.checkout.btnSkip, callback_data: 'chk:skip' }]);
+  if (opts?.back !== false) rows.push([{ text: ctx.t.common.back, callback_data: 'chk:back' }]);
+  rows.push([{ text: ctx.t.checkout.btnCancel, callback_data: 'chk:cancel' }]);
   return { inline_keyboard: rows };
 }
 
@@ -192,19 +185,19 @@ async function deleteUserMessage(ctx: BotContextWithSession): Promise<void> {
   }
 }
 
-function photosKeyboard(): InlineKeyboard {
+function photosKeyboard(ctx: BotContextWithSession): InlineKeyboard {
   return {
     inline_keyboard: [
-      [{ text: 'Готово', callback_data: 'chk:photos:done' }],
-      [{ text: 'Пропустить', callback_data: 'chk:skip' }],
-      [{ text: 'Назад', callback_data: 'chk:back' }],
-      [{ text: 'Отмена', callback_data: 'chk:cancel' }],
+      [{ text: ctx.t.checkout.btnDone, callback_data: 'chk:photos:done' }],
+      [{ text: ctx.t.checkout.btnSkip, callback_data: 'chk:skip' }],
+      [{ text: ctx.t.common.back, callback_data: 'chk:back' }],
+      [{ text: ctx.t.checkout.btnCancel, callback_data: 'chk:cancel' }],
     ],
   };
 }
 
 async function refreshPhotosScreen(ctx: BotContextWithSession): Promise<void> {
-  await showScreen(ctx, photosPromptText(ctx), photosKeyboard());
+  await showScreen(ctx, photosPromptText(ctx), photosKeyboard(ctx));
 }
 
 async function showCurrentStep(ctx: BotContextWithSession): Promise<void> {
@@ -215,35 +208,36 @@ async function showCurrentStep(ctx: BotContextWithSession): Promise<void> {
 
   switch (state) {
     case 'checkout.time': {
-      await showScreen(ctx, ctx.t.checkout.timePrompt, stepKeyboard({ skip: true }));
+      await showScreen(ctx, ctx.t.checkout.timePrompt, stepKeyboard(ctx, { skip: true }));
       break;
     }
     case 'checkout.fulfillment': {
       const kb: InlineKeyboard = {
         inline_keyboard: [
-          [{ text: 'Самовывоз', callback_data: 'chk:ful:pickup' }],
-          [{ text: 'Доставка', callback_data: 'chk:ful:delivery' }],
-          [{ text: 'Назад', callback_data: 'chk:back' }],
-          [{ text: 'Отмена', callback_data: 'chk:cancel' }],
+          [{ text: ctx.t.checkout.pickupBtn, callback_data: 'chk:ful:pickup' }],
+          [{ text: ctx.t.checkout.deliveryBtn, callback_data: 'chk:ful:delivery' }],
+          [{ text: ctx.t.common.back, callback_data: 'chk:back' }],
+          [{ text: ctx.t.checkout.btnCancel, callback_data: 'chk:cancel' }],
         ],
       };
       await showScreen(ctx, ctx.t.checkout.fulfillmentPrompt, kb);
       break;
     }
     case 'checkout.address': {
-      await showScreen(ctx, ctx.t.checkout.addressPrompt, stepKeyboard());
+      await showScreen(ctx, ctx.t.checkout.addressPrompt, stepKeyboard(ctx));
       break;
     }
     case 'checkout.contact': {
       await showScreen(
         ctx,
         ctx.t.checkout.contactPrompt(ctx.t.checkout.phoneExample(ctx.tenant.currency)),
-        stepKeyboard()
+        stepKeyboard(ctx)
       );
+      await sendContactKeyboard(ctx);
       break;
     }
     case 'checkout.comment': {
-      await showScreen(ctx, ctx.t.checkout.commentPrompt, stepKeyboard({ skip: true }));
+      await showScreen(ctx, ctx.t.checkout.commentPrompt, stepKeyboard(ctx, { skip: true }));
       break;
     }
     case 'checkout.photos': {
@@ -254,9 +248,14 @@ async function showCurrentStep(ctx: BotContextWithSession): Promise<void> {
       const text = await buildConfirmText(ctx);
       const kb: InlineKeyboard = {
         inline_keyboard: [
-          [{ text: 'Отправить заказ', callback_data: `chk:submit:${draft?.checkoutId ?? ''}` }],
-          [{ text: 'Назад', callback_data: 'chk:back' }],
-          [{ text: 'Отмена', callback_data: 'chk:cancel' }],
+          [
+            {
+              text: ctx.t.checkout.btnSubmit,
+              callback_data: `chk:submit:${draft?.checkoutId ?? ''}`,
+            },
+          ],
+          [{ text: ctx.t.common.back, callback_data: 'chk:back' }],
+          [{ text: ctx.t.checkout.btnCancel, callback_data: 'chk:cancel' }],
         ],
       };
       await showScreen(ctx, text, kb, 'HTML');
@@ -271,14 +270,14 @@ function photosPromptText(ctx: BotContextWithSession): string {
   const count = ctx.session.checkout?.referenceFileIds.length ?? 0;
   const base = ctx.t.checkout.photosPrompt;
   if (count === 0) return base;
-  if (count >= 5) return base + '\n\nПрикреплено: 5/5 (максимум).';
-  return base + `\n\nПрикреплено: ${count}/5.`;
+  if (count >= 5) return base + '\n\n' + ctx.t.checkout.photosAttachedMax;
+  return base + '\n\n' + ctx.t.checkout.photosAttached(count);
 }
 
 async function buildConfirmText(ctx: BotContextWithSession): Promise<string> {
   const draft = ctx.session.checkout;
   const lines: string[] = [];
-  lines.push('<b>Ваш заказ</b>');
+  lines.push(ctx.t.checkout.confirmTitle);
   let itemsTotal = 0;
   for (const line of ctx.session.cart.lines) {
     const product = await getProductById(ctx.tenant.id, line.productId);
@@ -298,23 +297,30 @@ async function buildConfirmText(ctx: BotContextWithSession): Promise<string> {
   const deliveryFee = draft?.fulfillment === 'delivery' ? ctx.tenant.deliveryFeeMinor : 0;
   const order = priceOrder([itemsTotal], deliveryFee, ctx.tenant.prepaymentPercent);
   lines.push('');
-  lines.push(`Дата: ${draft?.dueDate ?? '—'}`);
-  if (draft?.dueTimeText) lines.push(`Время: ${escapeHtml(draft.dueTimeText)}`);
-  lines.push(`Получение: ${draft?.fulfillment === 'delivery' ? 'доставка' : 'самовывоз'}`);
-  if (draft?.address) lines.push(`Адрес: ${escapeHtml(draft.address)}`);
+  lines.push(ctx.t.checkout.confirmDate(draft?.dueDate ?? '—'));
+  if (draft?.dueTimeText) lines.push(ctx.t.checkout.confirmTime(escapeHtml(draft.dueTimeText)));
+  lines.push(
+    ctx.t.checkout.confirmFulfillment(
+      draft?.fulfillment === 'delivery' ? ctx.t.orderCard.delivery : ctx.t.orderCard.pickup
+    )
+  );
+  if (draft?.address) lines.push(ctx.t.checkout.confirmAddress(escapeHtml(draft.address)));
   if (draft?.contactName && draft?.contactPhone) {
-    lines.push(`Контакт: ${escapeHtml(draft.contactName)}, ${escapeHtml(draft.contactPhone)}`);
+    lines.push(
+      ctx.t.checkout.confirmContact(escapeHtml(draft.contactName), escapeHtml(draft.contactPhone))
+    );
   }
-  if (draft?.comment) lines.push(`Комментарий: ${escapeHtml(draft.comment)}`);
+  if (draft?.comment) lines.push(ctx.t.checkout.confirmComment(escapeHtml(draft.comment)));
   if (draft?.referenceFileIds?.length)
-    lines.push(`Референсы: ${draft.referenceFileIds.length} шт.`);
+    lines.push(ctx.t.checkout.confirmRefs(draft.referenceFileIds.length));
   lines.push('');
-  lines.push(`Товары: ${formatMinor(order.items, ctx.tenant.currency)}`);
-  if (deliveryFee) lines.push(`Доставка: ${formatMinor(deliveryFee, ctx.tenant.currency)}`);
-  lines.push(`Итого: ${formatMinor(order.total, ctx.tenant.currency)}`);
-  lines.push(`Предоплата: ${formatMinor(order.prepayment, ctx.tenant.currency)}`);
+  lines.push(ctx.t.checkout.confirmItems(formatMinor(order.items, ctx.tenant.currency)));
+  if (deliveryFee)
+    lines.push(ctx.t.checkout.confirmDeliveryFee(formatMinor(deliveryFee, ctx.tenant.currency)));
+  lines.push(ctx.t.checkout.confirmTotal(formatMinor(order.total, ctx.tenant.currency)));
+  lines.push(ctx.t.checkout.confirmPrepay(formatMinor(order.prepayment, ctx.tenant.currency)));
   lines.push('');
-  lines.push('Отправляя заказ, вы соглашаетесь на обработку данных для выполнения заказа.');
+  lines.push(ctx.t.checkout.confirmConsent);
   return lines.join('\n');
 }
 
@@ -341,7 +347,7 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
       chatId,
       messageId,
       `${ctx.t.checkout.dateTitle}\n${ctx.t.checkout.dateLegend}`,
-      { keyboard: calendarKeyboard(availability, year, month) }
+      { keyboard: calendarKeyboard(ctx, availability, year, month) }
     );
   });
 
@@ -370,7 +376,7 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
         messageId,
         `${ctx.t.checkout.dateUnavailable}\n${ctx.t.checkout.dateLegend}`,
         {
-          keyboard: calendarKeyboard(avail, Number(iso.slice(0, 4)), Number(iso.slice(5, 7))),
+          keyboard: calendarKeyboard(ctx, avail, Number(iso.slice(0, 4)), Number(iso.slice(5, 7))),
         }
       );
       return;
@@ -399,12 +405,14 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
 
   bot.callbackQuery(/^chk:skip$/, async (ctx) => {
     await ctx.port.answerCallback(ctx.callbackQuery.id);
+    await clearContactKeyboard(ctx);
     advanceFromSkip(ctx);
     await showCurrentStep(ctx);
   });
 
   bot.callbackQuery(/^chk:back$/, async (ctx) => {
     await ctx.port.answerCallback(ctx.callbackQuery.id);
+    await clearContactKeyboard(ctx);
     ctx.sessionState = resolveBack(ctx);
     if (ctx.sessionState === 'checkout.date') {
       await showCalendar(ctx, false);
@@ -415,6 +423,7 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
 
   bot.callbackQuery(/^chk:cancel$/, async (ctx) => {
     await ctx.port.answerCallback(ctx.callbackQuery.id);
+    await clearContactKeyboard(ctx);
     ctx.sessionState = 'idle';
     ctx.session.checkout = undefined;
     const chatId = ctx.callbackQuery.message?.chat.id;
@@ -485,7 +494,12 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
             ? ctx.t.checkout.capacityExceeded
             : ctx.t.checkout.dateTaken;
         await ctx.port.editMessageTextOrSend(chatId, messageId, msg, {
-          keyboard: calendarKeyboard(avail, Number(today.slice(0, 4)), Number(today.slice(5, 7))),
+          keyboard: calendarKeyboard(
+            ctx,
+            avail,
+            Number(today.slice(0, 4)),
+            Number(today.slice(5, 7))
+          ),
         });
         return;
       }
@@ -522,7 +536,7 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
               { text: ctx.t.cart.button, callback_data: 'cart:show' },
               { text: ctx.t.my.button, callback_data: 'my:list' },
             ],
-            [{ text: 'В меню', callback_data: 'nav:menu' }],
+            [{ text: ctx.t.common.toMenu, callback_data: 'nav:menu' }],
           ],
         },
       }
@@ -556,7 +570,7 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
         break;
       case 'checkout.address':
         if (!text) {
-          await showScreen(ctx, ctx.t.checkout.addressPrompt, stepKeyboard());
+          await showScreen(ctx, ctx.t.checkout.addressPrompt, stepKeyboard(ctx));
           return;
         }
         ctx.session.checkout!.address = text;
@@ -569,7 +583,7 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
           await showScreen(
             ctx,
             ctx.t.checkout.contactInvalid(ctx.t.checkout.phoneExample(ctx.tenant.currency)),
-            stepKeyboard()
+            stepKeyboard(ctx)
           );
           return;
         }
@@ -577,19 +591,20 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
           await showScreen(
             ctx,
             ctx.t.checkout.contactNameMissing(ctx.t.checkout.phoneExample(ctx.tenant.currency)),
-            stepKeyboard()
+            stepKeyboard(ctx)
           );
           return;
         }
         ctx.session.checkout!.contactName = parsed.name;
         ctx.session.checkout!.contactPhone = parsed.phone;
+        await clearContactKeyboard(ctx);
         ctx.sessionState = 'checkout.comment';
         await showCurrentStep(ctx);
         break;
       }
       case 'checkout.comment':
         if (text.length > 500) {
-          await showScreen(ctx, ctx.t.checkout.commentTooLong, stepKeyboard({ skip: true }));
+          await showScreen(ctx, ctx.t.checkout.commentTooLong, stepKeyboard(ctx, { skip: true }));
           return;
         }
         ctx.session.checkout!.comment = text || undefined;
@@ -611,6 +626,7 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
     if (contextHasPhone(contact)) {
       ctx.session.checkout!.contactName = `${contact.first_name}${contact.last_name ? ' ' + contact.last_name : ''}`;
       ctx.session.checkout!.contactPhone = contact.phone_number;
+      await clearContactKeyboard(ctx);
       ctx.sessionState = 'checkout.comment';
       await showCurrentStep(ctx);
     }

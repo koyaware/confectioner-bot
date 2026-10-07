@@ -158,11 +158,11 @@ describe('owner order handling', () => {
     const { buildOrderCardText } = await import('../src/bot/owner/orders.js');
     const { applyOrderEvent } = await import('../src/services/orders.js');
 
-    const before = await buildOrderCardText(order.id, tenantId, '₽');
+    const before = await buildOrderCardText(order.id, tenantId, '₽', 'ru');
     expect(before).toContain('Загрузка даты:');
 
     await applyOrderEvent(order.id, 'customer_cancel', 'customer', now);
-    const after = await buildOrderCardText(order.id, tenantId, '₽');
+    const after = await buildOrderCardText(order.id, tenantId, '₽', 'ru');
     expect(after).toContain('занято 0 из 5 (заказов: 0)');
   });
 });

@@ -31,7 +31,7 @@ export function registerCatalogHandlers(bot: Bot<BotContextWithSession>): void {
       const keyboard: InlineKeyboard = {
         inline_keyboard: [
           ...cats.map((c) => [{ text: c.title, callback_data: `cat:open:${c.id}` }]),
-          [{ text: 'В меню', callback_data: 'nav:menu' }],
+          [{ text: ctx.t.common.toMenu, callback_data: 'nav:menu' }],
         ],
       };
       await ctx.port.editMessageTextOrSend(chatId, messageId, text, {
@@ -80,7 +80,9 @@ export function registerCatalogHandlers(bot: Bot<BotContextWithSession>): void {
     const product = await getProductIfOwned(ctx.tenant.id, decoded.value.arg);
     if (!product) {
       await ctx.port.editMessageTextOrSend(chatId, messageId, ctx.t.product.notFound, {
-        keyboard: { inline_keyboard: [[{ text: 'В меню', callback_data: 'nav:menu' }]] },
+        keyboard: {
+          inline_keyboard: [[{ text: ctx.t.common.toMenu, callback_data: 'nav:menu' }]],
+        },
         parseMode: 'HTML',
       });
       return;

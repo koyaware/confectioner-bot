@@ -60,7 +60,10 @@ async function cartKeyboard(
   }
 
   if (lines.length === 0) {
-    return { text: ctx.t.cart.empty, rows: [[{ text: 'В меню', callback_data: 'nav:menu' }]] };
+    return {
+      text: ctx.t.cart.empty,
+      rows: [[{ text: ctx.t.common.toMenu, callback_data: 'nav:menu' }]],
+    };
   }
 
   const order = priceOrder([lineTotal], 0, 0);
@@ -267,7 +270,9 @@ export function registerCartHandlers(bot: Bot<BotContextWithSession>): void {
       const messageId = ctx.callbackQuery.message?.message_id;
       if (chatId && messageId) {
         await ctx.port.editMessageTextOrSend(chatId, messageId, ctx.t.cart.empty, {
-          keyboard: { inline_keyboard: [[{ text: 'В меню', callback_data: 'nav:menu' }]] },
+          keyboard: {
+            inline_keyboard: [[{ text: ctx.t.common.toMenu, callback_data: 'nav:menu' }]],
+          },
         });
       }
       return;
@@ -278,7 +283,7 @@ export function registerCartHandlers(bot: Bot<BotContextWithSession>): void {
       if (chatId) {
         await ctx.port.sendMessage(chatId, ctx.tenant.busyText ?? ctx.t.checkout.busy, {
           keyboard: {
-            inline_keyboard: [[{ text: 'Написать мастеру', callback_data: 'rel:start' }]],
+            inline_keyboard: [[{ text: ctx.t.relay.writeButton, callback_data: 'rel:start' }]],
           },
         });
       }
@@ -309,6 +314,7 @@ export function registerCartHandlers(bot: Bot<BotContextWithSession>): void {
       `${ctx.t.checkout.dateTitle}\n${ctx.t.checkout.dateLegend}`,
       {
         keyboard: calendarKeyboard(
+          ctx,
           availability,
           Number(today.slice(0, 4)),
           Number(today.slice(5, 7))

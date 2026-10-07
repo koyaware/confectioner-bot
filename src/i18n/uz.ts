@@ -36,6 +36,7 @@ export const uz: Strings = {
     notFound: 'Mahsulot topilmadi.',
     options: '⚙️ Variantlar:',
     noOptions: 'Qoʻshimcha variantlarsiz',
+    price: (p: string) => `Narxi: ${p}`,
   },
   common: {
     error: '❌ Xatolik yuz berdi. Keyinroq urinib koʻring.',
@@ -117,6 +118,8 @@ export const uz: Strings = {
       `📞 Aloqa uchun: ism va telefon (vergul bilan) yoki Telegram kontaktingizni yuboring. Masalan: Ivan, ${phoneExample}`,
     contactInvalid: (phoneExample: string) =>
       `❌ Tushunmadim. Bunday yozing: Ivan, ${phoneExample}`,
+    shareContact: '📱 Kontaktni yuborish',
+    contactKbHint: '👇 Yoki kontakt yuborish uchun pastdagi tugmani bosing.',
     contactNameMissing: (phoneExample: string) =>
       `📞 Telefon qabul qilindi. Endi ismingizni yozing, masalan: Ivan, ${phoneExample}`,
     orderMore: '🔁 Yana buyurtma',
@@ -179,6 +182,14 @@ export const uz: Strings = {
     cancelSkip: '⏭ Oʻtkazib yuborish',
     cancelOrderBtn: 'Buyurtmani bekor qilish',
     refsButton: (n: number) => `Referenslar (${n})`,
+    listRow: (n: number, s: string) => `№${n} — ${s}`,
+    cancelled: (n: number) => `№${n} buyurtma bekor qilindi.`,
+    refsTitle: (n: number, c: number) => `№${n} buyurtmaning referenslari (${c} ta)`,
+    readyMsg: (n: number) =>
+      `№${n} buyurtma tayyor! Topshirishni kelishish uchun usta tez orada siz bilan bogʻlanadi.`,
+    doneMsg: (n: number) =>
+      `✅ №${n} buyurtma yakunlandi! Buyurtmangiz uchun rahmat, yana kutamiz! 🍰`,
+    cancelledByOwner: (n: number) => `№${n} buyurtma usta tomonidan bekor qilindi.`,
     pdDeclined: 'Yaxshi, ustadan yangi taklif kutyapmiz.',
     pdTaken: 'Bu sana band. Ustadan boshqa sana soʻrang.',
     pdAccepted: (n: number) => `№${n} buyurtma ishga qabul qilindi.`,
@@ -193,10 +204,17 @@ export const uz: Strings = {
   payment: {
     promptReceipt: '📎 Chek foto yoki faylini yuboring.',
     paidButton: 'Men toʻladim',
+    accepted: (n: number) => `№${n} buyurtma qabul qilindi.`,
+    noRequisites: 'Rekvizitlarni ustadan aniqlang',
+    payCall: (button: string, deadline: string) =>
+      `Toʻlang va «${button}» ni bosing. Muddat: ${deadline}gacha`,
+    confirmedMsg: 'Toʻlov tasdiqlandi. Buyurtma ishda.',
+    rejectedMsg: () => '❌ Toʻlov tasdiqlanmadi. Boshqa chek yuboring.',
+    receiptReceived: (kind: string) => `📎 Chek qabul qilindi (${kind})`,
     kindPhoto: 'foto',
     kindFile: 'fayl',
     invalidReceipt:
-      '❌ Chek fotosini yuboring. Fayllar, matn, audio yoki boshqa formatlar mos kelmaydi.',
+      '❌ Chek kerak: foto yoki fayl. Matn, audio yoki boshqa formatlar mos kelmaydi.',
     receiptToOwner: (client: string, orderNumber: number, kind: string) =>
       `💳 Mijoz ${client} toʻlov tasdigʻini yubordi (${kind}), buyurtma №${orderNumber}`,
     receiptSent: '✅ Chek ustaga tekshirish uchun yuborildi.',
@@ -312,6 +330,7 @@ export const uz: Strings = {
     promptCapacity: '🔢 Kunga buyurtmalar limitini kiriting (0 dan katta butun son).',
     badCapacity: '❌ Butun manfiy boʻlmagan son kerak.',
     savedLimit: '✅ Limit saqlandi.',
+    limit: (n: number) => `Limit: ${n}`,
   },
   ownerFaq: {
     title: '❓ FAQ',
@@ -332,8 +351,19 @@ export const uz: Strings = {
     ready: '🎂 Tayyor',
     done: '✅ Yakunlandi',
     cancel: '❌ Bekor qilish',
-    msg: '✍️ Mijozga yozish',
     refs: '📎 Referenslar',
+    empty: 'Buyurtmalar hali yoʻq.',
+    dateUnavailable: 'Sana band.',
+    listTitle: 'Buyurtmalar:',
+    groups: {
+      new: 'Yangi',
+      work: 'Ishda',
+      ready: 'Tayyor',
+      upcoming: 'Bugun va ertaga',
+    },
+    rejectPrompt: 'Rad etish sababi?',
+    proposeDate: (n: number) => `№${n} buyurtma uchun yangi sana taklif qiling:`,
+    refsTitle: (n: number, c: number) => `№${n} buyurtmaning referenslari (${c} ta)`,
     rejectReasons: {
       full: '❌ Bu sanaga joy yoʻq',
       busy: '📦 Koʻp joriy buyurtmalar',
@@ -421,5 +451,8 @@ export const uz: Strings = {
   },
   notify: {
     blocked: (client: string) => `Mijoz ${client} botni blokladi. Bildirishnomalar unga yetmaydi.`,
+    orderCancelledByCustomer: (n: number, suffix: string) =>
+      `№${n} buyurtma mijoz tomonidan bekor qilindi${suffix}`,
+    orderRejected: (n: number, r: string) => `№${n} buyurtma rad etildi: ${r}`,
   },
 };

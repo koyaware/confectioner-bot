@@ -33,6 +33,7 @@ export const ru = {
     notFound: 'Товар не найден.',
     options: '⚙️ Опции:',
     noOptions: 'Без дополнительных опций',
+    price: (p: string) => `Цена: ${p}`,
   },
   common: {
     error: '❌ Произошла ошибка. Попробуйте позже.',
@@ -113,6 +114,8 @@ export const ru = {
     contactPrompt: (phoneExample: string) =>
       `📞 Контакт для связи: имя и телефон (через запятую) или отправьте контакт Telegram. Например: Иван, ${phoneExample}`,
     contactInvalid: (phoneExample: string) => `❌ Не понял. Напишите так: Иван, ${phoneExample}`,
+    shareContact: '📱 Отправить контакт',
+    contactKbHint: '👇 Или нажмите кнопку ниже, чтобы отправить контакт.',
     contactNameMissing: (phoneExample: string) =>
       `📞 Телефон принят. Теперь напишите имя, например: Иван, ${phoneExample}`,
     orderMore: '🔁 Заказать ещё',
@@ -174,6 +177,14 @@ export const ru = {
     cancelSkip: '⏭ Пропустить',
     cancelOrderBtn: 'Отменить заказ',
     refsButton: (n: number) => `Референсы (${n})`,
+    listRow: (n: number, s: string) => `№${n} — ${s}`,
+    cancelled: (n: number) => `Заказ №${n} отменён.`,
+    refsTitle: (n: number, c: number) => `Референсы заказа №${n} (${c} шт.)`,
+    readyMsg: (n: number) =>
+      `Заказ №${n} готов! Ожидайте, мастер скоро свяжется с вами для согласования выдачи.`,
+    doneMsg: (n: number) =>
+      `✅ Заказ №${n} завершён! Спасибо за заказ, будем рады видеть вас снова! 🍰`,
+    cancelledByOwner: (n: number) => `Заказ №${n} отменён мастером.`,
     pdDeclined: 'Хорошо, ждём нового предложения от мастера.',
     pdTaken: 'Эта дата уже недоступна. Попросите мастера предложить другую.',
     pdAccepted: (n: number) => `Заказ №${n} принят в работу.`,
@@ -188,9 +199,16 @@ export const ru = {
   payment: {
     promptReceipt: '📎 Пришлите фото или файл чека.',
     paidButton: 'Я оплатил',
+    accepted: (n: number) => `Заказ №${n} принят.`,
+    noRequisites: 'Реквизиты уточняйте у мастера',
+    payCall: (button: string, deadline: string) =>
+      `Оплатите и нажмите «${button}». Срок: до ${deadline}`,
+    confirmedMsg: 'Оплата подтверждена. Заказ в работе.',
+    rejectedMsg: () => '❌ Оплата не подтверждена. Пришлите другой чек.',
+    receiptReceived: (kind: string) => `📎 Чек получен (${kind})`,
     kindPhoto: 'фото',
     kindFile: 'файл',
-    invalidReceipt: '❌ Нужно фото чека. Файлы, текст, аудио или другие форматы не подходят.',
+    invalidReceipt: '❌ Нужен чек: фото или файл. Текст, аудио или другие форматы не подходят.',
     receiptToOwner: (client: string, orderNumber: number, kind: string) =>
       `💳 Клиент ${client} прислал подтверждение оплаты (${kind}), заказ №${orderNumber}`,
     receiptSent: '✅ Чек отправлен мастеру на проверку.',
@@ -307,6 +325,7 @@ export const ru = {
     promptCapacity: '🔢 Введите лимит заказов на день (целое число >= 0).',
     badCapacity: '❌ Нужно целое неотрицательное число.',
     savedLimit: '✅ Лимит сохранён.',
+    limit: (n: number) => `Лимит: ${n}`,
   },
   ownerFaq: {
     title: '❓ FAQ',
@@ -327,8 +346,19 @@ export const ru = {
     ready: '🎂 Готов',
     done: '✅ Завершён',
     cancel: '❌ Отменить',
-    msg: '✍️ Написать клиенту',
     refs: '📎 Референсы',
+    empty: 'Заказов пока нет.',
+    dateUnavailable: 'Дата уже недоступна.',
+    listTitle: 'Заказы:',
+    groups: {
+      new: 'Новые',
+      work: 'В работе',
+      ready: 'Готовые',
+      upcoming: 'На сегодня и завтра',
+    },
+    rejectPrompt: 'Причина отказа?',
+    proposeDate: (n: number) => `Предложите новую дату для заказа №${n}:`,
+    refsTitle: (n: number, c: number) => `Референсы заказа №${n} (${c} шт.)`,
     rejectReasons: {
       full: '❌ Нет мест на эту дату',
       busy: '📦 Много текущих заказов',
@@ -414,5 +444,8 @@ export const ru = {
   },
   notify: {
     blocked: (client: string) => `Клиент ${client} заблокировал бота. Уведомления ему не дойдут.`,
+    orderCancelledByCustomer: (n: number, suffix: string) =>
+      `Заказ №${n} отменён клиентом${suffix}`,
+    orderRejected: (n: number, r: string) => `Заказ №${n} отклонён: ${r}`,
   },
 };

@@ -2,9 +2,11 @@ import { Bot } from 'grammy';
 import { BotContextWithSession } from '../context.js';
 import { claimTenant } from '../../services/tenants.js';
 import { customerMenuKeyboard, ownerMenuKeyboard } from '../owner/menu.js';
+import { clearContactKeyboard } from './contact-keyboard.js';
 
 export function registerStartHandler(bot: Bot<BotContextWithSession>): void {
   bot.command('start', async (ctx) => {
+    await clearContactKeyboard(ctx);
     ctx.sessionState = 'idle';
     ctx.session.cart = ctx.session.cart ?? { lines: [] };
     ctx.session.checkout = undefined;

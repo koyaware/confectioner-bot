@@ -160,4 +160,42 @@ describe('settings language/currency buttons', () => {
     expect(after.language).toBe(before.language);
     expect(after.currency).toBe(before.currency);
   });
+
+  it('uz customer sees Uzbek menu buttons end-to-end', async () => {
+    const { tenantId } = await seedDemo(appSecret, new Date());
+    await getDb()
+      .update(tenants)
+      .set({ ownerTelegramId: 555, language: 'uz' })
+      .where(eq(tenants.id, tenantId));
+
+    const port = new FakePort();
+    const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
+
+    await bot.handleUpdate({
+      update_id: 1,
+      message: {
+        message_id: 1,
+        date: 1,
+        chat: { id: 42, type: 'private' },
+        from: { id: 42, is_bot: false, first_name: 'U' },
+        text: '/start',
+        entities: [{ type: 'bot_command', offset: 0, length: 6 }],
+      },
+    } as never);
+
+    const sent = port.getCallsForMethod('sendMessage');
+    const menu = sent.find((c) => c.args[0] === 42);
+    expect(menu).toBeTruthy();
+    const keyboard = (
+      menu!.args[2] as {
+        keyboard: { inline_keyboard: { text: string; callback_data?: string }[][] };
+      }
+    ).keyboard;
+    const labels = keyboard.inline_keyboard.flat().map((b) => b.text);
+    expect(labels).toContain('📦 Katalog');
+    expect(labels).toContain('🛒 Savatcha');
+    expect(labels).toContain('📋 Buyurtmalarim');
+    expect(labels).toContain('✍️ Ustaga yozish');
+    expect(labels.some((t) => /[А-Яа-яЁё]/.test(t))).toBe(false);
+  });
 });

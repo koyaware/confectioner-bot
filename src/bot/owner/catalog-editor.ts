@@ -30,7 +30,7 @@ async function showCategoryList(ctx: BotContextWithSession, edit = true) {
     { text: c.title, callback_data: `adm:cat:edit:${c.id}` },
   ]);
   rows.push([{ text: ctx.t.ownerCatalog.addCategory, callback_data: 'adm:cat:add' }]);
-  rows.push([{ text: 'Назад', callback_data: 'adm:menu' }]);
+  rows.push([{ text: ctx.t.common.back, callback_data: 'adm:menu' }]);
 
   const text = ctx.t.ownerCatalog.categoriesTitle;
   const chatId = ctx.callbackQuery?.message?.chat.id ?? ctx.chat?.id;
@@ -178,7 +178,10 @@ async function showOptionList(ctx: BotContextWithSession, productId: string) {
         text: `${o.groupTitle}: ${o.title}`,
         callback_data: `adm:prd:opttoggle:${productId}:${o.id}`,
       },
-      { text: 'Удалить', callback_data: `adm:prd:optdel:${productId}:${o.id}` },
+      {
+        text: ctx.t.ownerCatalog.delete,
+        callback_data: `adm:prd:optdel:${productId}:${o.id}`,
+      },
     ]);
   }
   rows.push([{ text: ctx.t.ownerCatalog.addOption, callback_data: `adm:prd:optadd:${productId}` }]);
@@ -192,16 +195,6 @@ async function showOptionList(ctx: BotContextWithSession, productId: string) {
     });
   }
 }
-
-const PRODUCT_FIELD_LABELS: Record<string, string> = {
-  title: 'Название',
-  description: 'Описание',
-  price: 'Цена в рублях',
-  unit: 'Единица',
-  lead: 'Срок в днях',
-  capacity: 'Занимает слотов',
-  photo: 'Фото',
-};
 
 export function registerOwnerCatalogHandlers(bot: Bot<BotContextWithSession>): void {
   bot.callbackQuery(/^adm:(cat|prd):/, async (ctx) => {
@@ -292,7 +285,16 @@ export function registerOwnerCatalogHandlers(bot: Bot<BotContextWithSession>): v
     }
     if (action === 'field' && arg && arg2) {
       beginOwnerDraft(ctx, { kind: 'prd_field', targetId: arg, extra: { field: arg2 } });
-      const label = PRODUCT_FIELD_LABELS[arg2] ?? arg2;
+      const fieldLabels: Record<string, string> = {
+        title: ctx.t.ownerCatalog.fieldTitle,
+        description: ctx.t.ownerCatalog.fieldDesc,
+        price: ctx.t.ownerCatalog.fieldPrice,
+        unit: ctx.t.ownerCatalog.fieldUnit,
+        lead: ctx.t.ownerCatalog.fieldLead,
+        capacity: ctx.t.ownerCatalog.fieldCapacity,
+        photo: ctx.t.ownerCatalog.fieldPhoto,
+      };
+      const label = fieldLabels[arg2] ?? arg2;
       await ctx.port.editMessageTextOrSend(
         ctx.callbackQuery.message!.chat.id,
         ctx.callbackQuery.message!.message_id,

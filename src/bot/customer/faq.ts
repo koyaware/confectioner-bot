@@ -24,7 +24,7 @@ export function registerFaqHandlers(bot: Bot<BotContextWithSession>): void {
         { text: f.question, callback_data: `faq:view:${f.id}` },
       ]);
       const text = items.length > 0 ? ctx.t.faq.title : ctx.t.faq.empty;
-      rows.push([{ text: '🔙 В меню', callback_data: 'nav:menu' }]);
+      rows.push([{ text: ctx.t.common.toMenu, callback_data: 'nav:menu' }]);
       await ctx.port.editMessageTextOrSend(chatId, messageId, text, {
         keyboard: { inline_keyboard: rows },
       });

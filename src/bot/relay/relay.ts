@@ -29,7 +29,7 @@ async function relayToOwner(ctx: BotContextWithSession): Promise<void> {
       }
       await ctx.port.sendMessage(ctx.chat!.id, ctx.t.relay.strayHint, {
         keyboard: {
-          inline_keyboard: [[{ text: '✍️ Написать мастеру', callback_data: 'rel:start' }]],
+          inline_keyboard: [[{ text: ctx.t.relay.writeButton, callback_data: 'rel:start' }]],
         },
       });
     }
@@ -74,12 +74,14 @@ async function relayToOwner(ctx: BotContextWithSession): Promise<void> {
     )
     .orderBy(desc(orders.createdAt))
     .limit(1);
-  const orderLabel = activeOrders[0] ? `, заказ №${activeOrders[0].number}` : '';
+  const orderLabel = activeOrders[0] ? ctx.t.relay.orderLabel(activeOrders[0].number) : '';
 
-  const headerText = `${customer.firstName ?? 'Гость'}${customer.username ? ` (@${customer.username})` : ''}${orderLabel}`;
+  const headerText = `${customer.firstName ?? ctx.t.common.guest}${customer.username ? ` (@${customer.username})` : ''}${orderLabel}`;
   // Owner replies via Telegram reply on the header/copy (no write-to-client button).
   const headerKbRows: { text: string; callback_data: string }[][] = [];
-  headerKbRows.push([{ text: '🚫 Блокировать', callback_data: `adm:relay:block:${customer.id}` }]);
+  headerKbRows.push([
+    { text: ctx.t.relay.blockButton, callback_data: `adm:relay:block:${customer.id}` },
+  ]);
 
   const customerChatId = ctx.chat!.id;
   const text = ctx.message?.text;
@@ -210,7 +212,7 @@ export function registerRelayHandlers(bot: Bot<BotContextWithSession>): void {
         const relay = rows[0];
         if (relay) {
           await ctx.port.copyMessage(relay.customerChatId, ctx.chat.id, ctx.message.message_id);
-          await ctx.port.sendMessage(ctx.chat.id, '✅ Отправлено клиенту.');
+          await ctx.port.sendMessage(ctx.chat.id, ctx.t.relay.sentToClient);
           return;
         }
       }
@@ -235,7 +237,7 @@ export function registerRelayHandlers(bot: Bot<BotContextWithSession>): void {
       if (chatId) {
         await ctx.port.sendMessage(chatId, ctx.t.relay.strayHint, {
           keyboard: {
-            inline_keyboard: [[{ text: '✍️ Написать мастеру', callback_data: 'rel:start' }]],
+            inline_keyboard: [[{ text: ctx.t.relay.writeButton, callback_data: 'rel:start' }]],
           },
         });
       }

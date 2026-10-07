@@ -6,6 +6,7 @@ import { TelegramError, TelegramPort } from '../../telegram/port.js';
 import { ownerDailyDigestPayloadSchema } from '../types.js';
 import { computeDigest, formatDigest } from '../../services/digest.js';
 import { isFeatureEnabled } from '../../services/feature-flags.js';
+import { stringsFor } from '../../i18n/index.js';
 
 export function createDailyDigestHandler(ports: {
   getPort: (tenantId: string) => TelegramPort | undefined;
@@ -39,10 +40,13 @@ export function createDailyDigestHandler(ports: {
 
     const summary = await computeDigest(tenant.id, parsed.data.date);
     try {
+      const t = stringsFor(tenant.language);
       const orderButtons = [...summary.today, ...summary.tomorrow]
         .slice(0, 10)
-        .map((o) => [{ text: `Заказ №${o.number}`, callback_data: `adm:ord:view:${o.id}` }]);
-      await port.sendMessage(tenant.ownerTelegramId, formatDigest(summary), {
+        .map((o) => [
+          { text: t.jobs.digestOrderBtn(o.number), callback_data: `adm:ord:view:${o.id}` },
+        ]);
+      await port.sendMessage(tenant.ownerTelegramId, formatDigest(summary, t), {
         keyboard: orderButtons.length > 0 ? { inline_keyboard: orderButtons } : undefined,
         parseMode: 'HTML',
       });

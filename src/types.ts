@@ -73,6 +73,7 @@ export type SessionData = {
   ownerDraft?: { kind: string; targetId?: string; extra?: Record<string, string> };
   paymentOrderId?: string;
   paymentScreenId?: number;
+  contactKbMsgId?: number; // transient reply-keyboard message of checkout.contact
   lastAutoReplyAt?: number; // unix seconds
   refsMessageIds?: number[]; // transient bot messages (refs) to delete on next navigation
   antispam?: { windowStart: number; count: number };

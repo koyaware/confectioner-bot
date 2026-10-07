@@ -19,24 +19,15 @@ import { effectiveCapacity, OCCUPYING_STATUSES, usedUnits } from '../../domain/c
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import { addDays, toIsoDate } from '../../lib/time.js';
 import { getDateAvailability } from '../../services/dates.js';
-
-const OWNER_STATUS_LABELS: Record<string, string> = {
-  new: '🆕 Новый',
-  awaiting_payment: '💳 Ожидает оплаты',
-  payment_review: '📸 Чек на проверке',
-  confirmed: '✅ Подтверждён',
-  ready: '🎂 Готов',
-  completed: '✅ Завершён',
-  rejected: '❌ Отклонён',
-  cancelled: '🚫 Отменён',
-  expired: '⏰ Истёк',
-};
+import { stringsFor, localeFor, type Strings } from '../../i18n/index.js';
 
 export async function buildOrderCardText(
   orderId: string,
   tenantId: string,
-  currency: string
+  currency: string,
+  lang: string
 ): Promise<string | null> {
+  const t = stringsFor(lang);
   const db = getDb();
   const rows = await db.select().from(orders).where(eq(orders.id, orderId)).limit(1);
   const order = rows[0];
@@ -57,8 +48,8 @@ export async function buildOrderCardText(
     .where(and(eq(orderAttachments.orderId, orderId), eq(orderAttachments.kind, 'reference')));
 
   const lines: string[] = [];
-  lines.push(`<b>Заказ №${order.number}</b>`);
-  lines.push(`Статус: ${OWNER_STATUS_LABELS[order.status] ?? order.status}`);
+  lines.push(t.orderCard.title(order.number));
+  lines.push(t.orderCard.status(t.orderStatuses[order.status] ?? order.status));
   lines.push('');
   for (const item of items) {
     const opts = item.optionsSnapshot.map((o) => o.title).join(', ');
@@ -68,38 +59,49 @@ export async function buildOrderCardText(
   }
   lines.push('');
   lines.push(
-    `Дата: ${order.dueDate}${order.dueTimeText ? `, ${escapeHtml(order.dueTimeText)}` : ''}`
+    t.orderCard.date(
+      `${order.dueDate}${order.dueTimeText ? `, ${escapeHtml(order.dueTimeText)}` : ''}`
+    )
   );
-  lines.push(`Получение: ${order.fulfillment === 'delivery' ? 'доставка' : 'самовывоз'}`);
-  if (order.address) lines.push(`Адрес: ${escapeHtml(order.address)}`);
-  lines.push(`Контакт: ${escapeHtml(order.contactName)}, ${escapeHtml(order.contactPhone)}`);
-  if (order.comment) lines.push(`Комментарий: ${escapeHtml(order.comment)}`);
-  if (refs.length > 0) lines.push(`📎 Референсы: ${refs.length} шт.`);
+  lines.push(
+    t.orderCard.fulfillment(
+      order.fulfillment === 'delivery' ? t.orderCard.delivery : t.orderCard.pickup
+    )
+  );
+  if (order.address) lines.push(t.orderCard.address(escapeHtml(order.address)));
+  lines.push(t.orderCard.contact(escapeHtml(order.contactName), escapeHtml(order.contactPhone)));
+  if (order.comment) lines.push(t.orderCard.comment(escapeHtml(order.comment)));
+  if (refs.length > 0) lines.push(t.orderCard.refs(refs.length));
   lines.push('');
   lines.push(
-    `Итого: ${formatMinor(order.totalMinor, currency)}, предоплата ${formatMinor(order.prepaymentMinor, currency)}`
+    t.orderCard.totals(
+      formatMinor(order.totalMinor, currency),
+      formatMinor(order.prepaymentMinor, currency)
+    )
   );
   if (order.source) {
-    lines.push(`Источник: ${escapeHtml(order.source)}`);
+    lines.push(t.orderCard.source(escapeHtml(order.source)));
   }
   if (customer) {
     const link = customer.username ? `@${customer.username}` : `id${customer.telegramId}`;
-    lines.push(`Клиент: ${escapeHtml(customer.firstName ?? 'клиент')} (${link})`);
+    lines.push(
+      t.orderCard.client(escapeHtml(customer.firstName ?? t.orderCard.clientDefault), link)
+    );
   }
-  if (order.rejectReason) lines.push(`Причина отказа: ${escapeHtml(order.rejectReason)}`);
-  if (order.cancelReason) lines.push(`Причина отмены клиентом: ${escapeHtml(order.cancelReason)}`);
-  if (order.proposedDate) lines.push(`Предложенная дата: ${order.proposedDate}`);
+  if (order.rejectReason) lines.push(t.orderCard.rejectReason(escapeHtml(order.rejectReason)));
+  if (order.cancelReason) lines.push(t.orderCard.cancelReason(escapeHtml(order.cancelReason)));
+  if (order.proposedDate) lines.push(t.orderCard.proposedDate(order.proposedDate));
   const tenantRows = await db.select().from(tenants).where(eq(tenants.id, order.tenantId)).limit(1);
   const timezone = tenantRows[0]?.timezone ?? 'Europe/Moscow';
   if (order.paymentDueAt) {
-    lines.push(`Оплатить до: ${formatDue(order.paymentDueAt, timezone)}`);
+    lines.push(t.orderCard.payUntil(formatDue(order.paymentDueAt, timezone, lang)));
   }
-  lines.push(`Загрузка даты: ${await dateLoadLabel(order.tenantId, order.dueDate)}`);
+  lines.push(await dateLoadLabel(order.tenantId, order.dueDate, t));
   return lines.join('\n');
 }
 
-function formatDue(due: Date, timezone: string): string {
-  return new Intl.DateTimeFormat('ru-RU', {
+function formatDue(due: Date, timezone: string, lang: string): string {
+  return new Intl.DateTimeFormat(localeFor(lang), {
     timeZone: timezone,
     day: '2-digit',
     month: '2-digit',
@@ -109,7 +111,7 @@ function formatDue(due: Date, timezone: string): string {
   }).format(new Date(due));
 }
 
-async function dateLoadLabel(tenantId: string, dueDate: string): Promise<string> {
+async function dateLoadLabel(tenantId: string, dueDate: string, t: Strings): Promise<string> {
   const db = getDb();
   const tenantRows = await db.select().from(tenants).where(eq(tenants.id, tenantId)).limit(1);
   const tenant = tenantRows[0];
@@ -119,7 +121,7 @@ async function dateLoadLabel(tenantId: string, dueDate: string): Promise<string>
     .from(capacityOverrides)
     .where(and(eq(capacityOverrides.tenantId, tenantId), eq(capacityOverrides.date, dueDate)));
   const eff = effectiveCapacity(tenant.defaultDailyCapacity, overrideRows[0]);
-  if (eff.closed) return 'день закрыт';
+  if (eff.closed) return t.orderCard.loadClosed;
   // Note: cancelled/expired/rejected orders never occupy capacity —
   // OCCUPYING_STATUSES excludes them, so a cancelled order frees its date slot.
   const dayOrders = await db
@@ -132,7 +134,7 @@ async function dateLoadLabel(tenantId: string, dueDate: string): Promise<string>
         inArray(orders.status, [...OCCUPYING_STATUSES])
       )
     );
-  return `занято ${usedUnits(dayOrders)} из ${eff.capacity} (заказов: ${dayOrders.length})`;
+  return t.orderCard.load(usedUnits(dayOrders), eff.capacity, dayOrders.length);
 }
 
 export async function loadOwnedOrder(
@@ -193,22 +195,6 @@ export async function orderCardKeyboard(
   return { inline_keyboard: rows };
 }
 
-const OWNER_MONTH_NAMES = [
-  'Январь',
-  'Февраль',
-  'Март',
-  'Апрель',
-  'Май',
-  'Июнь',
-  'Июль',
-  'Август',
-  'Сентябрь',
-  'Октябрь',
-  'Ноябрь',
-  'Декабрь',
-];
-const OWNER_WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
-
 function orderDateKeyboard(
   ctx: BotContextWithSession,
   availability: Record<string, { available: boolean }>,
@@ -218,7 +204,7 @@ function orderDateKeyboard(
 ): InlineKeyboard {
   const firstDay = `${year}-${String(month).padStart(2, '0')}-01`;
   const rows: InlineKeyboard['inline_keyboard'] = [];
-  rows.push(OWNER_WEEKDAYS.map((w) => ({ text: w, callback_data: 'cart:noop' })));
+  rows.push(ctx.t.date.weekdays.map((w) => ({ text: w, callback_data: 'cart:noop' })));
 
   const [y, m] = firstDay.split('-').map(Number);
   const startDate = new Date(Date.UTC(y!, m! - 1, 1));
@@ -245,7 +231,7 @@ function orderDateKeyboard(
       text: '«',
       callback_data: `adm:ord:datepage:${orderId}:${addDays(firstDay, -1).slice(0, 7)}`,
     },
-    { text: `${OWNER_MONTH_NAMES[month - 1]} ${year}`, callback_data: 'cart:noop' },
+    { text: `${ctx.t.date.months[month - 1]} ${year}`, callback_data: 'cart:noop' },
     {
       text: '»',
       callback_data: `adm:ord:datepage:${orderId}:${addDays(firstDay, 33).slice(0, 7)}`,
@@ -276,7 +262,7 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
       .limit(50);
 
     if (rows.length === 0) {
-      await ctx.port.editMessageTextOrSend(chatId, messageId, 'Заказов пока нет.', {
+      await ctx.port.editMessageTextOrSend(chatId, messageId, ctx.t.ownerOrders.empty, {
         keyboard: { inline_keyboard: [[{ text: ctx.t.common.back, callback_data: 'adm:menu' }]] },
       });
       return;
@@ -287,16 +273,16 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
     const isWork = (s: string) =>
       s === 'awaiting_payment' || s === 'payment_review' || s === 'confirmed';
     const groups: { title: string; orders: typeof rows }[] = [
-      { title: 'Новые', orders: rows.filter((o) => o.status === 'new') },
-      { title: 'В работе', orders: rows.filter((o) => isWork(o.status)) },
-      { title: 'Готовые', orders: rows.filter((o) => o.status === 'ready') },
+      { title: ctx.t.ownerOrders.groups.new, orders: rows.filter((o) => o.status === 'new') },
+      { title: ctx.t.ownerOrders.groups.work, orders: rows.filter((o) => isWork(o.status)) },
+      { title: ctx.t.ownerOrders.groups.ready, orders: rows.filter((o) => o.status === 'ready') },
       {
-        title: 'На сегодня и завтра',
+        title: ctx.t.ownerOrders.groups.upcoming,
         orders: rows.filter((o) => o.dueDate === todayIso || o.dueDate === tomorrowIso),
       },
     ];
 
-    const lines: string[] = ['Заказы:'];
+    const lines: string[] = [ctx.t.ownerOrders.listTitle];
     const keyboardRows: InlineKeyboard['inline_keyboard'] = [];
     const shown = new Set<string>();
     for (const g of groups) {
@@ -337,7 +323,12 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
     const messageId = ctx.callbackQuery.message?.message_id;
     if (!chatId || !messageId) return;
 
-    const card = await buildOrderCardText(m[1]!, ctx.tenant.id, ctx.tenant.currency);
+    const card = await buildOrderCardText(
+      m[1]!,
+      ctx.tenant.id,
+      ctx.tenant.currency,
+      ctx.tenant.language
+    );
     if (!card) {
       await ctx.port.editMessageTextOrSend(chatId, messageId, ctx.t.my.notFound, {});
       return;
@@ -379,7 +370,7 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
       .where(and(eq(orderAttachments.orderId, order.id), eq(orderAttachments.kind, 'reference')));
 
     if (refs.length === 0) {
-      await ctx.port.editMessageTextOrSend(chatId, messageId, 'Референсов нет.', {});
+      await ctx.port.editMessageTextOrSend(chatId, messageId, ctx.t.orderCard.refsNone, {});
       return;
     }
 
@@ -387,7 +378,7 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
     await ctx.port.editMessageTextOrSend(
       chatId,
       messageId,
-      `Референсы заказа №${order.number} (${refs.length} шт.)`,
+      ctx.t.ownerOrders.refsTitle(order.number, refs.length),
       {
         keyboard: {
           inline_keyboard: [
@@ -440,7 +431,12 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
       if (action === 'accept') {
         const result = await applyOrderEvent(rest, 'owner_accept', 'owner', new Date());
         if (!result.ok) return;
-        const card = await buildOrderCardText(rest, ctx.tenant.id, ctx.tenant.currency);
+        const card = await buildOrderCardText(
+          rest,
+          ctx.tenant.id,
+          ctx.tenant.currency,
+          ctx.tenant.language
+        );
         if (card) {
           await ctx.port.editMessageTextOrSend(chatId, messageId, card, {
             keyboard: await orderCardKeyboard(ctx, rest, result.value.status),
@@ -450,7 +446,7 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
         if (result.value.status === 'awaiting_payment') {
           await sendPaymentCard(ctx.port, ctx.tenant.id, rest);
         } else {
-          await notifyCustomer(ctx.port, rest, (n) => `Заказ №${n} принят в работу.`);
+          await notifyCustomer(ctx.port, rest, (n) => ctx.t.my.pdAccepted(n));
         }
         return;
       }
@@ -461,12 +457,22 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
         const rows: InlineKeyboard['inline_keyboard'] = Object.entries(rejectReasons).map(
           ([code, label]) => [{ text: label, callback_data: `adm:ord:rr:${rest}:${code}` }]
         );
-        const card = await buildOrderCardText(rest, ctx.tenant.id, ctx.tenant.currency);
+        const card = await buildOrderCardText(
+          rest,
+          ctx.tenant.id,
+          ctx.tenant.currency,
+          ctx.tenant.language
+        );
         if (card) {
-          await ctx.port.editMessageTextOrSend(chatId, messageId, `${card}\n\nПричина отказа?`, {
-            keyboard: { inline_keyboard: rows },
-            parseMode: 'HTML',
-          });
+          await ctx.port.editMessageTextOrSend(
+            chatId,
+            messageId,
+            `${card}\n\n${ctx.t.ownerOrders.rejectPrompt}`,
+            {
+              keyboard: { inline_keyboard: rows },
+              parseMode: 'HTML',
+            }
+          );
         }
         return;
       }
@@ -474,84 +480,99 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
       if (action === 'paid') {
         const result = await applyOrderEvent(rest, 'payment_confirmed', 'owner', new Date());
         if (!result.ok) return;
-        const card = await buildOrderCardText(rest, ctx.tenant.id, ctx.tenant.currency);
+        const card = await buildOrderCardText(
+          rest,
+          ctx.tenant.id,
+          ctx.tenant.currency,
+          ctx.tenant.language
+        );
         if (card) {
           await ctx.port.editMessageTextOrSend(chatId, messageId, card, {
             keyboard: await orderCardKeyboard(ctx, rest, result.value.status),
             parseMode: 'HTML',
           });
         }
-        await notifyCustomer(ctx.port, rest, () => 'Оплата подтверждена. Заказ в работе.');
+        await notifyCustomer(ctx.port, rest, () => ctx.t.payment.confirmedMsg);
         return;
       }
 
       if (action === 'badpay') {
         const result = await applyOrderEvent(rest, 'payment_rejected', 'owner', new Date());
         if (!result.ok) return;
-        const card = await buildOrderCardText(rest, ctx.tenant.id, ctx.tenant.currency);
+        const card = await buildOrderCardText(
+          rest,
+          ctx.tenant.id,
+          ctx.tenant.currency,
+          ctx.tenant.language
+        );
         if (card) {
           await ctx.port.editMessageTextOrSend(chatId, messageId, card, {
             keyboard: await orderCardKeyboard(ctx, rest, result.value.status),
             parseMode: 'HTML',
           });
         }
-        await notifyCustomer(
-          ctx.port,
-          rest,
-          () =>
-            'Оплата не подтверждена. Нажмите «Я оплатил» в сообщении с реквизитами и пришлите другой чек.'
-        );
+        await notifyCustomer(ctx.port, rest, () => ctx.t.payment.rejectedMsg(), {
+          inline_keyboard: [
+            [{ text: ctx.t.payment.paidButton, callback_data: `pay:sent:${rest}` }],
+          ],
+        });
         return;
       }
 
       if (action === 'ready') {
         const result = await applyOrderEvent(rest, 'mark_ready', 'owner', new Date());
         if (!result.ok) return;
-        const card = await buildOrderCardText(rest, ctx.tenant.id, ctx.tenant.currency);
+        const card = await buildOrderCardText(
+          rest,
+          ctx.tenant.id,
+          ctx.tenant.currency,
+          ctx.tenant.language
+        );
         if (card) {
           await ctx.port.editMessageTextOrSend(chatId, messageId, card, {
             keyboard: await orderCardKeyboard(ctx, rest, result.value.status),
             parseMode: 'HTML',
           });
         }
-        await notifyCustomer(
-          ctx.port,
-          rest,
-          (n) =>
-            `Заказ №${n} готов! Ожидайте, мастер скоро свяжется с вами для согласования выдачи.`
-        );
+        await notifyCustomer(ctx.port, rest, (n) => ctx.t.my.readyMsg(n));
         return;
       }
 
       if (action === 'done') {
         const result = await applyOrderEvent(rest, 'mark_completed', 'owner', new Date());
         if (!result.ok) return;
-        const card = await buildOrderCardText(rest, ctx.tenant.id, ctx.tenant.currency);
+        const card = await buildOrderCardText(
+          rest,
+          ctx.tenant.id,
+          ctx.tenant.currency,
+          ctx.tenant.language
+        );
         if (card) {
           await ctx.port.editMessageTextOrSend(chatId, messageId, card, {
             keyboard: await orderCardKeyboard(ctx, rest, result.value.status),
             parseMode: 'HTML',
           });
         }
-        await notifyCustomer(
-          ctx.port,
-          rest,
-          (n) => `✅ Заказ №${n} завершён! Спасибо за заказ, будем рады видеть вас снова! 🍰`
-        );
+        await notifyCustomer(ctx.port, rest, (n) => ctx.t.my.doneMsg(n));
         return;
       }
 
       if (action === 'cancel') {
         const result = await applyOrderEvent(rest, 'owner_cancel', 'owner', new Date());
         if (!result.ok) return;
-        const card = await buildOrderCardText(rest, ctx.tenant.id, ctx.tenant.currency);
+        const card = await buildOrderCardText(
+          rest,
+          ctx.tenant.id,
+          ctx.tenant.currency,
+          ctx.tenant.language
+        );
         if (card) {
           await ctx.port.editMessageTextOrSend(chatId, messageId, card, {
             keyboard: await orderCardKeyboard(ctx, rest, result.value.status),
             parseMode: 'HTML',
           });
         }
-        await notifyCustomer(ctx.port, rest, (n) => `Заказ №${n} отменён мастером.`);
+        await notifyCustomer(ctx.port, rest, (n) => ctx.t.my.cancelledByOwner(n));
         return;
       }
 
@@ -591,7 +612,7 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
         await ctx.port.editMessageTextOrSend(
           chatId,
           messageId,
-          `Предложите новую дату для заказа №${order.number}:`,
+          ctx.t.ownerOrders.proposeDate(order.number),
           { keyboard: kb, parseMode: 'HTML' }
         );
         return;
@@ -633,7 +654,7 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
         await ctx.port.editMessageTextOrSend(
           chatId,
           messageId,
-          `Предложите новую дату для заказа №${order.number}:`,
+          ctx.t.ownerOrders.proposeDate(order.number),
           { keyboard: kb, parseMode: 'HTML' }
         );
         return;
@@ -665,7 +686,7 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
           new Date()
         );
         if (!avail[iso]?.available) {
-          await ctx.port.answerCallback(ctx.callbackQuery.id, 'Дата уже недоступна.');
+          await ctx.port.answerCallback(ctx.callbackQuery.id, ctx.t.ownerOrders.dateUnavailable);
           return;
         }
 
@@ -680,19 +701,24 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
         if (cust && !cust.botBlocked) {
           await ctx.port.sendMessage(
             cust.telegramId,
-            `Мастер предлагает сдвинуть заказ №${(await getCustomerOrderNumber(orderId)) ?? order.number} на ${iso}. Подходит?`,
+            ctx.t.orderCard.propose((await getCustomerOrderNumber(orderId)) ?? order.number, iso),
             {
               keyboard: {
                 inline_keyboard: [
-                  [{ text: 'Подходит', callback_data: `pd:yes:${orderId}` }],
-                  [{ text: 'Не подходит', callback_data: `pd:no:${orderId}` }],
+                  [{ text: ctx.t.orderCard.pdYes, callback_data: `pd:yes:${orderId}` }],
+                  [{ text: ctx.t.orderCard.pdNo, callback_data: `pd:no:${orderId}` }],
                 ],
               },
             }
           );
         }
 
-        const card = await buildOrderCardText(orderId, ctx.tenant.id, ctx.tenant.currency);
+        const card = await buildOrderCardText(
+          orderId,
+          ctx.tenant.id,
+          ctx.tenant.currency,
+          ctx.tenant.language
+        );
         if (card) {
           await ctx.port.editMessageTextOrSend(chatId, messageId, card, { parseMode: 'HTML' });
         }
@@ -712,14 +738,19 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
           .update(orders)
           .set({ rejectReason: reason })
           .where(and(eq(orders.id, orderId), eq(orders.status, 'rejected')));
-        const card = await buildOrderCardText(orderId, ctx.tenant.id, ctx.tenant.currency);
+        const card = await buildOrderCardText(
+          orderId,
+          ctx.tenant.id,
+          ctx.tenant.currency,
+          ctx.tenant.language
+        );
         if (card) {
           await ctx.port.editMessageTextOrSend(chatId, messageId, card, {
             keyboard: await orderCardKeyboard(ctx, orderId, result.value.status),
             parseMode: 'HTML',
           });
         }
-        await notifyCustomer(ctx.port, orderId, (n) => `Заказ №${n} отклонён: ${reason}`);
+        await notifyCustomer(ctx.port, orderId, (n) => ctx.t.notify.orderRejected(n, reason));
         return;
       }
     }
@@ -729,7 +760,8 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
 async function notifyCustomer(
   port: TelegramPort,
   orderId: string,
-  text: (number: number, total: number) => string
+  text: (number: number, total: number) => string,
+  keyboard?: InlineKeyboard
 ): Promise<void> {
   const db = getDb();
   const rows = await db.select().from(orders).where(eq(orders.id, orderId)).limit(1);
@@ -744,6 +776,7 @@ async function notifyCustomer(
   if (!customer || customer.botBlocked) return;
   const customerNumber = (await getCustomerOrderNumber(orderId)) ?? order.number;
   await port.sendMessage(customer.telegramId, text(customerNumber, order.totalMinor), {
+    keyboard,
     parseMode: 'HTML',
   });
 }

@@ -5,6 +5,7 @@ import { and, eq, gte, inArray, lte } from 'drizzle-orm';
 import { createJob } from '../jobs/create.js';
 import { isFeatureEnabled } from './feature-flags.js';
 import { OrderStatus } from '../types.js';
+import type { Strings } from '../i18n/index.js';
 
 export interface DigestOrder {
   id: string;
@@ -105,16 +106,17 @@ export async function ensureDailyDigestJobs(now: Date = new Date()): Promise<voi
   }
 }
 
-export function formatDigest(summary: DigestSummary): string {
+export function formatDigest(summary: DigestSummary, t: Strings): string {
+  const statusLabel = (s: string) => t.orderStatuses[s as keyof typeof t.orderStatuses] ?? s;
   const lines = [
-    `<b>Сводка на ${summary.date}</b>`,
+    t.jobs.digestTitle(summary.date),
     '',
-    `Заказов на сегодня: ${summary.todayCount}`,
-    ...summary.today.map((o) => `  • №${o.number} — ${o.status}`),
-    `Заказов на завтра: ${summary.tomorrowCount}`,
-    ...summary.tomorrow.map((o) => `  • №${o.number} — ${o.status}`),
-    `Без решения: ${summary.awaitingDecisionCount}`,
-    `Ждут оплаты: ${summary.awaitingPaymentCount}`,
+    t.jobs.digestToday(summary.todayCount),
+    ...summary.today.map((o) => `  • №${o.number} — ${statusLabel(o.status)}`),
+    t.jobs.digestTomorrow(summary.tomorrowCount),
+    ...summary.tomorrow.map((o) => `  • №${o.number} — ${statusLabel(o.status)}`),
+    t.jobs.digestUndecided(summary.awaitingDecisionCount),
+    t.jobs.digestAwaitPay(summary.awaitingPaymentCount),
   ];
   return lines.join('\n');
 }

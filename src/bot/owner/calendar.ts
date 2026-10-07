@@ -10,25 +10,15 @@ import { orders } from '../../db/schema.js';
 import { and, desc, eq } from 'drizzle-orm';
 import { beginOwnerDraft } from './edit-field.js';
 
-const MONTH_NAMES = [
-  'Январь',
-  'Февраль',
-  'Март',
-  'Апрель',
-  'Май',
-  'Июнь',
-  'Июль',
-  'Август',
-  'Сентябрь',
-  'Октябрь',
-  'Ноябрь',
-  'Декабрь',
-];
-
-function calendarGrid(year: number, month: number, marks: Map<string, string>): InlineKeyboard {
+function calendarGrid(
+  ctx: BotContextWithSession,
+  year: number,
+  month: number,
+  marks: Map<string, string>
+): InlineKeyboard {
   const rows: InlineKeyboard['inline_keyboard'] = [];
   rows.push(
-    ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map((w) => ({
+    ctx.t.date.weekdays.map((w) => ({
       text: w,
       callback_data: 'cart:noop',
     }))
@@ -53,10 +43,10 @@ function calendarGrid(year: number, month: number, marks: Map<string, string>): 
   const next = addDays(firstDay, 33).slice(0, 7);
   rows.push([
     { text: '«', callback_data: `adm:cal:page:${prev}` },
-    { text: `${MONTH_NAMES[month - 1]} ${year}`, callback_data: 'cart:noop' },
+    { text: `${ctx.t.date.months[month - 1]} ${year}`, callback_data: 'cart:noop' },
     { text: '»', callback_data: `adm:cal:page:${next}` },
   ]);
-  rows.push([{ text: 'Назад', callback_data: 'adm:menu' }]);
+  rows.push([{ text: ctx.t.common.back, callback_data: 'adm:menu' }]);
   return { inline_keyboard: rows };
 }
 
@@ -93,7 +83,7 @@ export function registerCalendarHandlers(bot: Bot<BotContextWithSession>): void 
           entry.available ? String(Number(date.slice(8))) : `${Number(date.slice(8))} ✕`
         );
       }
-      const kb = calendarGrid(Number(today.slice(0, 4)), Number(today.slice(5, 7)), marks);
+      const kb = calendarGrid(ctx, Number(today.slice(0, 4)), Number(today.slice(5, 7)), marks);
       await ctx.port.editMessageTextOrSend(chatId, messageId, ctx.t.ownerCalendar.title, {
         keyboard: kb,
       });
@@ -119,7 +109,7 @@ export function registerCalendarHandlers(bot: Bot<BotContextWithSession>): void 
           entry.available ? String(Number(date.slice(8))) : `${Number(date.slice(8))} ✕`
         );
       }
-      const kb = calendarGrid(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)), marks);
+      const kb = calendarGrid(ctx, Number(ym.slice(0, 4)), Number(ym.slice(5, 7)), marks);
       await ctx.port.editMessageTextOrSend(chatId, messageId, ctx.t.ownerCalendar.title, {
         keyboard: kb,
       });
@@ -148,7 +138,9 @@ export function registerCalendarHandlers(bot: Bot<BotContextWithSession>): void 
       const date = setcapMatch[1]!;
       beginOwnerDraft(ctx, { kind: 'cal_capacity', targetId: date });
       await ctx.port.editMessageTextOrSend(chatId, messageId, ctx.t.ownerCalendar.promptCapacity, {
-        keyboard: { inline_keyboard: [[{ text: 'Назад', callback_data: `adm:cal:day:${date}` }]] },
+        keyboard: {
+          inline_keyboard: [[{ text: ctx.t.common.back, callback_data: `adm:cal:day:${date}` }]],
+        },
       });
       return;
     }
@@ -162,7 +154,8 @@ export async function showDateScreen(
   messageId: number
 ): Promise<void> {
   const info = await getCapacityForDate(ctx.tenant.id, date);
-  const current = info.isOverride ? info.capacity : ctx.tenant.defaultDailyCapacity;
+  const current =
+    info.isOverride && info.capacity !== null ? info.capacity : ctx.tenant.defaultDailyCapacity;
   const closed = info.isOverride ? info.isClosed : false;
   const db = getDb();
   const dayOrders = await db
@@ -183,13 +176,15 @@ export async function showDateScreen(
   const lines = [
     date,
     closed ? ctx.t.ownerCalendar.closed : ctx.t.ownerCalendar.openDay,
-    `Лимит: ${current}`,
+    ctx.t.ownerCalendar.limit(current),
   ];
   if (dayOrders.length > 0) {
-    lines.push('', 'Заказы:');
+    lines.push('', ctx.t.ownerOrders.listTitle);
     for (const o of dayOrders) {
-      lines.push(`• №${o.number} — ${o.status}`);
-      rows.push([{ text: `Заказ №${o.number}`, callback_data: `adm:ord:view:${o.id}` }]);
+      lines.push(`• №${o.number} — ${ctx.t.orderStatuses[o.status] ?? o.status}`);
+      rows.push([
+        { text: ctx.t.jobs.digestOrderBtn(o.number), callback_data: `adm:ord:view:${o.id}` },
+      ]);
     }
   }
   rows.push([{ text: ctx.t.catalog.back, callback_data: 'adm:cal:list' }]);

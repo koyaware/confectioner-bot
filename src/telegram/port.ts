@@ -1,8 +1,27 @@
 import { TelegramErrorCode } from '../types.js';
 
+export interface ReplyKeyboardButton {
+  text: string;
+  requestContact?: boolean;
+}
+
+export interface ReplyKeyboardMarkup {
+  keyboard: { text: string; request_contact?: boolean }[][];
+  resize_keyboard?: boolean;
+  one_time_keyboard?: boolean;
+}
+
+export interface ReplyKeyboardRemove {
+  remove_keyboard: true;
+}
+
 export interface SendOpts {
   keyboard?: InlineKeyboard;
   parseMode?: 'HTML';
+  /** Reply keyboard (e.g. a request-contact button). Not combinable with keyboard. */
+  replyKeyboard?: ReplyKeyboardButton[][];
+  /** Hide the reply keyboard. Not combinable with keyboard/replyKeyboard. */
+  removeKeyboard?: boolean;
 }
 
 export interface InlineKeyboard {

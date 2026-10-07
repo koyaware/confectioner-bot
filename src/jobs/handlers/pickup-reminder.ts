@@ -4,6 +4,7 @@ import { customers, orders, tenants } from '../../db/schema.js';
 import { getCustomerOrderNumber } from '../../services/orders.js';
 import { sendCustomerMessage } from '../../services/notify.js';
 import { TelegramPort } from '../../telegram/port.js';
+import { stringsFor } from '../../i18n/index.js';
 import { eq } from 'drizzle-orm';
 
 export function createPickupReminderHandler(ports: {
@@ -35,16 +36,23 @@ export function createPickupReminderHandler(ports: {
     if (!port) {
       return { success: false, error: `no bot for tenant ${order.tenantId}` };
     }
+    const t = stringsFor(tenant.language);
     const detail =
       order.fulfillment === 'delivery'
-        ? `доставка${order.address ? `, адрес: ${order.address}` : ''}`
-        : 'самовывоз';
+        ? order.address
+          ? t.jobs.pickupDeliveryAddr(order.address)
+          : t.jobs.pickupDelivery
+        : t.jobs.pickupPickup;
     try {
       const result = await sendCustomerMessage(
         port,
         order.tenantId,
         customer.id,
-        `Напоминание: заказ №${(await getCustomerOrderNumber(order.id)) ?? order.number} — ${order.dueDate}${order.dueTimeText ? `, ${order.dueTimeText}` : ''}. ${detail}.`
+        t.jobs.pickup(
+          (await getCustomerOrderNumber(order.id)) ?? order.number,
+          `${order.dueDate}${order.dueTimeText ? `, ${order.dueTimeText}` : ''}`,
+          detail
+        )
       );
       if (result === 'failed') {
         return { success: true };

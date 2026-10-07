@@ -42,7 +42,7 @@ export async function renderProductCard(
     selectedOptions.map((o) => o.priceDeltaMinor),
     1
   );
-  lines.push(`Цена: ${formatMinor(basePrice, ctx.tenant.currency)}`);
+  lines.push(ctx.t.product.price(formatMinor(basePrice, ctx.tenant.currency)));
 
   const rows: InlineKeyboard['inline_keyboard'] = [];
   const groups = new Map<string, typeof options>();
@@ -77,8 +77,22 @@ export async function renderProductCard(
   rows.push([{ text: ctx.t.cart.goToCart, callback_data: 'cart:show' }]);
   rows.push([{ text: ctx.t.catalog.back, callback_data: `cat:open:${product.categoryId}` }]);
 
+  const keyboard = { inline_keyboard: rows };
+  if (product.photoFileId) {
+    // Photo screen replaces the text screen so the chat keeps a single message.
+    try {
+      await ctx.port.deleteMessage(chatId, messageId);
+    } catch {
+      // already gone
+    }
+    await ctx.port.sendPhoto(chatId, product.photoFileId, lines.join('\n'), {
+      keyboard,
+      parseMode: 'HTML',
+    });
+    return;
+  }
   await ctx.port.editMessageTextOrSend(chatId, messageId, lines.join('\n'), {
-    keyboard: { inline_keyboard: rows },
+    keyboard,
     parseMode: 'HTML',
   });
 }

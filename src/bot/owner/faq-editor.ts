@@ -29,7 +29,7 @@ export function registerOwnerFaqHandlers(bot: Bot<BotContextWithSession>): void 
         { text: f.question, callback_data: `adm:faq:edit:${f.id}` },
       ]);
       rows.push([{ text: ctx.t.ownerFaq.add, callback_data: 'adm:faq:add' }]);
-      rows.push([{ text: 'Назад', callback_data: 'adm:menu' }]);
+      rows.push([{ text: ctx.t.common.back, callback_data: 'adm:menu' }]);
       await ctx.port.editMessageTextOrSend(chatId, messageId, ctx.t.ownerFaq.title, {
         keyboard: { inline_keyboard: rows },
       });
@@ -79,7 +79,7 @@ export function registerOwnerFaqHandlers(bot: Bot<BotContextWithSession>): void 
         { text: f.question, callback_data: `adm:faq:edit:${f.id}` },
       ]);
       rows.push([{ text: ctx.t.ownerFaq.add, callback_data: 'adm:faq:add' }]);
-      rows.push([{ text: 'Назад', callback_data: 'adm:menu' }]);
+      rows.push([{ text: ctx.t.common.back, callback_data: 'adm:menu' }]);
       await ctx.port.editMessageTextOrSend(chatId, messageId, ctx.t.ownerFaq.title, {
         keyboard: { inline_keyboard: rows },
       });

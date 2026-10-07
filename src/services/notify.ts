@@ -2,6 +2,7 @@ import { getDb } from '../db/client.js';
 import { customers, tenants } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
 import { SendOpts, TelegramError, TelegramPort } from '../telegram/port.js';
+import { stringsFor } from '../i18n/index.js';
 
 export type CustomerSendResult = 'sent' | 'blocked' | 'failed';
 
@@ -42,7 +43,9 @@ export async function sendCustomerMessage(
           try {
             await port.sendMessage(
               tenant.ownerTelegramId,
-              `Клиент ${customer.firstName ?? ''}${customer.username ? ` (@${customer.username})` : ''} заблокировал бота. Уведомления ему не дойдут.`
+              stringsFor(tenant.language).notify.blocked(
+                `${customer.firstName ?? ''}${customer.username ? ` (@${customer.username})` : ''}`
+              )
             );
           } catch {
             // owner unreachable: flag is already stored, job succeeds

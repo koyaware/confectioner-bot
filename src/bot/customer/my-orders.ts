@@ -15,18 +15,6 @@ import {
 import { sendPaymentCard } from './payment-handler.js';
 import { customerMenuKeyboard } from '../owner/menu.js';
 
-const STATUS_LABELS: Record<string, string> = {
-  new: '🆕 Новый',
-  awaiting_payment: '💳 Ожидает оплаты',
-  payment_review: '📸 Чек на проверке',
-  confirmed: '✅ Подтверждён',
-  ready: '🎂 Готов',
-  completed: '✅ Завершён',
-  rejected: '❌ Отклонён',
-  cancelled: '🚫 Отменён',
-  expired: '⏰ Истёк',
-};
-
 export function registerMyOrdersHandlers(bot: Bot<BotContextWithSession>): void {
   bot.callbackQuery(/^my:list$/, async (ctx) => {
     await ctx.port.answerCallback(ctx.callbackQuery.id);
@@ -34,12 +22,12 @@ export function registerMyOrdersHandlers(bot: Bot<BotContextWithSession>): void 
     const list = await listCustomerOrders(ctx.tenant.id, ctx.from.id);
     const rows: InlineKeyboard['inline_keyboard'] = list.map((o) => [
       {
-        text: `№${o.number} — ${STATUS_LABELS[o.status] ?? o.status}`,
+        text: ctx.t.my.listRow(o.number, ctx.t.orderStatuses[o.status] ?? o.status),
         callback_data: `my:view:${o.id}`,
       },
     ]);
     const text = list.length > 0 ? ctx.t.my.listTitle : ctx.t.my.empty;
-    rows.push([{ text: 'В меню', callback_data: 'nav:menu' }]);
+    rows.push([{ text: ctx.t.common.toMenu, callback_data: 'nav:menu' }]);
     const chatId = ctx.callbackQuery.message?.chat.id;
     const messageId = ctx.callbackQuery.message?.message_id;
     if (chatId && messageId) {
@@ -91,31 +79,46 @@ export function registerMyOrdersHandlers(bot: Bot<BotContextWithSession>): void 
       );
     const lines: string[] = [];
     lines.push(
-      `<b>Заказ №${(await getCustomerOrderNumber(found.order.id)) ?? found.order.number}</b>`
+      ctx.t.orderCard.title((await getCustomerOrderNumber(found.order.id)) ?? found.order.number)
     );
-    lines.push(`Статус: ${STATUS_LABELS[found.order.status] ?? found.order.status}`);
+    lines.push(
+      ctx.t.orderCard.status(ctx.t.orderStatuses[found.order.status] ?? found.order.status)
+    );
     for (const it of items) {
       lines.push(
         `• ${escapeHtml(it.titleSnapshot)}${it.optionsSnapshot.length ? ` (${it.optionsSnapshot.map((o) => escapeHtml(o.title)).join(', ')})` : ''} × ${it.qty}`
       );
     }
     lines.push(
-      `Дата: ${found.order.dueDate}${found.order.dueTimeText ? `, ${escapeHtml(found.order.dueTimeText)}` : ''}`
+      ctx.t.orderCard.date(
+        `${found.order.dueDate}${found.order.dueTimeText ? `, ${escapeHtml(found.order.dueTimeText)}` : ''}`
+      )
     );
-    lines.push(`Получение: ${found.order.fulfillment === 'delivery' ? 'доставка' : 'самовывоз'}`);
-    lines.push(`Итого: ${formatMinor(found.order.totalMinor, ctx.tenant.currency)}`);
+    lines.push(
+      ctx.t.orderCard.fulfillment(
+        found.order.fulfillment === 'delivery' ? ctx.t.orderCard.delivery : ctx.t.orderCard.pickup
+      )
+    );
+    lines.push(
+      ctx.t.checkout.confirmTotal(formatMinor(found.order.totalMinor, ctx.tenant.currency))
+    );
     if (refs.length > 0) {
-      lines.push(`📎 Референсы: ${refs.length} шт.`);
+      lines.push(ctx.t.orderCard.refs(refs.length));
     }
 
     const kbRows: InlineKeyboard['inline_keyboard'] = [];
     if (refs.length > 0) {
       kbRows.push([
-        { text: `Референсы (${refs.length})`, callback_data: `my:refs:${found.order.id}` },
+        {
+          text: ctx.t.my.refsButton(refs.length),
+          callback_data: `my:refs:${found.order.id}`,
+        },
       ]);
     }
     if (found.order.status === 'new' || found.order.status === 'awaiting_payment') {
-      kbRows.push([{ text: 'Отменить заказ', callback_data: `my:cancel:${found.order.id}` }]);
+      kbRows.push([
+        { text: ctx.t.my.cancelOrderBtn, callback_data: `my:cancel:${found.order.id}` },
+      ]);
     }
     kbRows.push([{ text: ctx.t.catalog.back, callback_data: 'my:list' }]);
 
@@ -160,7 +163,7 @@ export function registerMyOrdersHandlers(bot: Bot<BotContextWithSession>): void 
       );
 
     if (refs.length === 0) {
-      await ctx.port.editMessageTextOrSend(chatId, messageId, 'Референсов нет.', {});
+      await ctx.port.editMessageTextOrSend(chatId, messageId, ctx.t.orderCard.refsNone, {});
       return;
     }
 
@@ -168,7 +171,10 @@ export function registerMyOrdersHandlers(bot: Bot<BotContextWithSession>): void 
     await ctx.port.editMessageTextOrSend(
       chatId,
       messageId,
-      `Референсы заказа №${(await getCustomerOrderNumber(found.order.id)) ?? found.order.number} (${refs.length} шт.)`,
+      ctx.t.my.refsTitle(
+        (await getCustomerOrderNumber(found.order.id)) ?? found.order.number,
+        refs.length
+      ),
       {
         keyboard: {
           inline_keyboard: [
@@ -232,7 +238,7 @@ export function registerMyOrdersHandlers(bot: Bot<BotContextWithSession>): void 
     await ctx.port.editMessageTextOrSend(
       chatId,
       messageId,
-      `Заказ №${(await getCustomerOrderNumber(found.order.id)) ?? found.order.number} отменён.`,
+      ctx.t.my.cancelled((await getCustomerOrderNumber(found.order.id)) ?? found.order.number),
       { keyboard: customerMenuKeyboard(ctx) }
     );
 
@@ -240,7 +246,7 @@ export function registerMyOrdersHandlers(bot: Bot<BotContextWithSession>): void 
     if (ownerId) {
       await ctx.port.sendMessage(
         ownerId,
-        `Заказ №${found.order.number} отменён клиентом${reason ? ': ' + reason : '.'}`
+        ctx.t.notify.orderCancelledByCustomer(found.order.number, reason ? `: ${reason}` : '.')
       );
     }
   }
@@ -335,25 +341,23 @@ export function registerMyOrdersHandlers(bot: Bot<BotContextWithSession>): void 
     const action = m[1]!;
     if (action === 'no') {
       await db.update(orders).set({ proposedDate: null }).where(eq(orders.id, found.order.id));
-      await ctx.port.editMessageTextOrSend(
-        chatId,
-        messageId,
-        'Хорошо, ждём нового предложения от мастера.',
-        { keyboard: { inline_keyboard: [[{ text: '🔙 Назад', callback_data: 'my:list' }]] } }
-      );
+      await ctx.port.editMessageTextOrSend(chatId, messageId, ctx.t.my.pdDeclined, {
+        keyboard: { inline_keyboard: [[{ text: ctx.t.common.back, callback_data: 'my:list' }]] },
+      });
       const ownerId = ctx.tenant.ownerTelegramId;
       if (ownerId) {
-        await ctx.port.sendMessage(
-          ownerId,
-          `🚫 Клиент отклонил предложенную дату по заказу №${found.order.number}.`,
-          {
-            keyboard: {
-              inline_keyboard: [
-                [{ text: '👁 Перейти к заказу', callback_data: `adm:ord:view:${found.order.id}` }],
+        await ctx.port.sendMessage(ownerId, ctx.t.orderCard.pdDeclinedOwner(found.order.number), {
+          keyboard: {
+            inline_keyboard: [
+              [
+                {
+                  text: ctx.t.orderCard.viewOrder,
+                  callback_data: `adm:ord:view:${found.order.id}`,
+                },
               ],
-            },
-          }
-        );
+            ],
+          },
+        });
       }
       return;
     }
@@ -369,9 +373,7 @@ export function registerMyOrdersHandlers(bot: Bot<BotContextWithSession>): void 
       await ctx.port.editMessageTextOrSend(
         chatId,
         messageId,
-        accepted.error === 'DATE_UNAVAILABLE'
-          ? 'Эта дата уже недоступна. Попросите мастера предложить другую.'
-          : ctx.t.my.actionFailed,
+        accepted.error === 'DATE_UNAVAILABLE' ? ctx.t.my.pdTaken : ctx.t.my.actionFailed,
         {}
       );
       return;
@@ -382,14 +384,17 @@ export function registerMyOrdersHandlers(bot: Bot<BotContextWithSession>): void 
     } else {
       await ctx.port.sendMessage(
         chatId,
-        `Заказ №${(await getCustomerOrderNumber(found.order.id)) ?? found.order.number} принят в работу.`
+        ctx.t.my.pdAccepted((await getCustomerOrderNumber(found.order.id)) ?? found.order.number)
       );
     }
 
     await ctx.port.editMessageTextOrSend(
       chatId,
       messageId,
-      `Заказ №${(await getCustomerOrderNumber(found.order.id)) ?? found.order.number} перенесён на ${accepted.value.dueDate}.`,
+      ctx.t.my.pdMoved(
+        (await getCustomerOrderNumber(found.order.id)) ?? found.order.number,
+        accepted.value.dueDate
+      ),
       {}
     );
   });

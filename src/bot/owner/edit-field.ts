@@ -383,7 +383,7 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
       case 'src_add_label': {
         const result = await addSource(ctx.tenant.id, text);
         if (result.ok) {
-          await editScreenOrSend(ctx, `Метка создана: ${result.code}`, [
+          await editScreenOrSend(ctx, ctx.t.ownerLinks.labelCreated(result.code), [
             [{ text: ctx.t.common.back, callback_data: 'adm:src:list' }],
           ]);
         } else {
