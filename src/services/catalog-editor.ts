@@ -151,6 +151,7 @@ export async function moveProduct(tenantId: string, productId: string, dir: 'up'
 
 export async function deleteProduct(tenantId: string, productId: string): Promise<void> {
   const db = getDb();
+  await db.delete(productOptions).where(eq(productOptions.productId, productId));
   await db.delete(products).where(and(eq(products.id, productId), eq(products.tenantId, tenantId)));
 }
 
