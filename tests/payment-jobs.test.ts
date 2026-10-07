@@ -125,4 +125,25 @@ describe('payment jobs', () => {
     // second run did not send extra messages
     expect(port.getCallsForMethod('sendMessage')).toHaveLength(2);
   });
+
+  it('payment rejection reschedules reminder and expire jobs', async () => {
+    const { order } = await setup();
+    const t0 = now.getTime();
+    await applyOrderEvent(order.id, 'owner_accept', 'owner', now);
+    const db = getDb();
+    const before = await db.select().from(jobs);
+    const expireBefore = before.find((j) => j.type === 'order.expire')!;
+
+    const later = new Date(t0 + 3600_000);
+    await applyOrderEvent(order.id, 'receipt_uploaded', 'customer', later);
+    await applyOrderEvent(order.id, 'payment_rejected', 'owner', later);
+
+    const after = await db.select().from(jobs);
+    const expireAfter = after.filter((j) => j.type === 'order.expire');
+    expect(expireAfter).toHaveLength(1);
+    expect(expireAfter[0]!.status).toBe('pending');
+    expect((expireAfter[0]!.runAt as Date).getTime()).toBeGreaterThan(
+      (expireBefore.runAt as Date).getTime()
+    );
+  });
 });

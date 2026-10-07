@@ -390,7 +390,10 @@ export async function applyOrderEvent(
           dedupeKey: `payrem:${order.id}`,
           createdAt: now,
         })
-        .onConflictDoNothing()
+        .onConflictDoUpdate({
+          target: jobsTable.dedupeKey,
+          set: { runAt: reminderAt, status: 'pending', attempts: 0, lastError: null },
+        })
         .run();
 
       tx.insert(jobsTable)
@@ -405,7 +408,10 @@ export async function applyOrderEvent(
           dedupeKey: `expire:${order.id}`,
           createdAt: now,
         })
-        .onConflictDoNothing()
+        .onConflictDoUpdate({
+          target: jobsTable.dedupeKey,
+          set: { runAt: paymentDueAt, status: 'pending', attempts: 0, lastError: null },
+        })
         .run();
     }
 
@@ -422,7 +428,10 @@ export async function applyOrderEvent(
           dedupeKey: `pickup:${order.id}`,
           createdAt: now,
         })
-        .onConflictDoNothing()
+        .onConflictDoUpdate({
+          target: jobsTable.dedupeKey,
+          set: { runAt: pickupAt, status: 'pending', attempts: 0, lastError: null },
+        })
         .run();
     }
 
