@@ -294,7 +294,7 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
 
     const card = await buildOrderCardText(m[1]!, ctx.tenant.id, ctx.tenant.currency);
     if (!card) {
-      await ctx.port.answerCallback(ctx.callbackQuery.id, 'Заказ не найден.');
+      await ctx.port.editMessageText(chatId, messageId, ru.my.notFound, {});
       return;
     }
 
@@ -338,11 +338,15 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
     const m = /^adm:ord:refs:(.+)$/.exec(ctx.callbackQuery.data);
     if (!m) return;
 
+    const chatId = ctx.callbackQuery.message?.chat.id;
+    const messageId = ctx.callbackQuery.message?.message_id;
+    if (!chatId || !messageId) return;
+
     const db = getDb();
     const rows = await db.select().from(orders).where(eq(orders.id, m[1]!)).limit(1);
     const order = rows[0];
     if (!order || order.tenantId !== ctx.tenant.id) {
-      await ctx.port.answerCallback(ctx.callbackQuery.id, 'Заказ не найден.');
+      await ctx.port.editMessageText(chatId, messageId, ru.my.notFound, {});
       return;
     }
 
@@ -352,7 +356,7 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
       .where(and(eq(orderAttachments.orderId, order.id), eq(orderAttachments.kind, 'reference')));
 
     if (refs.length === 0) {
-      await ctx.port.answerCallback(ctx.callbackQuery.id, 'Референсов нет.');
+      await ctx.port.editMessageText(chatId, messageId, 'Референсов нет.', {});
       return;
     }
 

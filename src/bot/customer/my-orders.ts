@@ -132,7 +132,8 @@ export function registerMyOrdersHandlers(bot: Bot<BotContextWithSession>): void 
     if (!m) return;
 
     const chatId = ctx.callbackQuery.message?.chat.id;
-    if (!chatId) return;
+    const messageId = ctx.callbackQuery.message?.message_id;
+    if (!chatId || !messageId) return;
 
     const db = getDb();
     const rows = await db
@@ -159,7 +160,7 @@ export function registerMyOrdersHandlers(bot: Bot<BotContextWithSession>): void 
       );
 
     if (refs.length === 0) {
-      await ctx.port.answerCallback(ctx.callbackQuery.id, 'Референсов нет.');
+      await ctx.port.editMessageText(chatId, messageId, 'Референсов нет.', {});
       return;
     }
 
