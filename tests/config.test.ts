@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { loadConfig } from '../src/config.js';
+import { loadConfig, parseAdminTelegramIds } from '../src/config.js';
 
 describe('config', () => {
   const originalEnv = process.env;
@@ -85,5 +85,11 @@ describe('config', () => {
 
     expect(config.superadminTelegramId).toBe(987654321);
     expect(typeof config.superadminTelegramId).toBe('number');
+  });
+
+  it('parses per-tenant admin ids strictly', () => {
+    expect(parseAdminTelegramIds('anna=1,2;borya=3')).toEqual({ anna: [1, 2], borya: [3] });
+    expect(parseAdminTelegramIds('anna=1; broken')).toEqual({});
+    expect(parseAdminTelegramIds(undefined)).toEqual({});
   });
 });

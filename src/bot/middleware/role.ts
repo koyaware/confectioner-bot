@@ -1,5 +1,6 @@
 import { MiddlewareFn } from 'grammy';
 import { BotContextWithSession } from '../context.js';
+import { parseAdminTelegramIds } from '../../config.js';
 
 export const roleMiddleware: MiddlewareFn<BotContextWithSession> = async (ctx, next) => {
   if (!ctx.from) {
@@ -8,14 +9,7 @@ export const roleMiddleware: MiddlewareFn<BotContextWithSession> = async (ctx, n
 
   const userId = ctx.from.id;
   const superadminId = parseInt(process.env.SUPERADMIN_TELEGRAM_ID || '0', 10);
-  const adminIdsRaw = process.env.ADMIN_TELEGRAM_IDS || '';
-  const tenantAdminChunk = adminIdsRaw
-    .split(';')
-    .map((part) => part.trim())
-    .find((part) => part.startsWith(`${ctx.tenant.slug}=`));
-  const adminIds = tenantAdminChunk
-    ? (tenantAdminChunk.split('=')[1]?.match(/\d+/g) || []).map(Number)
-    : [];
+  const adminIds = parseAdminTelegramIds(process.env.ADMIN_TELEGRAM_IDS)[ctx.tenant.slug] ?? [];
 
   // Check if superadmin
   if (userId === superadminId) {

@@ -11,6 +11,19 @@ const configSchema = z.object({
 
 export type Config = z.infer<typeof configSchema>;
 
+export function parseAdminTelegramIds(raw: string | undefined): Record<string, number[]> {
+  if (!raw) return {};
+  const result: Record<string, number[]> = {};
+  for (const part of raw.split(';')) {
+    const chunk = part.trim();
+    if (!chunk) continue;
+    const m = /^([A-Za-z0-9_-]{1,32})=(\d+(?:,\d+)*)$/.exec(chunk);
+    if (!m) return {};
+    result[m[1]!] = m[2]!.split(',').map(Number);
+  }
+  return result;
+}
+
 export function loadConfig(): Config {
   const raw = {
     appSecret: process.env.APP_SECRET,
