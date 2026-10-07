@@ -46,6 +46,50 @@ describe('tenant language read path', () => {
     expect(localeFor(null)).toBe('ru-RU');
   });
 
+  it('uz and kk contain no Russian-only words', () => {
+    // Loanwords shared across languages (FAQ, QR, brand names) are fine;
+    // these stems only exist in Russian texts.
+    const forbidden = [
+      'Воронка',
+      'Статус',
+      'статус',
+      'Написать',
+      'написать',
+      'Заказ',
+      'Оплата',
+      'оплат',
+      'Отмена',
+      'отмена',
+      'Отменить',
+      'Дата',
+      'Цена',
+      'Корзина',
+      'Вопрос',
+      'Ответ',
+      'Доставка',
+      'Старт',
+      'Назад',
+      'Меню',
+      'Гость',
+    ];
+    const collect = (o: unknown, out: string[]): string[] => {
+      if (typeof o === 'string') out.push(o);
+      else if (Array.isArray(o)) o.forEach((v) => collect(v, out));
+      else if (o && typeof o === 'object') Object.values(o).forEach((v) => collect(v, out));
+      return out;
+    };
+    for (const [name, dict] of [
+      ['uz', uz],
+      ['kk', kk],
+    ] as const) {
+      for (const text of collect(dict, [])) {
+        for (const word of forbidden) {
+          expect(`${name}: ${text}`).not.toContain(word);
+        }
+      }
+    }
+  });
+
   it('currency codes are independent of language', () => {
     expect(currencyForCode('rub')).toBe('₽');
     expect(currencyForCode('kzt')).toBe('₸');

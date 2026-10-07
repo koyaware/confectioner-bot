@@ -311,7 +311,7 @@ export const uz: Strings = {
     openDay: '🟢 Ochiq',
     closed: '🔴 Yopiq',
     setCapacity: '🔢 Limitni oʻzgartirish',
-    promptCapacity: '🔢 Kunga buyurtmalar limitini kiriting (0 dan katta butun son).',
+    promptCapacity: '🔢 Kunga buyurtmalar limitini kiriting (manfiy boʻlmagan butun son).',
     badCapacity: '❌ Butun manfiy boʻlmagan son kerak.',
     savedLimit: '✅ Limit saqlandi.',
     limit: (n: number) => `Limit: ${n}`,

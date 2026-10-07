@@ -71,7 +71,7 @@ export const kk: Strings = {
     expired: '⏰ Мерзімі өтті',
   },
   funnel: {
-    start: 'Старт',
+    start: 'Бастау',
     catalog_view: 'Каталог',
     product_view: 'Тауар',
     cart_add: 'Себет',
@@ -163,7 +163,7 @@ export const kk: Strings = {
     listTitle: '📋 Сіздің тапсырыстарыңыз',
     empty: '📋 Сізде әзірге тапсырыстар жоқ.',
     notFound: '❌ Тапсырыс табылмады.',
-    cancelFailed: '❌ Тапсырысты ағымдағы статуста болдырмау мүмкін емес.',
+    cancelFailed: '❌ Тапсырысты ағымдағы мәртебеде болдырмау мүмкін емес.',
     actionFailed: '❌ Әрекетті орындау мүмкін болмады.',
     button: '📋 Менің тапсырыстарым',
     cancelTitle: '❓ Тапсырысты неге болдырасыз?',
@@ -210,7 +210,7 @@ export const kk: Strings = {
   },
   orderCard: {
     title: (n: number) => `<b>№${n} тапсырыс</b>`,
-    status: (s: string) => `Статусы: ${s}`,
+    status: (s: string) => `Мәртебе: ${s}`,
     date: (d: string) => `Күні: ${d}`,
     fulfillment: (w: string) => `Алу: ${w}`,
     pickup: 'өзі алып кету',
@@ -240,8 +240,8 @@ export const kk: Strings = {
   stats: {
     title: (days: number) => `<b>${days} күндегі статистика</b>`,
     newCustomers: 'Жаңа клиенттер',
-    funnelTitle: 'Воронка:',
-    byStatusTitle: 'Статустар бойынша тапсырыстар:',
+    funnelTitle: 'Сату кезеңдері:',
+    byStatusTitle: 'Мәртебелер бойынша тапсырыстар:',
     revenue: (amount: string, count: number) => `Табыс (расталғандар): ${amount} (${count} дана.)`,
     avgDecision: (minutes: number | null) =>
       minutes === null
@@ -310,7 +310,7 @@ export const kk: Strings = {
     openDay: '🟢 Ашық',
     closed: '🔴 Жабық',
     setCapacity: '🔢 Лимитті өзгерту',
-    promptCapacity: '🔢 Күнге тапсырыс лимитін енгізіңіз (0-ден үлкен бүтін сан).',
+    promptCapacity: '🔢 Күнге тапсырыс лимитін енгізіңіз (теріс емес бүтін сан).',
     badCapacity: '❌ Теріс емес бүтін сан керек.',
     savedLimit: '✅ Лимит сақталды.',
     limit: (n: number) => `Лимит: ${n}`,

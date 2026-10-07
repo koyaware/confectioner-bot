@@ -176,6 +176,46 @@ describe('settings language/currency buttons', () => {
     expect(kb).not.toContain('adm:set:edit:currency');
   });
 
+  it('kk customer sees Kazakh menu and settings end-to-end', async () => {
+    const { tenantId } = await seedDemo(appSecret, new Date());
+    await getDb()
+      .update(tenants)
+      .set({ ownerTelegramId: 555, language: 'kk' })
+      .where(eq(tenants.id, tenantId));
+
+    const port = new FakePort();
+    const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
+
+    await bot.handleUpdate({
+      update_id: 1,
+      message: {
+        message_id: 1,
+        date: 1,
+        chat: { id: 42, type: 'private' },
+        from: { id: 42, is_bot: false, first_name: 'U' },
+        text: '/start',
+        entities: [{ type: 'bot_command', offset: 0, length: 6 }],
+      },
+    } as never);
+
+    const sent = port.getCallsForMethod('sendMessage');
+    const menu = sent.find((c) => c.args[0] === 42);
+    expect(menu).toBeTruthy();
+    const keyboard = (
+      menu!.args[2] as {
+        keyboard: { inline_keyboard: { text: string; callback_data?: string }[][] };
+      }
+    ).keyboard;
+    const labels = keyboard.inline_keyboard.flat().map((b) => b.text);
+    expect(labels).toContain('📦 Каталог');
+    expect(labels).toContain('🛒 Себет');
+    expect(labels).toContain('📞 Байланыс');
+
+    await bot.handleUpdate(cb(2, 555, 1, 'adm:set:list'));
+    const edits = port.getCallsForMethod('editMessageTextOrSend');
+    expect(edits[edits.length - 1]!.args[2]).toContain('Дүкен баптаулары');
+  });
+
   it('invalid codes and non-owner attempts change nothing', async () => {
     const { tenantId } = await seedDemo(appSecret, new Date());
     await getDb().update(tenants).set({ ownerTelegramId: 555 }).where(eq(tenants.id, tenantId));
