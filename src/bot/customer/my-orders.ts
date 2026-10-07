@@ -26,7 +26,7 @@ export function registerMyOrdersHandlers(bot: Bot<BotContextWithSession>): void 
   bot.callbackQuery(/^my:list$/, async (ctx) => {
     await ctx.port.answerCallback(ctx.callbackQuery.id);
 
-    const list = await listCustomerOrders(ctx.tenant.id, ctx.from!.id);
+    const list = await listCustomerOrders(ctx.tenant.id, ctx.from.id);
     const rows: InlineKeyboard['inline_keyboard'] = list.map((o) => [
       { text: `№${o.number} — ${STATUS_LABELS[o.status] ?? o.status}`, callback_data: `my:view:${o.id}` },
     ]);
@@ -49,7 +49,7 @@ export function registerMyOrdersHandlers(bot: Bot<BotContextWithSession>): void 
       .select({ order: orders, customer: customers })
       .from(orders)
       .innerJoin(customers, eq(orders.customerId, customers.id))
-      .where(and(eq(orders.id, m[1]!), eq(customers.telegramId, ctx.from!.id)))
+      .where(and(eq(orders.id, m[1]!), eq(customers.telegramId, ctx.from.id)))
       .limit(1);
     const found = rows[0];
 
@@ -98,7 +98,7 @@ export function registerMyOrdersHandlers(bot: Bot<BotContextWithSession>): void 
       .select({ order: orders, customer: customers })
       .from(orders)
       .innerJoin(customers, eq(orders.customerId, customers.id))
-      .where(and(eq(orders.id, m[1]!), eq(customers.telegramId, ctx.from!.id)))
+      .where(and(eq(orders.id, m[1]!), eq(customers.telegramId, ctx.from.id)))
       .limit(1);
     const found = rows[0];
 
