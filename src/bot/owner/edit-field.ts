@@ -10,6 +10,7 @@ import {
   SETTINGS_FIELDS,
 } from '../../services/settings.js';
 import { getCapacityForDate, setCapacityForDate } from '../../services/calendar.js';
+import { addSource } from '../../services/sources.js';
 
 const tenantFieldCheck: Record<string, true> = Object.fromEntries(
   SETTINGS_FIELDS.map((f) => [f, true])
@@ -196,6 +197,15 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
           ctx.sessionState = 'owner.edit_field';
           ctx.session.ownerDraft = draft;
           await ctx.port.sendMessage(ctx.chat.id, ru.ownerCalendar.badCapacity);
+        }
+        return;
+      }
+      case 'src_add_label': {
+        const result = await addSource(ctx.tenant.id, text);
+        if (result.ok) {
+          await ctx.port.sendMessage(ctx.chat.id, `Метка создана: ${result.code}`);
+        } else {
+          await ctx.port.sendMessage(ctx.chat.id, ru.ownerLinks.badLabel);
         }
         return;
       }
