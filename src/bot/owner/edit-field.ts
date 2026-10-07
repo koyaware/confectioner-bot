@@ -31,6 +31,43 @@ function badText(text: string, max: number): boolean {
   return text.length === 0 || text.length > max;
 }
 
+function backTargetForDraft(draft: { kind: string }): string | null {
+  if (
+    draft.kind.startsWith('cat_') ||
+    draft.kind.startsWith('prd_') ||
+    draft.kind.startsWith('opt_')
+  ) {
+    return 'adm:cat:list';
+  }
+  if (draft.kind.startsWith('faq_')) {
+    return 'adm:faq:list';
+  }
+  if (draft.kind === 'src_add_label') {
+    return 'adm:src:list';
+  }
+  if (draft.kind === 'set_field') {
+    return 'adm:set:list';
+  }
+  if (draft.kind === 'feature_add_name') {
+    return 'adm:set:edit:features';
+  }
+  return null;
+}
+
+async function sendSaved(
+  ctx: BotContextWithSession,
+  draft: { kind: string },
+  text: string
+): Promise<void> {
+  if (!ctx.chat) return;
+  const back = backTargetForDraft(draft);
+  await ctx.port.sendMessage(ctx.chat.id, text, {
+    keyboard: back
+      ? { inline_keyboard: [[{ text: ru.common.back, callback_data: back }]] }
+      : undefined,
+  });
+}
+
 export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void {
   bot.on('message:text', async (ctx, next) => {
     if (
@@ -44,8 +81,14 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
     const draft = ctx.session.ownerDraft;
 
     const text = ctx.message.text.trim();
+    const userMessageId = ctx.message.message_id;
     ctx.sessionState = 'idle';
     ctx.session.ownerDraft = undefined;
+    try {
+      await ctx.port.deleteMessage(ctx.chat.id, userMessageId);
+    } catch {
+      // already gone
+    }
 
     switch (draft.kind) {
       case 'cat_add': {
@@ -54,7 +97,7 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
           return;
         }
         await editor.createCategory(ctx.tenant.id, text);
-        await ctx.port.sendMessage(ctx.chat.id, ru.ownerCatalog.saved);
+        await sendSaved(ctx, draft, ru.ownerCatalog.saved);
         return;
       }
       case 'cat_rename': {
@@ -65,7 +108,7 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
           return;
         }
         await editor.updateCategoryTitle(ctx.tenant.id, draft.targetId, text);
-        await ctx.port.sendMessage(ctx.chat.id, ru.ownerCatalog.saved);
+        await sendSaved(ctx, draft, ru.ownerCatalog.saved);
         return;
       }
       case 'prd_add_title': {
@@ -94,7 +137,7 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
         }
         if (draft.targetId && draft.extra?.title) {
           await editor.createProduct(ctx.tenant.id, draft.targetId, draft.extra.title, priceMinor);
-          await ctx.port.sendMessage(ctx.chat.id, ru.ownerCatalog.saved);
+          await sendSaved(ctx, draft, ru.ownerCatalog.saved);
         }
         return;
       }
@@ -160,7 +203,7 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
             await editor.updateProduct(ctx.tenant.id, draft.targetId, { capacityUnits: units });
           }
         }
-        await ctx.port.sendMessage(ctx.chat.id, ru.ownerCatalog.saved);
+        await sendSaved(ctx, draft, ru.ownerCatalog.saved);
         return;
       }
       case 'opt_add_group': {
@@ -216,7 +259,7 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
             return;
           }
         }
-        await ctx.port.sendMessage(ctx.chat.id, ru.ownerCatalog.saved);
+        await sendSaved(ctx, draft, ru.ownerCatalog.saved);
         return;
       }
       case 'faq_add_question': {
@@ -239,7 +282,7 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
           return;
         }
         await createFaq(ctx.tenant.id, draft.extra.question, text);
-        await ctx.port.sendMessage(ctx.chat.id, ru.ownerCatalog.saved);
+        await sendSaved(ctx, draft, ru.ownerCatalog.saved);
         return;
       }
       case 'faq_edit_q': {
@@ -250,7 +293,7 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
           return;
         }
         await updateFaq(ctx.tenant.id, draft.targetId, { question: text });
-        await ctx.port.sendMessage(ctx.chat.id, ru.ownerCatalog.saved);
+        await sendSaved(ctx, draft, ru.ownerCatalog.saved);
         return;
       }
       case 'faq_edit_a': {
@@ -261,7 +304,7 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
           return;
         }
         await updateFaq(ctx.tenant.id, draft.targetId, { answer: text });
-        await ctx.port.sendMessage(ctx.chat.id, ru.ownerCatalog.saved);
+        await sendSaved(ctx, draft, ru.ownerCatalog.saved);
         return;
       }
       case 'cal_capacity': {
@@ -310,7 +353,7 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
           }
           await updateTenantSetting(ctx.tenant.id, field as SettingsField, result.value);
         }
-        await ctx.port.sendMessage(ctx.chat.id, ru.ownerSettings.saved);
+        await sendSaved(ctx, draft, ru.ownerSettings.saved);
         return;
       }
       case 'feature_add_name': {
@@ -323,7 +366,7 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
         await setFeatureFlag(ctx.tenant.id, text, false);
         ctx.sessionState = 'idle';
         ctx.session.ownerDraft = undefined;
-        await ctx.port.sendMessage(ctx.chat.id, ru.ownerSettings.saved);
+        await sendSaved(ctx, draft, ru.ownerSettings.saved);
         return;
       }
     }
@@ -344,13 +387,18 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
       return;
     }
 
+    try {
+      await ctx.port.deleteMessage(ctx.chat.id, ctx.message.message_id);
+    } catch {
+      // already gone
+    }
     const photo = ctx.message.photo[ctx.message.photo.length - 1];
     if (photo && draft.targetId) {
       await editor.updateProduct(ctx.tenant.id, draft.targetId, { photoFileId: photo.file_id });
     }
     ctx.sessionState = 'idle';
     ctx.session.ownerDraft = undefined;
-    await ctx.port.sendMessage(ctx.chat.id, ru.ownerCatalog.saved);
+    await sendSaved(ctx, draft, ru.ownerCatalog.saved);
   });
 
   bot.on('message:document', async (ctx, next) => {
@@ -368,12 +416,17 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
       return;
     }
 
+    try {
+      await ctx.port.deleteMessage(ctx.chat.id, ctx.message.message_id);
+    } catch {
+      // already gone
+    }
     const doc = ctx.message.document;
     if (doc && draft.targetId) {
       await editor.updateProduct(ctx.tenant.id, draft.targetId, { photoFileId: doc.file_id });
     }
     ctx.sessionState = 'idle';
     ctx.session.ownerDraft = undefined;
-    await ctx.port.sendMessage(ctx.chat.id, ru.ownerCatalog.saved);
+    await sendSaved(ctx, draft, ru.ownerCatalog.saved);
   });
 }
