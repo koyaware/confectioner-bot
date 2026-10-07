@@ -254,4 +254,50 @@ describe('checkout steps', () => {
     expect(rows[0]!.state).toBe('checkout.contact');
     expect(tenantId).toBeTruthy();
   });
+
+  it('photo album counts every photo and keeps one screen', async () => {
+    const now = new Date();
+    const { tenantId } = await seedDemo(appSecret, now);
+    const db = getDb();
+    const { sessions } = await import('../src/db/schema.js');
+    await db.insert(sessions).values({
+      tenantId,
+      telegramId: 42,
+      state: 'checkout.photos',
+      data: {
+        cart: { lines: [] },
+        checkout: { checkoutId: 'chk-album', referenceFileIds: [], screenMessageId: 10 },
+      },
+      updatedAt: now,
+    });
+    const port = new FakePort();
+    const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
+
+    const sendsBefore = port.getCallsForMethod('sendMessage').length;
+    for (let i = 0; i < 3; i++) {
+      await bot.handleUpdate({
+        update_id: 100 + i,
+        message: {
+          message_id: 200 + i,
+          date: 1,
+          chat: { id: 42, type: 'private' },
+          from: { id: 42, is_bot: false, first_name: 'C' },
+          photo: [{ file_id: 'pic' + i, file_unique_id: 'u' + i, width: 10, height: 10 }],
+          media_group_id: 'album1',
+        },
+      } as never);
+    }
+
+    const rows = await getDb().select().from(sessions);
+    const data = (
+      typeof rows[0]!.data === 'string' ? JSON.parse(rows[0]!.data) : rows[0]!.data
+    ) as { checkout: { referenceFileIds: { fileId: string }[] } };
+    expect(data.checkout.referenceFileIds.map((f) => f.fileId)).toEqual(['pic0', 'pic1', 'pic2']);
+
+    // no new bot messages: user photos deleted, screen edited in place
+    expect(port.getCallsForMethod('sendMessage')).toHaveLength(sendsBefore);
+    expect(port.getCallsForMethod('deleteMessage')).toHaveLength(3);
+    const edits = port.getCallsForMethod('editMessageText');
+    expect(edits[edits.length - 1]!.args[2] as string).toContain('3/5');
+  });
 });

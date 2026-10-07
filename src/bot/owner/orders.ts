@@ -389,6 +389,12 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
     }
 
     const sentIds: number[] = [];
+    await ctx.port.editMessageText(
+      chatId,
+      messageId,
+      `Референсы заказа №${order.number} (${refs.length} шт.)`,
+      { keyboard: { inline_keyboard: [[{ text: ru.common.back, callback_data: 'adm:ord:list' }]] } }
+    );
     for (const ref of refs) {
       if (ref.fileType === 'photo') {
         const sent = await ctx.port.sendPhoto(ctx.callbackQuery.message!.chat.id, ref.fileId);

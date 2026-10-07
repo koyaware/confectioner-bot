@@ -293,6 +293,7 @@ export function registerCartHandlers(bot: Bot<BotContextWithSession>): void {
     ctx.sessionState = 'checkout.date';
 
     const chatId = ctx.callbackQuery.message!.chat.id;
+    const messageId = ctx.callbackQuery.message!.message_id;
     const today = toIsoDate(new Date(), ctx.tenant.timezone);
     const monthStart = `${today.slice(0, 7)}-01`;
     const monthEnd = addDays(addDays(monthStart, 32).slice(0, 8) + '01', -1);
@@ -303,8 +304,9 @@ export function registerCartHandlers(bot: Bot<BotContextWithSession>): void {
       ctx.session.cart,
       new Date()
     );
-    const sent = await ctx.port.sendMessage(
+    await ctx.port.editMessageText(
       chatId,
+      messageId,
       `${ru.checkout.dateTitle}\n${ru.checkout.dateLegend}`,
       {
         keyboard: calendarKeyboard(
@@ -314,6 +316,6 @@ export function registerCartHandlers(bot: Bot<BotContextWithSession>): void {
         ),
       }
     );
-    ctx.session.checkout.screenMessageId = sent.messageId;
+    ctx.session.checkout.screenMessageId = messageId;
   });
 }

@@ -65,6 +65,7 @@ const sessionDataSchema = z.object({
   checkout: checkoutSchema.optional(),
   ownerDraft: ownerDraftSchema.optional(),
   paymentOrderId: z.string().optional(),
+  paymentScreenId: z.number().int().positive().optional(),
   lastAutoReplyAt: z.number().optional(),
   refsMessageIds: z.array(z.number()).optional(),
   antispam: z

@@ -79,9 +79,9 @@ describe('checkout calendar', () => {
     await bot.handleUpdate(cb(1, 'c5', 42, 10, 'cart:show'));
     await bot.handleUpdate(cb(2, 'c6', 42, 10, 'chk:start'));
 
-    const sent = port.getCallsForMethod('sendMessage');
-    const calendarMsg = sent[sent.length - 1]!;
-    const kb = JSON.stringify(calendarMsg.args[2]);
+    const edits = port.getCallsForMethod('editMessageText');
+    const calendarMsg = edits[edits.length - 1]!;
+    const kb = JSON.stringify(calendarMsg.args[3]);
     expect(kb).toContain('✕');
     const closedDay = Number(closedDate.slice(8, 10));
     expect(kb).toContain(`"text":"${closedDay} ✕"`);
@@ -92,14 +92,18 @@ describe('checkout calendar', () => {
     // clicking the closed day (noop) keeps dueDate unset
     await bot.handleUpdate(cb(3, 'c7', 42, 10, 'cart:noop'));
     let rows = await getDb().select().from(sessions);
-    let data = (typeof rows[0]!.data === "string" ? JSON.parse(rows[0]!.data) : rows[0]!.data) as { checkout?: { dueDate?: string } };
+    let data = (typeof rows[0]!.data === 'string' ? JSON.parse(rows[0]!.data) : rows[0]!.data) as {
+      checkout?: { dueDate?: string };
+    };
     expect(data.checkout?.dueDate).toBeUndefined();
 
     // pick a free available date
     const freeDate = addDays(today, 6);
     await bot.handleUpdate(cb(4, 'c8', 42, 10, `chk:date:${freeDate}`));
     rows = await getDb().select().from(sessions);
-    data = (typeof rows[0]!.data === "string" ? JSON.parse(rows[0]!.data) : rows[0]!.data) as { checkout?: { dueDate?: string } };
+    data = (typeof rows[0]!.data === 'string' ? JSON.parse(rows[0]!.data) : rows[0]!.data) as {
+      checkout?: { dueDate?: string };
+    };
     expect(data.checkout?.dueDate).toBe(freeDate);
     expect(rows[0]!.state).toBe('checkout.time');
   });

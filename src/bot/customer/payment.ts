@@ -89,12 +89,13 @@ export function registerPaymentHandlers(bot: Bot<BotContextWithSession>): void {
 
     ctx.sessionState = 'payment.await_receipt';
     ctx.session.paymentOrderId = order.id;
+    const screenMessageId = ctx.callbackQuery.message?.message_id;
+    if (screenMessageId) ctx.session.paymentScreenId = screenMessageId;
 
     const chatId = ctx.callbackQuery.message?.chat.id;
-    if (chatId) {
-      await ctx.port.sendMessage(chatId, ru.payment.promptReceipt, {
-        keyboard: { inline_keyboard: [] },
-      });
+    const messageId = ctx.callbackQuery.message?.message_id;
+    if (chatId && messageId) {
+      await ctx.port.editMessageText(chatId, messageId, ru.payment.promptReceipt, {});
     }
   });
 
@@ -103,7 +104,16 @@ export function registerPaymentHandlers(bot: Bot<BotContextWithSession>): void {
       await next();
       return;
     }
-    await ctx.port.sendMessage(ctx.chat.id, ru.payment.invalidReceipt);
+    await deleteUserMessage(ctx);
+    const screen = receiptScreen(ctx);
+    if (screen) {
+      await ctx.port.editMessageText(
+        screen.chatId,
+        screen.messageId,
+        ru.payment.invalidReceipt,
+        {}
+      );
+    }
   });
 
   bot.on('message:photo', async (ctx, next) => {
@@ -127,6 +137,24 @@ export function registerPaymentHandlers(bot: Bot<BotContextWithSession>): void {
   });
 }
 
+async function deleteUserMessage(ctx: BotContextWithSession): Promise<void> {
+  const messageId = ctx.message?.message_id;
+  const chatId = ctx.chat?.id;
+  if (!messageId || !chatId) return;
+  try {
+    await ctx.port.deleteMessage(chatId, messageId);
+  } catch {
+    // already gone
+  }
+}
+
+function receiptScreen(ctx: BotContextWithSession): { chatId: number; messageId: number } | null {
+  const chatId = ctx.chat?.id;
+  const messageId = ctx.session.paymentScreenId;
+  if (!chatId || !messageId) return null;
+  return { chatId, messageId };
+}
+
 async function handleReceipt(
   ctx: BotContextWithSession,
   fileId: string,
@@ -141,7 +169,16 @@ async function handleReceipt(
   ctx.session.paymentOrderId = undefined;
 
   if (!result.ok) {
-    await ctx.port.sendMessage(ctx.message!.chat.id, ru.payment.failed);
+    await deleteUserMessage(ctx);
+    const failedScreen = receiptScreen(ctx);
+    if (failedScreen) {
+      await ctx.port.editMessageText(
+        failedScreen.chatId,
+        failedScreen.messageId,
+        ru.payment.failed,
+        {}
+      );
+    }
     return;
   }
 
@@ -155,7 +192,14 @@ async function handleReceipt(
     createdAt: new Date(),
   });
 
-  await ctx.port.sendMessage(ctx.message!.chat.id, ru.payment.receiptSent);
+  await deleteUserMessage(ctx);
+  const screen = receiptScreen(ctx);
+  ctx.session.paymentScreenId = undefined;
+  if (screen) {
+    await ctx.port.editMessageText(screen.chatId, screen.messageId, ru.payment.receiptSent, {
+      keyboard: { inline_keyboard: [[{ text: ru.menu.customerTitle, callback_data: 'nav:menu' }]] },
+    });
+  }
 
   // Send receipt to owner
   const ownerId = ctx.tenant.ownerTelegramId;

@@ -70,6 +70,7 @@ export type SessionData = {
   checkout?: CheckoutDraft;
   ownerDraft?: { kind: string; targetId?: string; extra?: Record<string, string> };
   paymentOrderId?: string;
+  paymentScreenId?: number;
   lastAutoReplyAt?: number; // unix seconds
   refsMessageIds?: number[]; // transient bot messages (refs) to delete on next navigation
   antispam?: { windowStart: number; count: number };
