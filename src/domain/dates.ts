@@ -30,3 +30,21 @@ export function diffDays(a: IsoDate, b: IsoDate): number {
 export function compareIso(a: IsoDate, b: IsoDate): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
+
+export function zonedTimeToUtc(dateIso: IsoDate, time: string, timezone: string): Date {
+  const guessMs = Date.parse(`${dateIso}T${time}:00Z`);
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).formatToParts(new Date(guessMs));
+  const wallAtGuess = `${parts.find((p) => p.type === 'year')!.value}-${parts.find((p) => p.type === 'month')!.value}-${parts.find((p) => p.type === 'day')!.value}T${parts.find((p) => p.type === 'hour')!.value === '24' ? '00' : parts.find((p) => p.type === 'hour')!.value}:${parts.find((p) => p.type === 'minute')!.value}:${parts.find((p) => p.type === 'second')!.value}Z`;
+  const offsetMs = Date.parse(wallAtGuess) - guessMs;
+  return new Date(guessMs - offsetMs);
+}
+

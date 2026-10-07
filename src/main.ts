@@ -7,6 +7,7 @@ import {
   createPaymentReminderHandler,
   createPaymentExpireHandler,
 } from './jobs/handlers/order-payment.js';
+import { createPickupReminderHandler } from './jobs/handlers/pickup-reminder.js';
 
 async function main() {
   const config = loadConfig();
@@ -26,6 +27,7 @@ async function main() {
   const ports = { getPort: (tenantId: string) => runner.getBot(tenantId)?.port };
   scheduler.registerHandler('order.payment_reminder', createPaymentReminderHandler(ports));
   scheduler.registerHandler('order.expire', createPaymentExpireHandler(ports));
+  scheduler.registerHandler('customer.pickup_reminder', createPickupReminderHandler(ports));
 
   const shutdown = async () => {
     console.log('Shutting down...');

@@ -17,7 +17,7 @@ import { priceLine, requiredLeadDays } from '../domain/pricing.js';
 import { effectiveCapacity, OCCUPYING_STATUSES, usedUnits } from '../domain/capacity.js';
 import { transition } from '../domain/order-machine.js';
 import { OrderEvent } from '../types.js';
-import { addDays, compareIso, toIsoDate } from '../domain/dates.js';
+import { addDays, compareIso, toIsoDate, zonedTimeToUtc } from '../domain/dates.js';
 import { nanoid } from 'nanoid';
 
 export interface CreateOrderInput {
@@ -324,6 +324,20 @@ export async function applyOrderEvent(
     reminderAt = new Date(now.getTime() + (hours * 3600_000) / 2);
   }
 
+  let pickupAt: Date | null = null;
+  if (result.value.status === 'confirmed') {
+    const tzRows = await db
+      .select({ tz: tenants.timezone })
+      .from(tenants)
+      .where(eq(tenants.id, order.tenantId))
+      .limit(1);
+    const tz = tzRows[0]?.tz ?? 'Europe/Moscow';
+    const candidate = zonedTimeToUtc(addDays(order.dueDate, -1), '10:00', tz);
+    if (candidate.getTime() > now.getTime()) {
+      pickupAt = candidate;
+    }
+  }
+
   db.transaction((tx) => {
     tx.update(orders)
       .set({
@@ -361,6 +375,23 @@ export async function applyOrderEvent(
           status: 'pending',
           attempts: 0,
           dedupeKey: `expire:${order.id}`,
+          createdAt: now,
+        })
+        .onConflictDoNothing()
+        .run();
+    }
+
+    if (pickupAt) {
+      tx.insert(jobsTable)
+        .values({
+          id: nanoid(),
+          type: 'customer.pickup_reminder',
+          tenantId: order.tenantId,
+          payload: { orderId: order.id },
+          runAt: pickupAt,
+          status: 'pending',
+          attempts: 0,
+          dedupeKey: `pickup:${order.id}`,
           createdAt: now,
         })
         .onConflictDoNothing()

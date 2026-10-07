@@ -74,18 +74,29 @@ export function orderCardKeyboard(orderId: string, status: string): InlineKeyboa
     rows.push([{ text: 'Принять', callback_data: `adm:ord:accept:${orderId}` }]);
     rows.push([{ text: 'Отклонить', callback_data: `adm:ord:reject:${orderId}` }]);
   }
+  if (status === 'confirmed') {
+    rows.push([{ text: 'Готов', callback_data: `adm:ord:ready:${orderId}` }]);
+    rows.push([{ text: 'Отменить', callback_data: `adm:ord:cancel:${orderId}` }]);
+  }
+  if (status === 'ready') {
+    rows.push([{ text: 'Завершён', callback_data: `adm:ord:done:${orderId}` }]);
+    rows.push([{ text: 'Отменить', callback_data: `adm:ord:cancel:${orderId}` }]);
+  }
+  if (status === 'payment_review' || status === 'awaiting_payment') {
+    rows.push([{ text: 'Отменить', callback_data: `adm:ord:cancel:${orderId}` }]);
+  }
   return { inline_keyboard: rows };
 }
 
 export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
-  bot.callbackQuery(/^adm:ord:(accept|reject|rr|paid|badpay):/, async (ctx) => {
+  bot.callbackQuery(/^adm:ord:(accept|reject|rr|paid|badpay|ready|done|cancel):/, async (ctx) => {
     if (ctx.role !== 'owner') {
       await ctx.port.answerCallback(ctx.callbackQuery.id, ru.ownerCatalog.notOwner);
       return;
     }
     await ctx.port.answerCallback(ctx.callbackQuery.id);
 
-    const m = /^adm:ord:(accept|reject|rr|paid|badpay):(.+)$/.exec(ctx.callbackQuery.data);
+    const m = /^adm:ord:(accept|reject|rr|paid|badpay|ready|done|cancel):(.+)$/.exec(ctx.callbackQuery.data);
     if (!m) return;
     const action = m[1]!;
     const rest = m[2]!;
@@ -155,6 +166,42 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
         () =>
           'Оплата не подтверждена. Нажмите «Я оплатил» в сообщении с реквизитами и пришлите другой чек.'
       );
+      return;
+    }
+
+    if (action === 'ready') {
+      const result = await applyOrderEvent(rest, 'mark_ready', 'owner', new Date());
+      if (!result.ok) return;
+      const card = await buildOrderCardText(rest, ctx.tenant.id, ctx.tenant.currency);
+      if (card) {
+        await ctx.port.editMessageText(chatId, messageId, card, {
+          keyboard: orderCardKeyboard(rest, result.value.status),
+          parseMode: 'HTML',
+        });
+      }
+      await notifyCustomer(ctx.port, rest, (n) => `Заказ №${n} готов!`);
+      return;
+    }
+
+    if (action === 'done') {
+      const result = await applyOrderEvent(rest, 'mark_completed', 'owner', new Date());
+      if (!result.ok) return;
+      const card = await buildOrderCardText(rest, ctx.tenant.id, ctx.tenant.currency);
+      if (card) {
+        await ctx.port.editMessageText(chatId, messageId, card, { parseMode: 'HTML' });
+      }
+      await notifyCustomer(ctx.port, rest, (n) => `Заказ №${n} завершён. Спасибо!`);
+      return;
+    }
+
+    if (action === 'cancel') {
+      const result = await applyOrderEvent(rest, 'owner_cancel', 'owner', new Date());
+      if (!result.ok) return;
+      const card = await buildOrderCardText(rest, ctx.tenant.id, ctx.tenant.currency);
+      if (card) {
+        await ctx.port.editMessageText(chatId, messageId, card, { parseMode: 'HTML' });
+      }
+      await notifyCustomer(ctx.port, rest, (n) => `Заказ №${n} отменён мастером.`);
       return;
     }
 
