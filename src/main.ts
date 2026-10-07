@@ -1,37 +1,50 @@
 import { loadConfig } from './config.js';
 import { initDatabase, closeDatabase } from './db/client.js';
 import { migrate } from './db/migrate.js';
+import { BotRunner } from './bot/runner.js';
+import { JobScheduler } from './jobs/scheduler.js';
+import {
+  createPaymentReminderHandler,
+  createPaymentExpireHandler,
+} from './jobs/handlers/order-payment.js';
 
-function main() {
+async function main() {
   const config = loadConfig();
   console.log('Configuration loaded successfully');
   console.log(`Environment: ${config.nodeEnv}`);
   console.log(`Log level: ${config.logLevel}`);
   console.log(`Database path: ${config.databasePath}`);
 
-  // Initialize database
   initDatabase(config.databasePath);
   console.log('Database initialized in WAL mode');
 
-  // Apply migrations
   migrate();
   console.log('Migrations applied');
 
-  console.log('Bot is starting...');
+  const runner = new BotRunner();
+  const scheduler = new JobScheduler();
+  const ports = { getPort: (tenantId: string) => runner.getBot(tenantId)?.port };
+  scheduler.registerHandler('order.payment_reminder', createPaymentReminderHandler(ports));
+  scheduler.registerHandler('order.expire', createPaymentExpireHandler(ports));
 
-  // Graceful shutdown
-  const shutdown = () => {
+  const shutdown = async () => {
     console.log('Shutting down...');
+    scheduler.stop();
+    await runner.stopAll();
     closeDatabase();
     process.exit(0);
   };
 
-  process.on('SIGINT', shutdown);
-  process.on('SIGTERM', shutdown);
+  process.on('SIGINT', () => void shutdown());
+  process.on('SIGTERM', () => void shutdown());
+
+  await runner.startAll();
+  scheduler.start();
+  console.log('Bot is running');
 }
 
 try {
-  main();
+  void main();
 } catch (error) {
   console.error('Fatal error:', error);
   process.exit(1);

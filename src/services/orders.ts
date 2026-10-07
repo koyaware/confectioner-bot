@@ -9,6 +9,7 @@ import {
   capacityOverrides,
   orderEvents,
   orderAttachments,
+  jobs as jobsTable,
 } from '../db/schema.js';
 import { and, eq, inArray, max } from 'drizzle-orm';
 import { Cart, CheckoutDraft, Result } from '../types.js';
@@ -309,8 +310,9 @@ export async function applyOrderEvent(
     'owner_cancel',
   ];
 
-  // Set paymentDueAt when entering awaiting_payment
+  // Set paymentDueAt when entering awaiting_payment, and schedule jobs
   let paymentDueAt = order.paymentDueAt;
+  let reminderAt: Date | null = null;
   if (result.value.status === 'awaiting_payment') {
     const tenantRows = await db
       .select({ hours: tenants.paymentDeadlineHours })
@@ -319,6 +321,7 @@ export async function applyOrderEvent(
       .limit(1);
     const hours = tenantRows[0]?.hours ?? 24;
     paymentDueAt = new Date(now.getTime() + hours * 3600_000);
+    reminderAt = new Date(now.getTime() + (hours * 3600_000) / 2);
   }
 
   db.transaction((tx) => {
@@ -331,6 +334,38 @@ export async function applyOrderEvent(
       })
       .where(eq(orders.id, orderId))
       .run();
+
+    if (reminderAt && paymentDueAt) {
+      tx.insert(jobsTable)
+        .values({
+          id: nanoid(),
+          type: 'order.payment_reminder',
+          tenantId: order.tenantId,
+          payload: { orderId: order.id },
+          runAt: reminderAt,
+          status: 'pending',
+          attempts: 0,
+          dedupeKey: `payrem:${order.id}`,
+          createdAt: now,
+        })
+        .onConflictDoNothing()
+        .run();
+
+      tx.insert(jobsTable)
+        .values({
+          id: nanoid(),
+          type: 'order.expire',
+          tenantId: order.tenantId,
+          payload: { orderId: order.id },
+          runAt: paymentDueAt,
+          status: 'pending',
+          attempts: 0,
+          dedupeKey: `expire:${order.id}`,
+          createdAt: now,
+        })
+        .onConflictDoNothing()
+        .run();
+    }
 
     tx.insert(orderEvents)
       .values({
