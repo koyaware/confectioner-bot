@@ -67,7 +67,7 @@ describe('owner catalog editor', () => {
     const { tenantId } = await seedDemo(appSecret, new Date());
     const cats = await listCategoriesAll(tenantId);
     const catId = cats[0]!.id;
-    const prodIds = (await listProductsAll(tenantId, catId)).map(p => p.id);
+    const prodIds = (await listProductsAll(tenantId, catId)).map((p) => p.id);
 
     await editor.setCategoryActive(tenantId, catId, false);
     for (const prodId of prodIds) {
@@ -183,8 +183,16 @@ describe('owner catalog editor', () => {
 
     expect((await listCategoriesAll(tenantId)).map((c) => c.title)).toContain('Сладости');
 
-    const saved = port.getCallsForMethod('sendMessage').map((c) => c.args[1]);
+    const saved = port
+      .getCallsForMethod('editMessageTextOrSend')
+      .filter((c) => c.args[1] === 1)
+      .map((c) => c.args[2]);
     expect(saved.some((t) => (t as string).includes('✅ Сохранено'))).toBe(true);
+    expect(
+      port
+        .getCallsForMethod('sendMessage')
+        .some((c) => (c.args[1] as string).includes('✅ Сохранено'))
+    ).toBe(false);
   });
 
   it('non-owner adm callback gets rejection and no state change', async () => {

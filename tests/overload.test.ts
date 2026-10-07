@@ -69,8 +69,15 @@ describe('overload mode', () => {
     await bot.handleUpdate(cb(5, 'c5', 42, 10, 'cart:show'));
     await bot.handleUpdate(cb(6, 'c6', 42, 10, 'chk:start'));
 
-    const sent = port.getCallsForMethod('sendMessage');
-    expect(sent.some((c) => (c.args[1] as string).includes('Много заказов'))).toBe(true);
+    const busyEdits = port.getCallsForMethod('editMessageTextOrSend');
+    const busyLast = busyEdits[busyEdits.length - 1]!;
+    expect(busyLast.args[1]).toBe(10);
+    expect(busyLast.args[2] as string).toContain('Много заказов');
+    expect(
+      port
+        .getCallsForMethod('sendMessage')
+        .some((c) => (c.args[1] as string).includes('Много заказов'))
+    ).toBe(false);
 
     const sessions = await getDb()
       .select()

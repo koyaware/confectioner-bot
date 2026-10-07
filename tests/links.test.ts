@@ -78,6 +78,9 @@ describe('links', () => {
 
     const photos = port.getCallsForMethod('sendPhoto');
     expect(photos).toHaveLength(1);
+    // List screen is removed so the chat keeps tidy (one screen rule).
+    const deleted = port.getCallsForMethod('deleteMessage');
+    expect(deleted.some((c) => c.args[0] === 555 && c.args[1] === 10)).toBe(true);
 
     const sent = port.getCallsForMethod('sendMessage');
     const textMsg = sent.find((c) =>

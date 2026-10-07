@@ -51,6 +51,16 @@ export function registerLinksHandlers(bot: Bot<BotContextWithSession>): void {
       const code = viewMatch[1]!;
       const link = `https://t.me/${ctx.tenant.botUsername}?start=${code}`;
       const qr = await QRCode.toBuffer(link, { width: 320 });
+      // QR replaces the list screen so the chat keeps tidy: Back re-renders
+      // the list onto the details message below.
+      const listMessageId = ctx.callbackQuery.message?.message_id;
+      if (listMessageId) {
+        try {
+          await ctx.port.deleteMessage(chatId, listMessageId);
+        } catch {
+          // already gone
+        }
+      }
       await ctx.port.sendPhoto(chatId, qr, `${code}\n${link}\n\n${ctx.t.ownerLinks.qrHint}`);
       await ctx.port.sendMessage(
         chatId,

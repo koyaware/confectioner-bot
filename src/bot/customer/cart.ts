@@ -280,9 +280,11 @@ export function registerCartHandlers(bot: Bot<BotContextWithSession>): void {
 
     if (!ctx.tenant.acceptOrders) {
       const chatId = ctx.callbackQuery.message?.chat.id;
-      if (chatId) {
-        await ctx.port.sendMessage(
+      const messageId = ctx.callbackQuery.message?.message_id;
+      if (chatId && messageId) {
+        await ctx.port.editMessageTextOrSend(
           chatId,
+          messageId,
           ctx.tenant.busyText ? escapeHtml(ctx.tenant.busyText) : ctx.t.checkout.busy,
           {
             keyboard: {

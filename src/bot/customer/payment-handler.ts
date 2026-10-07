@@ -76,12 +76,15 @@ export function registerPaymentHandlers(bot: Bot<BotContextWithSession>): void {
     if (!order) return;
     if (order.status !== 'awaiting_payment') {
       const chatId = ctx.callbackQuery.message?.chat.id;
-      if (chatId) {
-        await ctx.port.sendMessage(
+      const messageId = ctx.callbackQuery.message?.message_id;
+      if (chatId && messageId) {
+        await ctx.port.editMessageTextOrSend(
           chatId,
+          messageId,
           order.status === 'payment_review'
             ? ctx.t.payment.alreadyReview
-            : ctx.t.payment.notAwaiting
+            : ctx.t.payment.notAwaiting,
+          {}
         );
       }
       return;

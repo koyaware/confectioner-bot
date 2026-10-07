@@ -48,19 +48,25 @@ export function beginOwnerDraft(
   };
 }
 
-function draftScreen(ctx: BotContextWithSession): number | null {
-  const raw = ctx.session.ownerDraft?.extra?.screen;
+type OwnerDraft = NonNullable<BotContextWithSession['session']['ownerDraft']>;
+
+function draftScreen(
+  ctx: BotContextWithSession,
+  draft: OwnerDraft | undefined = ctx.session.ownerDraft
+): number | null {
+  const raw = draft?.extra?.screen;
   const id = raw ? Number(raw) : NaN;
   return Number.isInteger(id) && id > 0 ? id : null;
 }
 
 async function editScreenOrSend(
   ctx: BotContextWithSession,
+  draft: OwnerDraft | undefined,
   text: string,
   keyboard?: InlineKeyboard['inline_keyboard']
 ): Promise<number | null> {
   if (!ctx.chat) return null;
-  const screenId = draftScreen(ctx);
+  const screenId = draftScreen(ctx, draft);
   if (screenId) {
     try {
       await ctx.port.editMessageTextOrSend(ctx.chat.id, screenId, text, {
@@ -102,13 +108,14 @@ function backTargetForDraft(draft: { kind: string }): string | null {
 
 async function sendSaved(
   ctx: BotContextWithSession,
-  draft: { kind: string },
+  draft: OwnerDraft,
   text: string
 ): Promise<void> {
   if (!ctx.chat) return;
   const back = backTargetForDraft(draft);
   await editScreenOrSend(
     ctx,
+    draft,
     text,
     back ? [[{ text: ctx.t.common.back, callback_data: back }]] : undefined
   );
@@ -139,7 +146,7 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
     switch (draft.kind) {
       case 'cat_add': {
         if (text.length === 0 || text.length > 64) {
-          await editScreenOrSend(ctx, ctx.t.ownerCatalog.badTitle);
+          await editScreenOrSend(ctx, draft, ctx.t.ownerCatalog.badTitle);
           return;
         }
         await createCategory(ctx.tenant.id, text);
@@ -150,7 +157,7 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
         if (!draft.targetId || badText(text, 64)) {
           ctx.sessionState = 'owner.edit_field';
           ctx.session.ownerDraft = draft;
-          await editScreenOrSend(ctx, ctx.t.ownerCatalog.badTitle);
+          await editScreenOrSend(ctx, draft, ctx.t.ownerCatalog.badTitle);
           return;
         }
         await updateCategoryTitle(ctx.tenant.id, draft.targetId, text);
@@ -161,7 +168,7 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
         if (!draft.targetId || badText(text, 200)) {
           ctx.sessionState = 'owner.edit_field';
           ctx.session.ownerDraft = draft;
-          await editScreenOrSend(ctx, ctx.t.ownerCatalog.badTitle);
+          await editScreenOrSend(ctx, draft, ctx.t.ownerCatalog.badTitle);
           return;
         }
         ctx.sessionState = 'owner.edit_field';
@@ -170,7 +177,7 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
           targetId: draft.targetId,
           extra: { title: text },
         };
-        await editScreenOrSend(ctx, ctx.t.ownerCatalog.promptProductPrice);
+        await editScreenOrSend(ctx, draft, ctx.t.ownerCatalog.promptProductPrice);
         return;
       }
       case 'prd_add_price': {
@@ -178,7 +185,7 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
         if (priceMinor === null || priceMinor <= 0) {
           ctx.sessionState = 'owner.edit_field';
           ctx.session.ownerDraft = draft;
-          await editScreenOrSend(ctx, ctx.t.ownerCatalog.badPrice);
+          await editScreenOrSend(ctx, draft, ctx.t.ownerCatalog.badPrice);
           return;
         }
         if (draft.targetId && draft.extra?.title) {
@@ -193,14 +200,14 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
           if (field === 'photo') {
             ctx.sessionState = 'owner.edit_field';
             ctx.session.ownerDraft = draft;
-            await editScreenOrSend(ctx, ctx.t.ownerCatalog.promptPhoto);
+            await editScreenOrSend(ctx, draft, ctx.t.ownerCatalog.promptPhoto);
             return;
           }
           if (field === 'title') {
             if (badText(text, 200)) {
               ctx.sessionState = 'owner.edit_field';
               ctx.session.ownerDraft = draft;
-              await editScreenOrSend(ctx, ctx.t.ownerCatalog.badTitle);
+              await editScreenOrSend(ctx, draft, ctx.t.ownerCatalog.badTitle);
               return;
             }
             await updateProduct(ctx.tenant.id, draft.targetId, { title: text });
@@ -208,7 +215,7 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
             if (badText(text, 1000)) {
               ctx.sessionState = 'owner.edit_field';
               ctx.session.ownerDraft = draft;
-              await editScreenOrSend(ctx, ctx.t.common.badText);
+              await editScreenOrSend(ctx, draft, ctx.t.common.badText);
               return;
             }
             await updateProduct(ctx.tenant.id, draft.targetId, { description: text });
@@ -217,7 +224,7 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
             if (priceMinor === null || priceMinor <= 0) {
               ctx.sessionState = 'owner.edit_field';
               ctx.session.ownerDraft = draft;
-              await editScreenOrSend(ctx, ctx.t.ownerCatalog.badPrice);
+              await editScreenOrSend(ctx, draft, ctx.t.ownerCatalog.badPrice);
               return;
             }
             await updateProduct(ctx.tenant.id, draft.targetId, { priceMinor });
@@ -225,7 +232,7 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
             if (badText(text, 20)) {
               ctx.sessionState = 'owner.edit_field';
               ctx.session.ownerDraft = draft;
-              await editScreenOrSend(ctx, ctx.t.ownerCatalog.badTitle);
+              await editScreenOrSend(ctx, draft, ctx.t.ownerCatalog.badTitle);
               return;
             }
             await updateProduct(ctx.tenant.id, draft.targetId, { unit: text });
@@ -234,7 +241,7 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
             if (!Number.isInteger(days) || days < 0) {
               ctx.sessionState = 'owner.edit_field';
               ctx.session.ownerDraft = draft;
-              await editScreenOrSend(ctx, ctx.t.ownerCatalog.badNumber);
+              await editScreenOrSend(ctx, draft, ctx.t.ownerCatalog.badNumber);
               return;
             }
             await updateProduct(ctx.tenant.id, draft.targetId, { leadDays: days });
@@ -243,7 +250,7 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
             if (!Number.isInteger(units) || units < 1) {
               ctx.sessionState = 'owner.edit_field';
               ctx.session.ownerDraft = draft;
-              await editScreenOrSend(ctx, ctx.t.ownerCatalog.badNumber);
+              await editScreenOrSend(ctx, draft, ctx.t.ownerCatalog.badNumber);
               return;
             }
             await updateProduct(ctx.tenant.id, draft.targetId, { capacityUnits: units });
@@ -256,7 +263,7 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
         if (badText(text, 100)) {
           ctx.sessionState = 'owner.edit_field';
           ctx.session.ownerDraft = draft;
-          await editScreenOrSend(ctx, ctx.t.ownerCatalog.badTitle);
+          await editScreenOrSend(ctx, draft, ctx.t.ownerCatalog.badTitle);
           return;
         }
         ctx.sessionState = 'owner.edit_field';
@@ -265,14 +272,14 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
           targetId: draft.targetId,
           extra: { group: text },
         };
-        await editScreenOrSend(ctx, ctx.t.ownerCatalog.promptOptionTitle);
+        await editScreenOrSend(ctx, draft, ctx.t.ownerCatalog.promptOptionTitle);
         return;
       }
       case 'opt_add_title': {
         if (badText(text, 100)) {
           ctx.sessionState = 'owner.edit_field';
           ctx.session.ownerDraft = draft;
-          await editScreenOrSend(ctx, ctx.t.ownerCatalog.badTitle);
+          await editScreenOrSend(ctx, draft, ctx.t.ownerCatalog.badTitle);
           return;
         }
         ctx.sessionState = 'owner.edit_field';
@@ -281,7 +288,7 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
           targetId: draft.targetId,
           extra: { group: draft.extra!.group!, title: text },
         };
-        await editScreenOrSend(ctx, ctx.t.ownerCatalog.promptOptionDelta);
+        await editScreenOrSend(ctx, draft, ctx.t.ownerCatalog.promptOptionDelta);
         return;
       }
       case 'opt_add_delta': {
@@ -289,7 +296,7 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
         if (d === null || d < 0) {
           ctx.sessionState = 'owner.edit_field';
           ctx.session.ownerDraft = draft;
-          await editScreenOrSend(ctx, ctx.t.ownerCatalog.badPrice);
+          await editScreenOrSend(ctx, draft, ctx.t.ownerCatalog.badPrice);
           return;
         }
         if (draft.targetId && draft.extra?.group && draft.extra?.title) {
@@ -301,7 +308,7 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
             d
           );
           if (!added.ok) {
-            await editScreenOrSend(ctx, ctx.t.product.notFound);
+            await editScreenOrSend(ctx, draft, ctx.t.product.notFound);
             return;
           }
         }
@@ -312,19 +319,19 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
         if (badText(text, 300)) {
           ctx.sessionState = 'owner.edit_field';
           ctx.session.ownerDraft = draft;
-          await editScreenOrSend(ctx, ctx.t.ownerCatalog.badTitle);
+          await editScreenOrSend(ctx, draft, ctx.t.ownerCatalog.badTitle);
           return;
         }
         ctx.sessionState = 'owner.edit_field';
         ctx.session.ownerDraft = { kind: 'faq_add_answer', extra: { question: text } };
-        await editScreenOrSend(ctx, ctx.t.ownerFaq.promptAnswer);
+        await editScreenOrSend(ctx, draft, ctx.t.ownerFaq.promptAnswer);
         return;
       }
       case 'faq_add_answer': {
         if (!draft.extra?.question || badText(text, 2000)) {
           ctx.sessionState = 'owner.edit_field';
           ctx.session.ownerDraft = draft;
-          await editScreenOrSend(ctx, ctx.t.common.badText);
+          await editScreenOrSend(ctx, draft, ctx.t.common.badText);
           return;
         }
         await createFaq(ctx.tenant.id, draft.extra.question, text);
@@ -335,7 +342,7 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
         if (!draft.targetId || badText(text, 300)) {
           ctx.sessionState = 'owner.edit_field';
           ctx.session.ownerDraft = draft;
-          await editScreenOrSend(ctx, ctx.t.ownerCatalog.badTitle);
+          await editScreenOrSend(ctx, draft, ctx.t.ownerCatalog.badTitle);
           return;
         }
         await updateFaq(ctx.tenant.id, draft.targetId, { question: text });
@@ -346,7 +353,7 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
         if (!draft.targetId || badText(text, 2000)) {
           ctx.sessionState = 'owner.edit_field';
           ctx.session.ownerDraft = draft;
-          await editScreenOrSend(ctx, ctx.t.common.badText);
+          await editScreenOrSend(ctx, draft, ctx.t.common.badText);
           return;
         }
         await updateFaq(ctx.tenant.id, draft.targetId, { answer: text });
@@ -369,25 +376,25 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
           await setCapacityForDate(ctx.tenant.id, draft.targetId, n, closed);
           ctx.sessionState = 'idle';
           ctx.session.ownerDraft = undefined;
-          const sentId = await editScreenOrSend(ctx, ctx.t.ownerCalendar.savedLimit);
+          const sentId = await editScreenOrSend(ctx, draft, ctx.t.ownerCalendar.savedLimit);
           if (sentId) {
             await showDateScreen(ctx, draft.targetId, ctx.chat.id, sentId);
           }
         } else {
           ctx.sessionState = 'owner.edit_field';
           ctx.session.ownerDraft = draft;
-          await editScreenOrSend(ctx, ctx.t.ownerCalendar.badCapacity);
+          await editScreenOrSend(ctx, draft, ctx.t.ownerCalendar.badCapacity);
         }
         return;
       }
       case 'src_add_label': {
         const result = await addSource(ctx.tenant.id, text);
         if (result.ok) {
-          await editScreenOrSend(ctx, ctx.t.ownerLinks.labelCreated(result.code), [
+          await editScreenOrSend(ctx, draft, ctx.t.ownerLinks.labelCreated(result.code), [
             [{ text: ctx.t.common.back, callback_data: 'adm:src:list' }],
           ]);
         } else {
-          await editScreenOrSend(ctx, ctx.t.ownerLinks.badLabel);
+          await editScreenOrSend(ctx, draft, ctx.t.ownerLinks.badLabel);
         }
         return;
       }
@@ -398,7 +405,7 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
           if (!result.ok) {
             ctx.sessionState = 'owner.edit_field';
             ctx.session.ownerDraft = draft;
-            await editScreenOrSend(ctx, ctx.t.ownerSettings.badValue);
+            await editScreenOrSend(ctx, draft, ctx.t.ownerSettings.badValue);
             return;
           }
           await updateTenantSetting(ctx.tenant.id, field as SettingsField, result.value);

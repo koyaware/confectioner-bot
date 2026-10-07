@@ -380,12 +380,8 @@ export function registerMyOrdersHandlers(bot: Bot<BotContextWithSession>): void 
 
     if (accepted.value.status === 'awaiting_payment') {
       await sendPaymentCard(ctx.port, ctx.tenant.id, found.order.id);
-    } else {
-      await ctx.port.sendMessage(
-        chatId,
-        ctx.t.my.pdAccepted((await getCustomerOrderNumber(found.order.id)) ?? found.order.number)
-      );
     }
+    // Otherwise the "moved" screen below already confirms the acceptance.
 
     await ctx.port.editMessageTextOrSend(
       chatId,

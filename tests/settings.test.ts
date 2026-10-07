@@ -68,6 +68,44 @@ describe('owner settings', () => {
     expect(rows[0]!.greetingText).toBe('Новое приветствие');
   });
 
+  it('saving a setting edits the prompt screen instead of sending anew', async () => {
+    const { tenantId } = await seedDemo(appSecret, new Date());
+    await getDb().update(tenants).set({ ownerTelegramId: 555 }).where(eq(tenants.id, tenantId));
+
+    const port = new FakePort();
+    const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
+
+    await bot.handleUpdate({
+      update_id: 1,
+      callback_query: {
+        id: 'cb1',
+        from: { id: 555, is_bot: false, first_name: 'O' },
+        message: { message_id: 1, date: 1, chat: { id: 555, type: 'private' } },
+        data: 'adm:set:edit:greetingText',
+      },
+    } as never);
+    const sendsBefore = port.getCallsForMethod('sendMessage').length;
+
+    await bot.handleUpdate({
+      update_id: 2,
+      message: {
+        message_id: 2,
+        date: 1,
+        chat: { id: 555, type: 'private' },
+        from: { id: 555, is_bot: false, first_name: 'O' },
+        text: 'Новое приветствие',
+        entities: [],
+      },
+    } as never);
+
+    // The prompt screen (message 1) is edited; no new bot message appears.
+    expect(port.getCallsForMethod('sendMessage')).toHaveLength(sendsBefore);
+    const edits = port.getCallsForMethod('editMessageTextOrSend');
+    const saved = edits.filter((c) => c.args[1] === 1);
+    expect(saved.length).toBeGreaterThanOrEqual(1);
+    expect(String(saved[saved.length - 1]!.args[2])).toContain('Сохранено');
+  });
+
   it('invalid prepayment percent is rejected and keeps old value', async () => {
     const { tenantId } = await seedDemo(appSecret, new Date());
     await getDb().update(tenants).set({ ownerTelegramId: 555 }).where(eq(tenants.id, tenantId));

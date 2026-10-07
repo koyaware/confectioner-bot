@@ -29,11 +29,13 @@ export const tenantMiddleware: MiddlewareFn<BotContextWithSession> = async (ctx,
   const isSuperadmin = ctx.from ? ctx.from.id === superadminId : false;
   if (tenant.status === 'paused' && !isSuperadmin) {
     try {
-      if (ctx.chat) {
-        await ctx.port.sendMessage(
-          ctx.chat.id,
-          tenant.busyText ?? stringsFor(tenant.language).tenant.paused
-        );
+      const text = tenant.busyText ?? stringsFor(tenant.language).tenant.paused;
+      const chatId = ctx.callbackQuery?.message?.chat.id ?? ctx.chat?.id;
+      const messageId = ctx.callbackQuery?.message?.message_id;
+      if (chatId && messageId) {
+        await ctx.port.editMessageTextOrSend(chatId, messageId, text, {});
+      } else if (chatId) {
+        await ctx.port.sendMessage(chatId, text);
       }
     } catch (sendError) {
       console.error('Failed to send paused notice:', sendError);
