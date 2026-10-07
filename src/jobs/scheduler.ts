@@ -196,7 +196,7 @@ export class JobScheduler {
         `Job ${job.id} (${job.type}) failed after ${nextAttempt} attempts: ${errorMessage}`
       );
 
-      // TODO: Notify superadmin of failed job
+      // Notify superadmin of failed job (wired in main.ts)
       if (this.onJobFailed) {
         void this.onJobFailed(
           { ...job, status: 'failed', attempts: nextAttempt, lastError: errorMessage },

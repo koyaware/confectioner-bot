@@ -101,6 +101,14 @@ describe('callback codec', () => {
       })
     );
   });
+
+  it('rejects overlong callbacks', () => {
+    expect(decodeCallback(`adm:ord:view:${'x'.repeat(60)}`)).toEqual({
+      ok: false,
+      error: 'BAD_CALLBACK',
+    });
+    expect(decodeCallback('cat:list')).toEqual({ ok: true, value: { ns: 'cat', action: 'list' } });
+  });
 });
 
 describe('escapeHtml', () => {
