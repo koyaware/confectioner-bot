@@ -8,10 +8,18 @@ export const roleMiddleware: MiddlewareFn<BotContextWithSession> = async (ctx, n
 
   const userId = ctx.from.id;
   const superadminId = parseInt(process.env.SUPERADMIN_TELEGRAM_ID || '0', 10);
+  const adminIdsRaw = process.env.ADMIN_TELEGRAM_IDS || '';
+  const adminIds = (adminIdsRaw.match(/\d+/g) || []).map(Number);
 
   // Check if superadmin
   if (userId === superadminId) {
     ctx.role = 'superadmin';
+    return next();
+  }
+
+  // Additional owner-level admins for ops edits
+  if (adminIds.includes(userId)) {
+    ctx.role = 'owner';
     return next();
   }
 
