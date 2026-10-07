@@ -23,11 +23,16 @@ function parsePriceRubles(s: string): number | null {
 }
 
 export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void {
-  bot.on('message:text', async (ctx) => {
-    if (ctx.role !== 'owner') return;
-    if (ctx.sessionState !== 'owner.edit_field') return;
+  bot.on('message:text', async (ctx, next) => {
+    if (
+      ctx.role !== 'owner' ||
+      ctx.sessionState !== 'owner.edit_field' ||
+      !ctx.session.ownerDraft
+    ) {
+      await next();
+      return;
+    }
     const draft = ctx.session.ownerDraft;
-    if (!draft) return;
 
     const text = ctx.message.text.trim();
     ctx.sessionState = 'idle';
@@ -197,11 +202,20 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
     }
   });
 
-  bot.on('message:photo', async (ctx) => {
-    if (ctx.role !== 'owner') return;
-    if (ctx.sessionState !== 'owner.edit_field') return;
+  bot.on('message:photo', async (ctx, next) => {
+    if (
+      ctx.role !== 'owner' ||
+      ctx.sessionState !== 'owner.edit_field' ||
+      !ctx.session.ownerDraft
+    ) {
+      await next();
+      return;
+    }
     const draft = ctx.session.ownerDraft;
-    if (!draft || draft.kind !== 'prd_field' || draft.extra?.field !== 'photo') return;
+    if (!draft || draft.kind !== 'prd_field' || draft.extra?.field !== 'photo') {
+      await next();
+      return;
+    }
 
     const photo = ctx.message.photo[ctx.message.photo.length - 1];
     if (photo && draft.targetId) {
@@ -212,11 +226,20 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
     await ctx.port.sendMessage(ctx.chat.id, ru.ownerCatalog.saved);
   });
 
-  bot.on('message:document', async (ctx) => {
-    if (ctx.role !== 'owner') return;
-    if (ctx.sessionState !== 'owner.edit_field') return;
+  bot.on('message:document', async (ctx, next) => {
+    if (
+      ctx.role !== 'owner' ||
+      ctx.sessionState !== 'owner.edit_field' ||
+      !ctx.session.ownerDraft
+    ) {
+      await next();
+      return;
+    }
     const draft = ctx.session.ownerDraft;
-    if (!draft || draft.kind !== 'prd_field' || draft.extra?.field !== 'photo') return;
+    if (!draft || draft.kind !== 'prd_field' || draft.extra?.field !== 'photo') {
+      await next();
+      return;
+    }
 
     const doc = ctx.message.document;
     if (doc && draft.targetId) {
