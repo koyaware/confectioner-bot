@@ -11,7 +11,7 @@ import {
   orderAttachments,
   jobs as jobsTable,
 } from '../db/schema.js';
-import { and, eq, inArray, max, ne } from 'drizzle-orm';
+import { and, desc, eq, inArray, max, ne } from 'drizzle-orm';
 import { Cart, CheckoutDraft, Result } from '../types.js';
 import { priceLine, requiredLeadDays } from '../domain/pricing.js';
 import { effectiveCapacity, OCCUPYING_STATUSES, usedUnits } from '../domain/capacity.js';
@@ -493,13 +493,14 @@ export async function listCustomerOrders(
     .where(
       and(
         eq(orders.tenantId, tenantId),
+        eq(customers.tenantId, tenantId),
         eq(customers.telegramId, telegramId),
         ne(orders.status, 'cancelled')
       )
     )
-    .orderBy(orders.createdAt)
+    .orderBy(desc(orders.createdAt))
     .limit(limit);
-  return rows.map((r) => r.order).reverse();
+  return rows.map((r) => r.order);
 }
 
 export type AcceptProposedDateError = 'NOT_FOUND' | 'DATE_UNAVAILABLE' | 'ILLEGAL_TRANSITION';

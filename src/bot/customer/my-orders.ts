@@ -96,11 +96,11 @@ export function registerMyOrdersHandlers(bot: Bot<BotContextWithSession>): void 
     lines.push(`Статус: ${STATUS_LABELS[found.order.status] ?? found.order.status}`);
     for (const it of items) {
       lines.push(
-        `• ${escapeHtml(it.titleSnapshot)}${it.optionsSnapshot.length ? ` (${it.optionsSnapshot.map((o) => o.title).join(', ')})` : ''} × ${it.qty}`
+        `• ${escapeHtml(it.titleSnapshot)}${it.optionsSnapshot.length ? ` (${it.optionsSnapshot.map((o) => escapeHtml(o.title)).join(', ')})` : ''} × ${it.qty}`
       );
     }
     lines.push(
-      `Дата: ${found.order.dueDate}${found.order.dueTimeText ? `, ${found.order.dueTimeText}` : ''}`
+      `Дата: ${found.order.dueDate}${found.order.dueTimeText ? `, ${escapeHtml(found.order.dueTimeText)}` : ''}`
     );
     lines.push(`Получение: ${found.order.fulfillment === 'delivery' ? 'доставка' : 'самовывоз'}`);
     lines.push(`Итого: ${formatMinor(found.order.totalMinor, ctx.tenant.currency)}`);

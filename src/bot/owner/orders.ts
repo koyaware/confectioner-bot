@@ -105,6 +105,10 @@ export async function orderCardKeyboard(orderId: string, status: string): Promis
     rows.push([{ text: 'Завершён', callback_data: `adm:ord:done:${orderId}` }]);
     rows.push([{ text: 'Отменить', callback_data: `adm:ord:cancel:${orderId}` }]);
   }
+  if (status === 'payment_review') {
+    rows.push([{ text: 'Оплата верна', callback_data: `adm:ord:paid:${orderId}` }]);
+    rows.push([{ text: 'Оплата не пришла', callback_data: `adm:ord:badpay:${orderId}` }]);
+  }
   if (status === 'payment_review' || status === 'awaiting_payment') {
     rows.push([{ text: 'Отменить', callback_data: `adm:ord:cancel:${orderId}` }]);
   }
@@ -378,6 +382,7 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
         const card = await buildOrderCardText(rest, ctx.tenant.id, ctx.tenant.currency);
         if (card) {
           await ctx.port.editMessageText(chatId, messageId, card, {
+            keyboard: await orderCardKeyboard(rest, result.value.status),
             parseMode: 'HTML',
           });
         }
@@ -391,6 +396,7 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
         const card = await buildOrderCardText(rest, ctx.tenant.id, ctx.tenant.currency);
         if (card) {
           await ctx.port.editMessageText(chatId, messageId, card, {
+            keyboard: await orderCardKeyboard(rest, result.value.status),
             parseMode: 'HTML',
           });
         }
@@ -422,7 +428,10 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
         if (!result.ok) return;
         const card = await buildOrderCardText(rest, ctx.tenant.id, ctx.tenant.currency);
         if (card) {
-          await ctx.port.editMessageText(chatId, messageId, card, { parseMode: 'HTML' });
+          await ctx.port.editMessageText(chatId, messageId, card, {
+            keyboard: await orderCardKeyboard(rest, result.value.status),
+            parseMode: 'HTML',
+          });
         }
         await notifyCustomer(ctx.port, rest, (n) => `Заказ №${n} завершён. Спасибо!`);
         return;
@@ -433,7 +442,10 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
         if (!result.ok) return;
         const card = await buildOrderCardText(rest, ctx.tenant.id, ctx.tenant.currency);
         if (card) {
-          await ctx.port.editMessageText(chatId, messageId, card, { parseMode: 'HTML' });
+          await ctx.port.editMessageText(chatId, messageId, card, {
+            keyboard: await orderCardKeyboard(rest, result.value.status),
+            parseMode: 'HTML',
+          });
         }
         await notifyCustomer(ctx.port, rest, (n) => `Заказ №${n} отменён мастером.`);
         return;
