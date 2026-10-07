@@ -12,6 +12,10 @@ import { addDays, monthEndOf, toIsoDate } from '../../lib/time.js';
 import { InlineKeyboard } from '../../telegram/port.js';
 import { getProductById, listProductOptions } from '../../services/catalog.js';
 import { sendContactKeyboard, clearContactKeyboard } from './contact-keyboard.js';
+
+// Stock DB default for tenants.replySlaText. Treated as "unset" so fresh
+// shops get the SLA line in their own language (see orderSentSlaDefault).
+const STOCK_RU_SLA = 'в течение нескольких часов';
 import { priceLine, priceOrder } from '../../domain/pricing.js';
 import { escapeHtml } from '../../domain/escape.js';
 import { formatMinor } from '../../lib/money.js';
@@ -537,12 +541,19 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
     ctx.session.checkout = undefined;
     ctx.sessionState = 'idle';
 
+    // Stock Russian default reads as "unset": use the shop language instead.
+    // (Unlike greeting/payment/contacts texts, replySlaText is NOT NULL.)
+    const sla =
+      ctx.tenant.replySlaText === STOCK_RU_SLA
+        ? ctx.t.checkout.orderSentSlaDefault
+        : escapeHtml(ctx.tenant.replySlaText);
+
     // Customer confirmation and owner notification are independent: send together.
     await Promise.all([
       ctx.port.editMessageTextOrSend(
         chatId,
         messageId,
-        `${ctx.t.checkout.orderSent((await getCustomerOrderNumber(order.id)) ?? order.number)} ${escapeHtml(ctx.tenant.replySlaText)}`,
+        `${ctx.t.checkout.orderSent((await getCustomerOrderNumber(order.id)) ?? order.number)} ${sla}`,
         {
           keyboard: {
             inline_keyboard: [

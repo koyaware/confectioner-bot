@@ -148,6 +148,7 @@ export const ru = {
     badQty: '❌ Некорректное количество товара.',
     emptyCart: '🛒 Корзина пуста.',
     orderSent: (n: number) => `✅ Заказ №${n} отправлен. Мастер ответит`,
+    orderSentSlaDefault: 'в течение нескольких часов',
   },
   faq: {
     title: '❓ FAQ',

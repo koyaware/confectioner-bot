@@ -63,23 +63,23 @@ export async function seedDemo(
 
   await db.insert(products).values(productsList);
 
-  // Map product titles to IDs for options
+  // Map stable titleKeys to IDs for options (titles are localizable).
   const productMap = new Map<string, string>();
-  for (const p of productsList) {
-    productMap.set(p.title, p.id);
-  }
+  productsData.forEach((p, i) => {
+    productMap.set(p.titleKey, productsList[i]!.id);
+  });
 
-  const cake1 = productMap.get('🍯 Classic Medovik')!;
-  const cake2 = productMap.get('🍫 Chocolate "Truffle"')!;
-  const cake3 = productMap.get('🍓 Berry "Summer Breeze"')!;
-  const cake4 = productMap.get('🥛 Classic "Napoleon"')!;
-  const cake5 = productMap.get('🥕 Carrot Cake with Cream Cheese')!;
-  const bento1 = productMap.get('🎨 Bento "Flower Garden"')!;
-  const bento2 = productMap.get('🍫 Bento "Chocolate Dream"')!;
-  const cupcake1 = productMap.get('🧁 Cupcakes "Vanilla Bliss" (6 pcs)')!;
-  const macaron1 = productMap.get('🌈 Macarons "Assorted" (12 pcs)')!;
-  const jar1 = productMap.get('🍓 Tiramisu in a Jar')!;
-  const box1 = productMap.get('🎁 Gift Box "Sweet Life"')!;
+  const cake1 = productMap.get('cake1')!;
+  const cake2 = productMap.get('cake2')!;
+  const cake3 = productMap.get('cake3')!;
+  const cake4 = productMap.get('cake4')!;
+  const cake5 = productMap.get('cake5')!;
+  const bento1 = productMap.get('bento1')!;
+  const bento2 = productMap.get('bento2')!;
+  const cupcake1 = productMap.get('cupcake1')!;
+  const macaron1 = productMap.get('macaron1')!;
+  const jar1 = productMap.get('jar1')!;
+  const box1 = productMap.get('box1')!;
 
   const options = optionsData.map((o) => {
     let productId: string;

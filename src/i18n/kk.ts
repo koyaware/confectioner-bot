@@ -152,6 +152,7 @@ export const kk: Strings = {
     badQty: '❌ Тауар саны дұрыс емес.',
     emptyCart: '🛒 Себет бос.',
     orderSent: (n: number) => `✅ №${n} тапсырыс жіберілді. Шебер жауап береді`,
+    orderSentSlaDefault: 'бірнеше сағат ішінде',
   },
   faq: {
     title: '❓ FAQ',

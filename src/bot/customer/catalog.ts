@@ -27,7 +27,7 @@ export function registerCatalogHandlers(bot: Bot<BotContextWithSession>): void {
     if (decoded.value.ns === 'cat' && decoded.value.action === 'list') {
       await trackFunnelEvent(ctx, 'catalog_view');
       const cats = await listActiveCategories(ctx.tenant.id);
-      const text = cats.length > 0 ? ctx.t.catalog.title : ctx.t.catalog.categoriesEmpty;
+      const text = cats.length > 0 ? ctx.t.catalog.title : ctx.t.catalog.empty;
       const keyboard: InlineKeyboard = {
         inline_keyboard: [
           ...cats.map((c) => [{ text: c.title, callback_data: `cat:open:${c.id}` }]),

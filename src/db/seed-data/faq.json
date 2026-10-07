@@ -1,11 +1,38 @@
 [
-  { "q": "💰 How much are cakes?", "a": "🎂 Cakes: from $18/kg (Medovik) to $25/pc (Berry). Bento: from $14. Cupcakes: $9/set of 6. Macarons: $12/box of 12. Jars: $4.2–5. Gift boxes: $35–42." },
-  { "q": "📅 How far in advance to order?", "a": "📅 Minimum 2 days. Holidays (Mar 8, Feb 14, New Year) — 5–7 days. Bento cakes can be 1 day (check availability)." },
-  { "q": "🚚 Is there delivery?", "a": "🚚 Yes! City delivery from $3 (under 5km). 5–10km — $5, 10–15km — $7. Courier calls 30 min before. Free pickup at 15 Baker St." },
-  { "q": "💳 How to pay?", "a": "💳 50% deposit by card/instant pay at checkout, remaining 50% on delivery (cash or transfer). Details sent after order confirmation." },
-  { "q": "📝 How to order?", "a": "1️⃣ Open 📦 Catalog\n2️⃣ Pick dessert, weight, add-ons\n3️⃣ 🛒 Add to cart\n4️⃣ ✅ Checkout: date, time, delivery/pickup, contacts\n5️⃣ 💳 Pay deposit\n6️⃣ 🎂 Pick up or wait for courier!" },
-  { "q": "📍 Where is pickup?", "a": "📍 15 Baker St (Victory Square metro, exit 3). Mon–Sun 10:00–20:00. Pick up by order # or name." },
-  { "q": "🌱 Can you make sugar-free/gluten-free/vegan?", "a": "🌱 Yes! Vegan cupcakes, gluten-free brownies, stevia-sweetened cakes. Ask when ordering — baker will suggest options." },
-  { "q": "🎨 Can you print logo/photo on bento cake?", "a": "🎨 Yes! Edible paper printing for any image: photos, logos, drawings. Extra $5 for printing. Need high-quality file." },
-  { "q": "🧊 How to store desserts?", "a": "🧊 Cakes & cupcakes — fridge up to 3 days. Macarons — up to 7 days. Jar desserts — up to 5 days. Do not freeze! Rest 15 min at room temp before serving." }
+  {
+    "q": "💰 Сколько стоят торты?",
+    "a": "🎂 Торты: от 1800 ₽/кг (Медовик) до 2500 ₽/шт (Ягодный). Бенто: от 1400 ₽. Капкейки: 900 ₽/набор из 6. Макарон: 1200 ₽/коробка из 12. Баночки: 420–500 ₽. Наборы: 3500–4200 ₽."
+  },
+  {
+    "q": "📅 За сколько заказывать?",
+    "a": "📅 Минимум за 2 дня. Праздники (8 марта, 14 февраля, Новый год) — за 5–7 дней. Бенто можно за день (уточняйте по занятости)."
+  },
+  {
+    "q": "🚚 Есть ли доставка?",
+    "a": "🚚 Да! Доставка по городу от 300 ₽ (до 5 км). 5–10 км — 500 ₽, 10–15 км — 700 ₽. Курьер звонит за 30 минут. Самовывоз бесплатно."
+  },
+  {
+    "q": "💳 Как оплатить?",
+    "a": "💳 Предоплата 50% картой/переводом при оформлении, остальные 50% при получении (наличные или перевод). Реквизиты придут после подтверждения заказа."
+  },
+  {
+    "q": "📝 Как заказать?",
+    "a": "1️⃣ Откройте 📦 Каталог\n2️⃣ Выберите десерт, вес, добавки\n3️⃣ 🛒 Добавьте в корзину\n4️⃣ ✅ Оформите: дата, время, доставка/самовывоз, контакты\n5️⃣ 💳 Внесите предоплату\n6️⃣ 🎂 Заберите или ждите курьера!"
+  },
+  {
+    "q": "📍 Где самовывоз?",
+    "a": "📍 Самовывоз по адресу из раздела «📞 Контакты». Ежедневно 10:00–20:00. Назовите номер заказа или имя."
+  },
+  {
+    "q": "🌱 Есть без сахара/глютена/веганское?",
+    "a": "🌱 Да! Веганские капкейки, брауни без глютена, торты на стевии. Напишите при заказе — кондитер подскажет варианты."
+  },
+  {
+    "q": "🎨 Можно фото/логотип на бенто?",
+    "a": "🎨 Да! Печать съедобной бумагой: фото, логотипы, рисунки. Доплата 500 ₽ за печать. Нужен файл в хорошем качестве."
+  },
+  {
+    "q": "🧊 Как хранить десерты?",
+    "a": "🧊 Торты и капкейки — в холодильнике до 3 дней. Макарон — до 7 дней. Баночки — до 5 дней. Не замораживать! Достаньте за 15 минут до подачи."
+  }
 ]

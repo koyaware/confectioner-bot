@@ -77,7 +77,7 @@ describe('catalog flow', () => {
     const sendCalls = port.getCallsForMethod('sendMessage');
     expect(sendCalls).toHaveLength(1);
     const greetingText = sendCalls[0]!.args[1] as string;
-    expect(greetingText).toContain('SweetDreams');
+    expect(greetingText).toContain('Сладкие мечты');
 
     await bot.handleUpdate(callbackUpdate('cat:list'));
     let answers = port.getCallsForMethod('answerCallback');
@@ -85,7 +85,7 @@ describe('catalog flow', () => {
     const edits = port.getCallsForMethod('editMessageTextOrSend');
     expect(edits).toHaveLength(1);
     const buttons = JSON.stringify(edits[0]!.args[3]);
-    expect(buttons).toContain('🎂 Cakes');
+    expect(buttons).toContain('🎂 Торты');
     expect(buttons).toContain('cat:open:');
 
     const db = getDb();

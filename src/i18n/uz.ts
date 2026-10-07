@@ -153,6 +153,7 @@ export const uz: Strings = {
     badQty: '❌ Mahsulot miqdori notoʻgʻri.',
     emptyCart: '🛒 Savatcha boʻsh.',
     orderSent: (n: number) => `✅ №${n} buyurtma yuborildi. Usta javob beradi`,
+    orderSentSlaDefault: 'bir necha soat ichida',
   },
   faq: {
     title: '❓ FAQ',
