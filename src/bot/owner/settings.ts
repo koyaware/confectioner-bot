@@ -46,9 +46,47 @@ export function registerSettingsHandlers(bot: Bot<BotContextWithSession>): void 
       const rows: InlineKeyboard['inline_keyboard'] = SETTINGS_FIELDS.map((f) => [
         { text: FIELD_LABELS[f], callback_data: `adm:set:edit:${f}` },
       ]);
+      rows.push([
+        {
+          text: ctx.tenant.acceptOrders ? 'Перегруз: выключить приём' : 'Перегруз: включить приём',
+          callback_data: 'adm:set:toggle_accept',
+        },
+      ]);
       await ctx.port.editMessageText(chatId, messageId, ru.ownerSettings.title, {
         keyboard: { inline_keyboard: rows },
       });
+      return;
+    }
+
+    if (action === 'edit' && arg === 'toggle_accept') {
+      const rows = await getDb()
+        .select()
+        .from(tenants)
+        .where(eq(tenants.id, ctx.tenant.id))
+        .limit(1);
+      const t = rows[0];
+      if (t) {
+        await getDb()
+          .update(tenants)
+          .set({ acceptOrders: !t.acceptOrders })
+          .where(eq(tenants.id, ctx.tenant.id));
+      }
+      const chatIdR = ctx.callbackQuery.message?.chat.id;
+      const messageIdR = ctx.callbackQuery.message?.message_id;
+      if (chatIdR && messageIdR) {
+        const list = await getDb()
+          .select()
+          .from(tenants)
+          .where(eq(tenants.id, ctx.tenant.id))
+          .limit(1);
+        const nowAccept = list[0]?.acceptOrders ?? true;
+        await ctx.port.editMessageText(
+          chatIdR,
+          messageIdR,
+          nowAccept ? 'Приём заказов включён.' : 'Приём заказов выключен (режим «перегруз»).',
+          {}
+        );
+      }
       return;
     }
 

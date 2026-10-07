@@ -14,8 +14,10 @@ async function relayToOwner(ctx: BotContextWithSession): Promise<void> {
   const ownerId = ctx.tenant.ownerTelegramId;
   if (!ownerId) return;
   if (!ctx.from || ctx.role === 'owner') return;
-  if (ctx.sessionState.startsWith('checkout.') || ctx.sessionState === 'payment.await_receipt') return;
-  if (ctx.sessionState === 'owner.edit_field' || ctx.sessionState === 'owner.reply_to_customer') return;
+  if (ctx.sessionState.startsWith('checkout.') || ctx.sessionState === 'payment.await_receipt')
+    return;
+  if (ctx.sessionState === 'owner.edit_field' || ctx.sessionState === 'owner.reply_to_customer')
+    return;
 
   const db = getDb();
   let customerRows = await db
@@ -46,7 +48,13 @@ async function relayToOwner(ctx: BotContextWithSession): Promise<void> {
     .select({ number: orders.number })
     .from(orders)
     .innerJoin(customers, eq(orders.customerId, customers.id))
-    .where(and(eq(customers.telegramId, ctx.from.id), eq(orders.tenantId, ctx.tenant.id), notInArray(orders.status, [...TERMINAL_STATUSES])))
+    .where(
+      and(
+        eq(customers.telegramId, ctx.from.id),
+        eq(orders.tenantId, ctx.tenant.id),
+        notInArray(orders.status, [...TERMINAL_STATUSES])
+      )
+    )
     .orderBy(desc(orders.createdAt))
     .limit(1);
   const orderLabel = activeOrders[0] ? `, заказ №${activeOrders[0].number}` : '';
@@ -83,13 +91,13 @@ async function relayToOwner(ctx: BotContextWithSession): Promise<void> {
 
   // Auto-reply once per 6 hours
   const nowS = Math.floor(Date.now() / 1000);
-  const shouldReply = !customer.lastSeenAt || !ctx.session.lastAutoReplyAt || nowS - ctx.session.lastAutoReplyAt >= AUTO_REPLY_INTERVAL_S;
+  const shouldReply =
+    !customer.lastSeenAt ||
+    !ctx.session.lastAutoReplyAt ||
+    nowS - ctx.session.lastAutoReplyAt >= AUTO_REPLY_INTERVAL_S;
   if (shouldReply) {
     ctx.session.lastAutoReplyAt = nowS;
-    await db
-      .update(customers)
-      .set({ lastSeenAt: new Date() })
-      .where(eq(customers.id, customer.id));
+    await db.update(customers).set({ lastSeenAt: new Date() }).where(eq(customers.id, customer.id));
     try {
       await ctx.port.sendMessage(
         customerChatId,
@@ -112,6 +120,15 @@ async function relayToOwner(ctx: BotContextWithSession): Promise<void> {
 }
 
 export function registerRelayHandlers(bot: Bot<BotContextWithSession>): void {
+  bot.callbackQuery(/^rel:start$/, async (ctx) => {
+    await ctx.port.answerCallback(ctx.callbackQuery.id);
+    ctx.sessionState = 'relay.compose';
+    const chatId = ctx.callbackQuery.message?.chat.id;
+    if (chatId) {
+      await ctx.port.sendMessage(chatId, 'Напишите ваш вопрос, передам мастеру.');
+    }
+  });
+
   bot.on('message:text', async (ctx, next) => {
     if (ctx.sessionState.startsWith('checkout.')) {
       await next();

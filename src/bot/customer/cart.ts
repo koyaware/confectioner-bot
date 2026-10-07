@@ -205,6 +205,18 @@ export function registerCartHandlers(bot: Bot<BotContextWithSession>): void {
       return;
     }
 
+    if (!ctx.tenant.acceptOrders) {
+      const chatId = ctx.callbackQuery.message?.chat.id;
+      if (chatId) {
+        await ctx.port.sendMessage(chatId, ctx.tenant.busyText ?? ru.checkout.busy, {
+          keyboard: {
+            inline_keyboard: [[{ text: 'Написать мастеру', callback_data: 'rel:start' }]],
+          },
+        });
+      }
+      return;
+    }
+
     ctx.session.checkout = {
       checkoutId: nanoid(10),
       referenceFileIds: [],

@@ -62,12 +62,16 @@ describe('relay', () => {
 
     // owner got header + copy
     const sent = port.getCallsForMethod('sendMessage');
-    expect(sent.some((c) => c.args[0] === 555 && (c.args[1] as string).includes('cust42'))).toBe(true);
+    expect(sent.some((c) => c.args[0] === 555 && (c.args[1] as string).includes('cust42'))).toBe(
+      true
+    );
     const copies = port.getCallsForMethod('copyMessage');
     expect(copies.some((c) => c.args[0] === 555)).toBe(true);
 
     // customer got auto-reply
-    expect(sent.some((c) => c.args[0] === 42 && (c.args[1] as string).includes('Передал мастеру'))).toBe(true);
+    expect(
+      sent.some((c) => c.args[0] === 42 && (c.args[1] as string).includes('Передал мастеру'))
+    ).toBe(true);
 
     // relay messages saved
     const rows = await getDb().select().from(relayMessages);
