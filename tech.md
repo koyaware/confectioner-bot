@@ -1,6 +1,6 @@
 # ТЗ: Telegram-бот приема заказов для кондитеров
 
-**Версия ядра: v1.17**
+**Версия ядра: v1.18**
 
 Changelog:
 
@@ -22,6 +22,7 @@ Changelog:
 - v1.15: в контракты воздействия на карточку добавлены `cart:open:<lineId>` и `prd:qty:inc/dec:<lineId>`; add в корзину теперь отвечает toast-ом и остаётся в карточке кнопка «Перейти в корзину».
 - v1.16: подтверждён callback `adm:ord:datepage:<orderId>:<YYYY-MM>` для листания месяца при «Другой дате»; сообщения клиенту используют локальный номер заказа.
 - v1.17: добавлены callback `my:refs:<orderId>` и `adm:ord:refs:<orderId>` для просмотра референсов заказа.
+- v1.18: в контракт добавлены недостающие callback `cart:noop`, `chk:photos:done`, `adm:menu`, `adm:preview`, `adm:stats[:7|:30]`.
 
 Правила изменения этого файла: менять только append-only. Любое изменение контракта (схема БД, типы, callback-данные, джобы, статусы заказа) поднимает версию и записывается в changelog до написания кода, который от него зависит.
 
@@ -680,39 +681,42 @@ export interface TelegramPort {
 
 Формат: `<ns>:<action>[:<arg>...]`. Разделитель `:`, в аргументах двоеточий нет. Длина не более 64 байт UTF-8. Кодек и разбор (zod discriminated union) в `bot/callbacks.ts`. Идентификаторы в callback: nanoid длиной 10.
 
-| Callback                                                                                                | Смысл                                                                |
-| ------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| `cat:list`                                                                                              | список категорий                                                     |
-| `cat:open:<categoryId>`                                                                                 | товары категории                                                     |
-| `prd:open:<productId>`                                                                                  | карточка товара                                                      |
-| `prd:opt:<productId>:<optionId>`                                                                        | выбор опции                                                          |
-| `prd:qty:inc:<lineId>` / `prd:qty:dec:<lineId>`                                                         | изменить количество строки корзины прямо из карточки товара          |
-| `prd:add:<productId>`                                                                                   | в корзину                                                            |
-| `cart:show` / `cart:inc:<lineId>` / `cart:dec:<lineId>` / `cart:clear` / `cart:open:<lineId>`           | корзина; `cart:open` открывает карточку строки с опциями/количеством |
-| `chk:start`                                                                                             | начать оформление                                                    |
-| `chk:date:<YYYY-MM-DD>` / `chk:datepage:<YYYY-MM>`                                                      | выбор даты, листание месяца                                          |
-| `chk:ful:<pickup\|delivery>`                                                                            | способ получения                                                     |
-| `chk:skip` / `chk:back` / `chk:cancel`                                                                  | пропуск шага, назад, отмена                                          |
-| `chk:submit:<checkoutId>`                                                                               | отправить заказ (идемпотентно)                                       |
-| `my:list` / `my:view:<orderId>`                                                                         | мои заказы                                                           |
-| `nav:menu`                                                                                              | главное меню текущей роли                                            |
-| `my:cancel:<orderId>`                                                                                   | отмена клиентом (только `new`, `awaiting_payment`)                   |
-| `my:refs:<orderId>`                                                                                     | показать референсы своего заказа                                     |
-| `pay:sent:<orderId>`                                                                                    | «я оплатил», ждем чек                                                |
-| `faq:list` / `faq:view:<faqId>`                                                                         | FAQ                                                                  |
-| `rel:start`                                                                                             | «Написать мастеру»                                                   |
-| `adm:ord:accept:<orderId>`                                                                              | принять                                                              |
-| `adm:ord:list`                                                                                          | список последних заказов владельца                                   |
-| `adm:ord:view:<orderId>`                                                                                | карточка заказа в режиме владельца                                   |
-| `adm:ord:msg:<orderId>`                                                                                 | написать клиенту                                                     |
-| `adm:ord:refs:<orderId>`                                                                                | показать референсы заказа владельцу                                  |
-| `adm:ord:reject:<orderId>` / `adm:ord:rr:<orderId>:<reasonCode>`                                        | отклонить, код причины                                               |
-| `adm:ord:date:<orderId>` / `adm:ord:pd:<orderId>:<YYYY-MM-DD>` / `adm:ord:datepage:<orderId>:<YYYY-MM>` | предложить дату; сетка; листание месяца                              |
-| `adm:ord:paid:<orderId>` / `adm:ord:badpay:<orderId>`                                                   | оплата верна, оплата неверна                                         |
-| `adm:ord:ready:<orderId>` / `adm:ord:done:<orderId>` / `adm:ord:cancel:<orderId>`                       | статусы                                                              |
-| `pd:yes:<orderId>` / `pd:no:<orderId>`                                                                  | клиент принимает или отклоняет предложенную дату                     |
-| `adm:cat:*`, `adm:prd:*`, `adm:faq:*`, `adm:set:*`, `adm:cal:*`, `adm:src:*`                            | редакторы владельца                                                  |
-| `adm:relay:block:<customerId>`                                                                          | блокировка клиента из relay-шапки                                    |
+| Callback                                                                                                    | Смысл                                                                                             |
+| ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `cat:list`                                                                                                  | список категорий                                                                                  |
+| `cat:open:<categoryId>`                                                                                     | товары категории                                                                                  |
+| `prd:open:<productId>`                                                                                      | карточка товара                                                                                   |
+| `prd:opt:<productId>:<optionId>`                                                                            | выбор опции                                                                                       |
+| `prd:qty:inc:<lineId>` / `prd:qty:dec:<lineId>`                                                             | изменить количество строки корзины прямо из карточки товара                                       |
+| `prd:add:<productId>`                                                                                       | в корзину                                                                                         |
+| `cart:show` / `cart:inc:<lineId>` / `cart:dec:<lineId>` / `cart:clear` / `cart:open:<lineId>` / `cart:noop` | корзина; `cart:open` открывает карточку строки с опциями/количеством; `cart:noop` инертная кнопка |
+| `chk:start`                                                                                                 | начать оформление                                                                                 |
+| `chk:date:<YYYY-MM-DD>` / `chk:datepage:<YYYY-MM>`                                                          | выбор даты, листание месяца                                                                       |
+| `chk:ful:<pickup\|delivery>`                                                                                | способ получения                                                                                  |
+| `chk:skip` / `chk:back` / `chk:cancel`                                                                      | пропуск шага, назад, отмена                                                                       |
+| `chk:photos:done`                                                                                           | подтвердить прикреплённые фото                                                                    |
+| `chk:submit:<checkoutId>`                                                                                   | отправить заказ (идемпотентно)                                                                    |
+| `my:list` / `my:view:<orderId>`                                                                             | мои заказы                                                                                        |
+| `nav:menu`                                                                                                  | главное меню текущей роли                                                                         |
+| `my:cancel:<orderId>`                                                                                       | отмена клиентом (только `new`, `awaiting_payment`)                                                |
+| `my:refs:<orderId>`                                                                                         | показать референсы своего заказа                                                                  |
+| `pay:sent:<orderId>`                                                                                        | «я оплатил», ждем чек                                                                             |
+| `faq:list` / `faq:view:<faqId>`                                                                             | FAQ                                                                                               |
+| `rel:start`                                                                                                 | «Написать мастеру»                                                                                |
+| `adm:ord:accept:<orderId>`                                                                                  | принять                                                                                           |
+| `adm:ord:list`                                                                                              | список последних заказов владельца                                                                |
+| `adm:ord:view:<orderId>`                                                                                    | карточка заказа в режиме владельца                                                                |
+| `adm:ord:msg:<orderId>`                                                                                     | написать клиенту                                                                                  |
+| `adm:ord:refs:<orderId>`                                                                                    | показать референсы заказа владельцу                                                               |
+| `adm:ord:reject:<orderId>` / `adm:ord:rr:<orderId>:<reasonCode>`                                            | отклонить, код причины                                                                            |
+| `adm:ord:date:<orderId>` / `adm:ord:pd:<orderId>:<YYYY-MM-DD>` / `adm:ord:datepage:<orderId>:<YYYY-MM>`     | предложить дату; сетка; листание месяца                                                           |
+| `adm:ord:paid:<orderId>` / `adm:ord:badpay:<orderId>`                                                       | оплата верна, оплата неверна                                                                      |
+| `adm:ord:ready:<orderId>` / `adm:ord:done:<orderId>` / `adm:ord:cancel:<orderId>`                           | статусы                                                                                           |
+| `pd:yes:<orderId>` / `pd:no:<orderId>`                                                                      | клиент принимает или отклоняет предложенную дату                                                  |
+| `adm:cat:*`, `adm:prd:*`, `adm:faq:*`, `adm:set:*`, `adm:cal:*`, `adm:src:*`                                | редакторы владельца                                                                               |
+| `adm:menu` / `adm:preview`                                                                                  | меню владельца / предпросмотр клиентского меню                                                    |
+| `adm:stats` / `adm:stats:7` / `adm:stats:30`                                                                | статистика за период по умолчанию, 7 или 30 дней                                                  |
+| `adm:relay:block:<customerId>`                                                                              | блокировка клиента из relay-шапки                                                                 |
 
 Новые callback добавляются только с правкой этого раздела и поднятием версии.
 
