@@ -72,11 +72,12 @@ export async function trackFunnelEvent(
   if (!customerId) return;
 
   // Record funnel event
+  const rawParam = ctx.message?.text?.split(' ')[1] || null;
   await db.insert(funnelEvents).values({
     tenantId,
     customerId,
     type,
-    source: ctx.message?.text?.split(' ')[1] || null,
+    source: rawParam && !rawParam.startsWith('claim_') ? rawParam : null,
     at: new Date(),
   });
 }

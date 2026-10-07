@@ -11,6 +11,7 @@ import { funnelMiddleware } from './middleware/funnel.js';
 import { errorMiddleware } from './middleware/errors.js';
 import { registerStartHandler } from './customer/start.js';
 import { registerCatalogHandlers } from './customer/catalog.js';
+import { registerMenuHandler } from './owner/menu.js';
 
 export interface TenantBot {
   tenantId: string;
@@ -97,6 +98,7 @@ export function createTenantBot(
 
   registerStartHandler(bot);
   registerCatalogHandlers(bot);
+  registerMenuHandler(bot);
 
   return {
     tenantId,

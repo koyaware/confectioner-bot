@@ -5,6 +5,43 @@ import { nanoid } from 'nanoid';
 import { eq } from 'drizzle-orm';
 import { Result } from '../types.js';
 
+export async function claimTenant(
+  claimCode: string,
+  telegramId: number,
+  now: Date
+): Promise<
+  Result<{ tenantId: string; shopName: string }, 'NOT_FOUND' | 'EXPIRED' | 'ALREADY_CLAIMED'>
+> {
+  const db = getDb();
+  const codeHash = hash(`claim_${claimCode}`);
+
+  const rows = await db.select().from(tenants).where(eq(tenants.claimCodeHash, codeHash)).limit(1);
+
+  const tenant = rows[0];
+  if (!tenant) {
+    return { ok: false, error: 'NOT_FOUND' };
+  }
+
+  if (tenant.ownerTelegramId !== null) {
+    return { ok: false, error: 'ALREADY_CLAIMED' };
+  }
+
+  if (!tenant.claimExpiresAt || tenant.claimExpiresAt.getTime() < now.getTime()) {
+    return { ok: false, error: 'EXPIRED' };
+  }
+
+  await db
+    .update(tenants)
+    .set({
+      ownerTelegramId: telegramId,
+      claimCodeHash: null,
+      claimExpiresAt: null,
+    })
+    .where(eq(tenants.id, tenant.id));
+
+  return { ok: true, value: { tenantId: tenant.id, shopName: tenant.shopName } };
+}
+
 const CLAIM_TTL_MS = 24 * 60 * 60 * 1000;
 
 export interface CreateTenantInput {
