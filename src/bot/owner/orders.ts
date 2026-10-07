@@ -96,6 +96,67 @@ export function orderCardKeyboard(orderId: string, status: string): InlineKeyboa
   return { inline_keyboard: rows };
 }
 
+const OWNER_MONTH_NAMES = [
+  'Январь',
+  'Февраль',
+  'Март',
+  'Апрель',
+  'Май',
+  'Июнь',
+  'Июль',
+  'Август',
+  'Сентябрь',
+  'Октябрь',
+  'Ноябрь',
+  'Декабрь',
+];
+const OWNER_WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+
+function orderDateKeyboard(
+  availability: Record<string, { available: boolean }>,
+  year: number,
+  month: number,
+  orderId: string
+): InlineKeyboard {
+  const firstDay = `${year}-${String(month).padStart(2, '0')}-01`;
+  const rows: InlineKeyboard['inline_keyboard'] = [];
+  rows.push(OWNER_WEEKDAYS.map((w) => ({ text: w, callback_data: 'cart:noop' })));
+
+  const [y, m] = firstDay.split('-').map(Number);
+  const startDate = new Date(Date.UTC(y!, m! - 1, 1));
+  const offset = (startDate.getUTCDay() + 6) % 7;
+
+  const cells: { text: string; callback_data: string }[] = [];
+  for (let i = 0; i < offset; i++) cells.push({ text: ' ', callback_data: 'cart:noop' });
+
+  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  for (let day = 1; day <= daysInMonth; day++) {
+    const iso = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const avail = availability[iso];
+    if (avail?.available) {
+      cells.push({ text: String(day), callback_data: `adm:ord:pd:${orderId}:${iso}` });
+    } else {
+      cells.push({ text: `${day} ✕`, callback_data: 'cart:noop' });
+    }
+  }
+  while (cells.length % 7 !== 0) cells.push({ text: ' ', callback_data: 'cart:noop' });
+  for (let i = 0; i < cells.length; i += 7) rows.push(cells.slice(i, i + 7));
+
+  rows.push([
+    {
+      text: '«',
+      callback_data: `adm:ord:datepage:${orderId}:${addDays(firstDay, -1).slice(0, 7)}`,
+    },
+    { text: `${OWNER_MONTH_NAMES[month - 1]} ${year}`, callback_data: 'cart:noop' },
+    {
+      text: '»',
+      callback_data: `adm:ord:datepage:${orderId}:${addDays(firstDay, 33).slice(0, 7)}`,
+    },
+  ]);
+  rows.push([{ text: 'Назад', callback_data: 'adm:ord:list' }]);
+  return { inline_keyboard: rows };
+}
+
 export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
   bot.callbackQuery(/^adm:ord:list$/, async (ctx) => {
     if (!canAccessOwner(ctx)) {
@@ -187,7 +248,7 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
   });
 
   bot.callbackQuery(
-    /^adm:ord:(accept|reject|rr|paid|badpay|ready|done|cancel|date|pd):/,
+    /^adm:ord:(accept|reject|rr|paid|badpay|ready|done|cancel|date|datepage|pd):/,
     async (ctx) => {
       if (!canAccessOwner(ctx)) {
         await ctx.port.answerCallback(ctx.callbackQuery.id, ru.ownerCatalog.notOwner);
@@ -195,9 +256,10 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
       }
       await ctx.port.answerCallback(ctx.callbackQuery.id);
 
-      const m = /^adm:ord:(accept|reject|rr|paid|badpay|ready|done|cancel|date|pd):(.+)$/.exec(
-        ctx.callbackQuery.data
-      );
+      const m =
+        /^adm:ord:(accept|reject|rr|paid|badpay|ready|done|cancel|date|datepage|pd):(.+)$/.exec(
+          ctx.callbackQuery.data
+        );
       if (!m) return;
       const action = m[1]!;
       const rest = m[2]!;
@@ -306,6 +368,47 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
         return;
       }
 
+      if (action === 'datepage') {
+        const [orderId, ym] = rest.split(':');
+        if (!orderId || !ym) return;
+        const db = getDb();
+        const rows = await db.select().from(orders).where(eq(orders.id, orderId)).limit(1);
+        const order = rows[0];
+        if (!order || order.tenantId !== ctx.tenant.id || order.status !== 'new') return;
+
+        const monthStart = `${ym}-01`;
+        const monthEndDate = addDays(addDays(monthStart, 32).slice(0, 8) + '01', -1);
+        const itemRows = await db.select().from(orderItems).where(eq(orderItems.orderId, orderId));
+        const cartLines = itemRows
+          .filter((i) => i.productId !== null)
+          .map((i, idx) => ({
+            lineId: `l${idx}`,
+            productId: i.productId!,
+            qty: i.qty,
+            optionIds: [] as string[],
+          }));
+        const avail = await getDateAvailability(
+          ctx.tenant.id,
+          monthStart,
+          monthEndDate,
+          { lines: cartLines },
+          new Date()
+        );
+        const kb = orderDateKeyboard(
+          avail,
+          Number(ym.slice(0, 4)),
+          Number(ym.slice(5, 7)),
+          orderId
+        );
+        await ctx.port.editMessageText(
+          chatId,
+          messageId,
+          `Предложите новую дату для заказа №${order.number}:`,
+          { keyboard: kb, parseMode: 'HTML' }
+        );
+        return;
+      }
+
       if (action === 'date') {
         const orderId = rest;
         const db = getDb();
@@ -332,17 +435,17 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
           new Date()
         );
 
-        const kbRows: InlineKeyboard['inline_keyboard'] = [];
-        for (const [date, entry] of Object.entries(avail)) {
-          if (entry.available) {
-            kbRows.push([{ text: date, callback_data: `adm:ord:pd:${orderId}:${date}` }]);
-          }
-        }
+        const kb: InlineKeyboard = orderDateKeyboard(
+          avail,
+          Number(monthStart.slice(0, 4)),
+          Number(monthStart.slice(5, 7)),
+          orderId
+        );
         await ctx.port.editMessageText(
           chatId,
           messageId,
           `Предложите новую дату для заказа №${order.number}:`,
-          { keyboard: { inline_keyboard: kbRows } }
+          { keyboard: kb, parseMode: 'HTML' }
         );
         return;
       }
