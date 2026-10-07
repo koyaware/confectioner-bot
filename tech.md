@@ -1,6 +1,6 @@
 # ТЗ: Telegram-бот приема заказов для кондитеров
 
-**Версия ядра: v1.31**
+**Версия ядра: v1.32**
 
 Changelog:
 
@@ -36,6 +36,7 @@ Changelog:
 - v1.29: чат с мастером УБРАН из бота (решение владельца продукта: связь только по телефону/ЛС): удалены callback `rel:start` и `adm:relay:block:<customerId>`, состояние `relay.compose`, модуль `bot/relay/`, таблица `relay_messages` (миграция 0006); колонка `customers.isBlocked`, событие воронки `free_text` и поле `tenants.replySlaText` оставлены как резерв без UI. Вместо чата — экран «📞 Контакты» (`cnt:show`: `contactsText` владельца + fallback): кнопка в главном меню и на экране перегруза; свободный текст вне сценариев получает rate-limited (6 ч, `lastAutoReplyAt`) указатель на контакты. Новое: казахский язык интерфейса (`kk`, `src/i18n/kk.ts` зеркалит `ru`, `adm:set:lang` += `kk`, локаль `kk-KZ`); `Lang` = `ru|uz|kk`. Отдельный бот обратной связи — после MVP.
 - v1.30: чеки только фото (решение владельца продукта): `message:document` в `payment.await_receipt` отклоняется с `invalidReceipt`; промпт — «только фото», файлы не принимаются. Референсы оформления (`checkout.photos`, `orderAttachments kind=reference`) по-прежнему принимают фото и файлы. Закрывает bug 26 как смену контракта.
 - v1.31: валюта только кнопками (`adm:set:cur`; текстовое поле `currency` убрано из настроек и валидации). Эмодзи-проход: все кнопки клавиатур и заголовки/пустые состояния с эмодзи во всех трёх словарях.
+- v1.32: скорость ответов: `TelegramPort.editMessageMedia` (смена фото карточки за 1 вызов вместо delete+sendPhoto), параллельные независимые отправки (подтверждение клиенту + карточка владельцу, чек + обновление карточки, пачки референсов), пропуск записи сессии при отсутствии изменений.
 
 Правила изменения этого файла: менять только append-only. Любое изменение контракта (схема БД, типы, callback-данные, джобы, статусы заказа) поднимает версию и записывается в changelog до написания кода, который от него зависит.
 
@@ -699,6 +700,13 @@ export interface TelegramPort {
     opts?: SendOpts
   ): Promise<{ messageId: number }>;
   editMessageText(chatId: number, messageId: number, text: string, opts?: SendOpts): Promise<void>;
+  editMessageMedia(
+    chatId: number,
+    messageId: number,
+    photo: string | Buffer,
+    caption?: string,
+    opts?: SendOpts
+  ): Promise<SendMessageResult>; // замена фото у фото-сообщения за 1 вызов
   editMessageTextOrSend(
     chatId: number,
     messageId: number,
