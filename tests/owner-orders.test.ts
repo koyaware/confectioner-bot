@@ -151,4 +151,18 @@ describe('owner order handling', () => {
     const rows = await getDb().select().from(orders);
     expect(rows[0]!.status).toBe('new');
   });
+
+  it('cancelled orders free their date slot', async () => {
+    const { tenantId } = await seedDemo(appSecret, now);
+    const order = await makeOrder(tenantId);
+    const { buildOrderCardText } = await import('../src/bot/owner/orders.js');
+    const { applyOrderEvent } = await import('../src/services/orders.js');
+
+    const before = await buildOrderCardText(order.id, tenantId, '₽');
+    expect(before).toContain('Загрузка даты:');
+
+    await applyOrderEvent(order.id, 'customer_cancel', 'customer', now);
+    const after = await buildOrderCardText(order.id, tenantId, '₽');
+    expect(after).toContain('занято 0 из 5 (заказов: 0)');
+  });
 });

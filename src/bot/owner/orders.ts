@@ -110,6 +110,8 @@ async function dateLoadLabel(tenantId: string, dueDate: string): Promise<string>
     .where(and(eq(capacityOverrides.tenantId, tenantId), eq(capacityOverrides.date, dueDate)));
   const eff = effectiveCapacity(tenant.defaultDailyCapacity, overrideRows[0]);
   if (eff.closed) return 'день закрыт';
+  // Note: cancelled/expired/rejected orders never occupy capacity —
+  // OCCUPYING_STATUSES excludes them, so a cancelled order frees its date slot.
   const dayOrders = await db
     .select()
     .from(orders)
@@ -120,7 +122,7 @@ async function dateLoadLabel(tenantId: string, dueDate: string): Promise<string>
         inArray(orders.status, [...OCCUPYING_STATUSES])
       )
     );
-  return `занято ${usedUnits(dayOrders)} из ${eff.capacity}`;
+  return `занято ${usedUnits(dayOrders)} из ${eff.capacity} (заказов: ${dayOrders.length})`;
 }
 
 export async function loadOwnedOrder(
