@@ -1,57 +1,21 @@
-# Task 0.1 Status Report
+# Project status
 
-## Completed ✅
+## Done
 
-- ✅ Repository structure
-- ✅ TypeScript configuration (strict mode)
-- ✅ ESLint configuration
-- ✅ Prettier configuration
-- ✅ Vitest setup
-- ✅ GitHub Actions CI workflow
-- ✅ `.env.example` with required variables
-- ✅ Config module with Zod validation
-- ✅ Comprehensive config tests (8 passing)
-- ✅ All checks passing: lint, format, typecheck, test, build
+- Стадия 0: scaffold, DB, TelegramPort, runner, scheduler, seed.
+- Стадия 1: claim-code owner binding, catalog/FAQ editor, settings.
+- Стадия 2: cart, availability, checkout, order creation, owner order card, calendar.
+- Стадия 3: payment flow, payment reminders, statuses, my orders, proposed date.
+- Стадия 4: relay/customer-owner chat, overload mode, antispam/block/BLOCKED.
+- Стадия 5: source links/QR, stats, daily digest.
+- Стадия 6: backup/restore, load simulation, `/deleteme`, superadmin commands, owner docs.
 
-## Critical Blocker ⚠️
+## Checks
 
-**Node.js 26 is not supported by `better-sqlite3`**
+- Tests: 37 files / 159 tests.
+- Lint, prettier, typecheck, build: green.
 
-The project cannot proceed with tasks 0.2-0.7 (database layer) on Node.js 26.8.1 due to V8 API incompatibilities.
+## Next
 
-### Required Action
-
-**Install Node.js 22 LTS** before continuing to task 0.2.
-
-See `INSTALL.md` for detailed instructions.
-
-### Verification Commands (after switching to Node.js 22)
-
-```bash
-node --version  # should show v22.x.x
-rm -rf node_modules package-lock.json
-npm install     # should succeed with better-sqlite3
-npm test
-npm run build
-```
-
-## Next Steps
-
-Once Node.js 22 is installed:
-- Task 0.2: Database schema and migrations
-- Task 0.3: TelegramPort interfaces
-- Task 0.4: Bot runner and middleware
-- Task 0.5: Job scheduler
-- Task 0.6: Tenant creation script and seed data
-- Task 0.7: Reference vertical slice
-
-## Commits
-
-All work committed following conventional commits:
-- `feat(config)`: Configuration module with zod validation
-- `test(config)`: Configuration validation tests
-- `chore`: Tooling setup (tsconfig, eslint, prettier, vitest)
-- `chore(ci)`: GitHub Actions workflow
-- `docs`: Setup instructions and Node.js compatibility notes
-
-Total: 7 commits on main branch
+- Pilot setup for 3–5 confectioners.
+- Optional post-MVP items from `tech.md`.
