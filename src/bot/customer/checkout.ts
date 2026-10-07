@@ -433,7 +433,13 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
       await ctx.port.editMessageText(chatId, messageId, ru.checkout.staleSubmit, {});
       return;
     }
-    if (!draft.dueDate || !draft.fulfillment || !draft.contactName || !draft.contactPhone) {
+    if (
+      !draft.dueDate ||
+      !draft.fulfillment ||
+      !draft.contactName ||
+      !draft.contactPhone ||
+      (draft.fulfillment === 'delivery' && !draft.address?.trim())
+    ) {
       await ctx.port.editMessageText(chatId, messageId, ru.checkout.incomplete, {});
       return;
     }
@@ -477,7 +483,9 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
             ? (ctx.tenant.busyText ?? ru.checkout.busy)
             : result.error === 'BAD_QTY'
               ? ru.checkout.badQty
-              : ru.checkout.emptyCart;
+              : result.error === 'BAD_ADDRESS'
+                ? ru.checkout.incomplete
+                : ru.checkout.emptyCart;
       await ctx.port.editMessageText(chatId, messageId, text, {});
       return;
     }

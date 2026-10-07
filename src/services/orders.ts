@@ -38,7 +38,8 @@ export type CreateOrderError =
   | 'DATE_UNAVAILABLE'
   | 'CAPACITY_EXCEEDED'
   | 'TENANT_BUSY'
-  | 'BAD_QTY';
+  | 'BAD_QTY'
+  | 'BAD_ADDRESS';
 
 export async function getCustomerOrderNumber(orderId: string): Promise<number | null> {
   const db = getDb();
@@ -81,6 +82,9 @@ export async function createOrder(
         }
         if (!tenant.acceptOrders) {
           return { error: 'TENANT_BUSY' as const };
+        }
+        if (input.checkout.fulfillment === 'delivery' && !input.checkout.address?.trim()) {
+          return { error: 'BAD_ADDRESS' as const };
         }
 
         const customerRows = tx

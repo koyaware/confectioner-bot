@@ -55,6 +55,29 @@ describe('createOrder', () => {
     return { cart: { lines: [{ lineId: 'l1', productId, qty, optionIds }] } };
   }
 
+  it('rejects delivery orders without address', async () => {
+    const { tenantId, products, customerId } = await setup();
+    const product = products[0]!;
+    const dueDate = addDays(toIsoDate(now, 'Europe/Moscow'), 5);
+
+    const result = await createOrder({
+      tenantId,
+      customerId,
+      cart: cartWith(product.id, 1, []).cart,
+      checkout: {
+        checkoutId: 'chk-noaddr',
+        dueDate,
+        fulfillment: 'delivery',
+        contactName: 'Иван',
+        contactPhone: '+7999',
+        referenceFileIds: [],
+      },
+      now,
+    });
+
+    expect(result).toEqual({ ok: false, error: 'BAD_ADDRESS' });
+  });
+
   it('creates order with computed totals and snapshot fields', async () => {
     const { tenantId, products, customerId } = await setup();
     const product = products[0]!;
