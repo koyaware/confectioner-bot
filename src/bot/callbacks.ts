@@ -137,7 +137,6 @@ const callbackSchema = z
       area: z.literal('ord'),
       action: z.enum([
         'view',
-        'msg',
         'refs',
         'accept',
         'reject',
