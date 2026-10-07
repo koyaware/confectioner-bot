@@ -93,7 +93,8 @@ describe('owner orders callbacks', () => {
 
     const edits = port.getCallsForMethod('editMessageText');
     expect(edits).toHaveLength(1);
-    expect(edits[0]!.args[2]).toBe('Последние заказы:');
+    expect(edits[0]!.args[2]).toContain('Заказы:');
+    expect(edits[0]!.args[2]).toContain('<b>Новые</b>');
     const keyboard = JSON.stringify(edits[0]!.args[3]);
     expect(keyboard).toContain('adm:ord:view:o1');
     expect(keyboard).toContain('adm:menu');

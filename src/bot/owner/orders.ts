@@ -17,8 +17,8 @@ import {
   capacityOverrides,
 } from '../../db/schema.js';
 import { effectiveCapacity, OCCUPYING_STATUSES, usedUnits } from '../../domain/capacity.js';
-import { and, asc, eq, inArray } from 'drizzle-orm';
-import { addDays } from '../../lib/time.js';
+import { and, desc, eq, inArray } from 'drizzle-orm';
+import { addDays, toIsoDate } from '../../lib/time.js';
 import { getDateAvailability } from '../../services/dates.js';
 
 export const REJECT_REASONS: Record<string, string> = ru.ownerOrders.rejectReasons;
@@ -252,26 +252,54 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
       .select()
       .from(orders)
       .where(eq(orders.tenantId, ctx.tenant.id))
-      .orderBy(asc(orders.createdAt))
-      .limit(30);
+      .orderBy(desc(orders.createdAt))
+      .limit(50);
 
     if (rows.length === 0) {
       await ctx.port.editMessageText(chatId, messageId, 'Заказов пока нет.', {
-        keyboard: { inline_keyboard: [[{ text: 'Назад', callback_data: 'adm:menu' }]] },
+        keyboard: { inline_keyboard: [[{ text: ru.common.back, callback_data: 'adm:menu' }]] },
       });
       return;
     }
 
-    const keyboardRows: InlineKeyboard['inline_keyboard'] = rows.slice(-15).map((order) => [
+    const todayIso = toIsoDate(new Date(), ctx.tenant.timezone);
+    const tomorrowIso = addDays(todayIso, 1);
+    const isWork = (s: string) =>
+      s === 'awaiting_payment' || s === 'payment_review' || s === 'confirmed';
+    const groups: { title: string; orders: typeof rows }[] = [
+      { title: 'Новые', orders: rows.filter((o) => o.status === 'new') },
+      { title: 'В работе', orders: rows.filter((o) => isWork(o.status)) },
+      { title: 'Готовые', orders: rows.filter((o) => o.status === 'ready') },
       {
-        text: `№${order.number} ${order.status} · ${order.dueDate}`,
-        callback_data: `adm:ord:view:${order.id}`,
+        title: 'На сегодня и завтра',
+        orders: rows.filter((o) => o.dueDate === todayIso || o.dueDate === tomorrowIso),
       },
-    ]);
-    keyboardRows.push([{ text: 'Назад', callback_data: 'adm:menu' }]);
+    ];
 
-    await ctx.port.editMessageText(chatId, messageId, 'Последние заказы:', {
+    const lines: string[] = ['Заказы:'];
+    const keyboardRows: InlineKeyboard['inline_keyboard'] = [];
+    const shown = new Set<string>();
+    for (const g of groups) {
+      if (g.orders.length === 0) continue;
+      lines.push('', `<b>${g.title}</b>`);
+      for (const order of g.orders.slice(0, 8)) {
+        lines.push(`• №${order.number} · ${order.status} · ${order.dueDate}`);
+        if (!shown.has(order.id)) {
+          shown.add(order.id);
+          keyboardRows.push([
+            {
+              text: `№${order.number}`,
+              callback_data: `adm:ord:view:${order.id}`,
+            },
+          ]);
+        }
+      }
+    }
+    keyboardRows.push([{ text: ru.common.back, callback_data: 'adm:menu' }]);
+
+    await ctx.port.editMessageText(chatId, messageId, lines.join('\n'), {
       keyboard: { inline_keyboard: keyboardRows },
+      parseMode: 'HTML',
     });
   });
 
