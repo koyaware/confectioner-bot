@@ -156,4 +156,30 @@ describe('cart', () => {
     expect(data.cart.lines).toHaveLength(1);
     expect(data.cart.lines[0]!.qty).toBe(2);
   });
+
+  it('hidden product cannot be added via stale card', async () => {
+    const { tenantId } = await seedDemo(appSecret, new Date());
+    const db = getDb();
+    const { products } = await import('../src/db/schema.js');
+    const { setProductActive } = await import('../src/services/catalog-editor.js');
+    const all = await db.select().from(products).limit(1);
+    const productId = all[0]!.id;
+    await setProductActive(tenantId, productId, false);
+
+    const port = new FakePort();
+    const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
+
+    await bot.handleUpdate(cb(1, 'c1', 42, 10, `prd:add:${productId}`));
+
+    expect(
+      port
+        .getCallsForMethod('answerCallback')
+        .some((c) => String(c.args[1]).includes('Товар не найден.'))
+    ).toBe(true);
+    const rows = await db.select().from(sessions);
+    const data = (
+      typeof rows[0]!.data === 'string' ? JSON.parse(rows[0]!.data) : rows[0]!.data
+    ) as { cart: { lines: unknown[] } };
+    expect(data.cart.lines).toHaveLength(0);
+  });
 });

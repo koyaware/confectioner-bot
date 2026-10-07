@@ -3,7 +3,7 @@ import { BotContextWithSession } from '../context.js';
 import { decodeCallback } from '../callbacks.js';
 import { escapeHtml } from '../../domain/escape.js';
 import { formatMinor } from '../../lib/money.js';
-import { getProductById, listProductOptions } from '../../services/catalog.js';
+import { getProductById, getProductIfOwned, listProductOptions } from '../../services/catalog.js';
 import { priceLine, priceOrder } from '../../domain/pricing.js';
 import { InlineKeyboard } from '../../telegram/port.js';
 import { CartLine } from '../../types.js';
@@ -161,17 +161,24 @@ export function registerCartHandlers(bot: Bot<BotContextWithSession>): void {
   });
 
   bot.callbackQuery(/^prd:add:/, async (ctx) => {
-    await ctx.port.answerCallback(ctx.callbackQuery.id, ctx.t.cart.added);
-
     const decoded = decodeCallback(ctx.callbackQuery.data);
-    if (!decoded.ok) return;
+    if (!decoded.ok) {
+      await ctx.port.answerCallback(ctx.callbackQuery.id);
+      return;
+    }
 
     const match = /^prd:add:(.+)$/.exec(ctx.callbackQuery.data);
     const productId = match?.[1];
-    if (!productId) return;
+    if (!productId) {
+      await ctx.port.answerCallback(ctx.callbackQuery.id);
+      return;
+    }
 
-    const product = await getProductById(ctx.tenant.id, productId);
-    if (!product) return;
+    const product = await getProductIfOwned(ctx.tenant.id, productId);
+    if (!product) {
+      await ctx.port.answerCallback(ctx.callbackQuery.id, ctx.t.product.notFound);
+      return;
+    }
 
     const options = await listProductOptions(productId);
     const selectedOptionIds = resolveSelections(ctx.session.selections?.[productId], options);
@@ -196,6 +203,7 @@ export function registerCartHandlers(bot: Bot<BotContextWithSession>): void {
     delete ctx.session.selections?.[productId];
 
     await trackFunnelEvent(ctx, 'cart_add');
+    await ctx.port.answerCallback(ctx.callbackQuery.id, ctx.t.cart.added);
   });
 
   bot.callbackQuery(/^prd:qty:/, async (ctx) => {
