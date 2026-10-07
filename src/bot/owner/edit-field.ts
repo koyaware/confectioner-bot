@@ -155,7 +155,17 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
           return;
         }
         if (draft.targetId && draft.extra?.group && draft.extra?.title) {
-          await editor.addOption(draft.targetId, draft.extra.group, draft.extra.title, d);
+          const added = await editor.addOption(
+            ctx.tenant.id,
+            draft.targetId,
+            draft.extra.group,
+            draft.extra.title,
+            d
+          );
+          if (!added.ok) {
+            await ctx.port.sendMessage(ctx.chat.id, ru.product.notFound);
+            return;
+          }
         }
         await ctx.port.sendMessage(ctx.chat.id, ru.ownerCatalog.saved);
         return;

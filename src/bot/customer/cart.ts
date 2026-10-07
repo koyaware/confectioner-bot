@@ -204,6 +204,9 @@ export function registerCartHandlers(bot: Bot<BotContextWithSession>): void {
     if (!match) return;
     const [, productId, optionId] = match;
 
+    const product = await getProductById(ctx.tenant.id, productId!);
+    if (!product) return;
+
     const options = await listProductOptions(productId!);
     const clicked = options.find((o) => o.id === optionId);
     if (!clicked) return;
@@ -221,10 +224,7 @@ export function registerCartHandlers(bot: Bot<BotContextWithSession>): void {
     const chatId = ctx.callbackQuery.message?.chat.id;
     const messageId = ctx.callbackQuery.message?.message_id;
     if (chatId && messageId) {
-      const product = await getProductById(ctx.tenant.id, productId!);
-      if (product) {
-        await renderProductCard(ctx, product, options, chatId, messageId);
-      }
+      await renderProductCard(ctx, product, options, chatId, messageId);
     }
   });
 

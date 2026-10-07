@@ -156,12 +156,21 @@ export async function deleteProduct(tenantId: string, productId: string): Promis
 }
 
 export async function addOption(
+  tenantId: string,
   productId: string,
   groupTitle: string,
   title: string,
   priceDeltaMinor: number
-): Promise<{ id: string }> {
+): Promise<Result<{ id: string }, 'NOT_FOUND'>> {
   const db = getDb();
+  const productRows = await db
+    .select()
+    .from(products)
+    .where(and(eq(products.id, productId), eq(products.tenantId, tenantId)))
+    .limit(1);
+  if (productRows.length === 0) {
+    return { ok: false, error: 'NOT_FOUND' };
+  }
   const rows = await db
     .select({ max: sql<number | null>`max(${productOptions.sortOrder})` })
     .from(productOptions)
@@ -177,15 +186,35 @@ export async function addOption(
     sortOrder,
     isActive: true,
   });
-  return { id };
+  return { ok: true, value: { id } };
 }
 
-export async function setOptionActive(optionId: string, isActive: boolean) {
+export async function setOptionActive(
+  tenantId: string,
+  optionId: string,
+  isActive: boolean
+): Promise<boolean> {
   const db = getDb();
+  const rows = await db
+    .select({ id: productOptions.id })
+    .from(productOptions)
+    .innerJoin(products, eq(productOptions.productId, products.id))
+    .where(and(eq(productOptions.id, optionId), eq(products.tenantId, tenantId)))
+    .limit(1);
+  if (rows.length === 0) return false;
   await db.update(productOptions).set({ isActive }).where(eq(productOptions.id, optionId));
+  return true;
 }
 
-export async function deleteOption(optionId: string): Promise<void> {
+export async function deleteOption(tenantId: string, optionId: string): Promise<boolean> {
   const db = getDb();
+  const rows = await db
+    .select({ id: productOptions.id })
+    .from(productOptions)
+    .innerJoin(products, eq(productOptions.productId, products.id))
+    .where(and(eq(productOptions.id, optionId), eq(products.tenantId, tenantId)))
+    .limit(1);
+  if (rows.length === 0) return false;
   await db.delete(productOptions).where(eq(productOptions.id, optionId));
+  return true;
 }

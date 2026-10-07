@@ -142,6 +142,15 @@ async function showProductEdit(ctx: BotContextWithSession, productId: string) {
 }
 
 async function showOptionList(ctx: BotContextWithSession, productId: string) {
+  const product = await getProductById(ctx.tenant.id, productId);
+  if (!product) {
+    const chatId = ctx.callbackQuery?.message?.chat.id ?? ctx.chat?.id;
+    const messageId = ctx.callbackQuery?.message?.message_id;
+    if (chatId && messageId) {
+      await ctx.port.editMessageText(chatId, messageId, ru.product.notFound, {});
+    }
+    return;
+  }
   const opts = await listProductOptions(productId);
   const rows: InlineKeyboard['inline_keyboard'] = [];
   for (const o of opts) {
@@ -288,14 +297,14 @@ export function registerOwnerCatalogHandlers(bot: Bot<BotContextWithSession>): v
       return;
     }
     if (action === 'optdel' && arg && arg2) {
-      await editor.deleteOption(arg2);
+      await editor.deleteOption(ctx.tenant.id, arg2);
       return showOptionList(ctx, arg);
     }
     if (action === 'opttoggle' && arg && arg2) {
       const opts = await listProductOptions(arg);
       const opt = opts.find((o) => o.id === arg2);
       if (opt) {
-        await editor.setOptionActive(arg2, !opt.isActive);
+        await editor.setOptionActive(ctx.tenant.id, arg2, !opt.isActive);
       }
       return showOptionList(ctx, arg);
     }
