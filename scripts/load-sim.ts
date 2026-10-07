@@ -8,6 +8,35 @@ import { orders, sessions, tenants } from '../src/db/schema.js';
 import { eq } from 'drizzle-orm';
 import { addDays, toIsoDate } from '../src/domain/dates.js';
 
+let updateSeq = 100000;
+
+function cb(id: string, from: number, msgId: number, data: string) {
+  return {
+    update_id: updateSeq++,
+    callback_query: {
+      id,
+      from: { id: from, is_bot: false, first_name: 'C' },
+      message: { message_id: msgId, date: 1, chat: { id: from, type: 'private' } },
+      data,
+    },
+  } as never;
+}
+
+function msg(from: number, text: string) {
+  const id = updateSeq++;
+  return {
+    update_id: id,
+    message: {
+      message_id: id,
+      date: 1,
+      chat: { id: from, type: 'private' },
+      from: { id: from, is_bot: false, first_name: 'C' },
+      text,
+      entities: [],
+    },
+  } as never;
+}
+
 async function main() {
   const testDbPath = './load-sim.db';
   for (const suffix of ['', '-wal', '-shm']) {
@@ -29,86 +58,74 @@ async function main() {
 
   const durations: number[] = [];
   let expectedOrders = 0;
+  let customerSeq = 0;
 
-  for (let customer = 1; customer <= 300; customer++) {
-    const userId = 100000 + customer;
-    const stepDurations: number[] = [];
+  function lastEditFor(userId: number, method: string): { args: unknown[] } {
+    const calls = port.getCallsForMethod(method).filter((c) => (c.args[0] as number) === userId);
+    const last = calls[calls.length - 1];
+    if (!last) throw new Error(`no ${method} for user ${userId}`);
+    return last;
+  }
 
-    const timeSteps = async () => {
-      let start = performance.now();
-      await bot.handleUpdate(cb(1, `c-${customer}-1`, userId, 10, 'cat:list'));
-      stepDurations.push(performance.now() - start);
+  async function runCustomerFlow(): Promise<void> {
+    const n = ++customerSeq;
+    const userId = 200000 + n;
+    const tag = `u${n}`;
 
-      start = performance.now();
-      const edits = port.getCallsForMethod('editMessageText');
-      const lastEdit = edits[edits.length - 1]!;
-      const catMatch = JSON.stringify(lastEdit.args[3]).match(/cat:open:[A-Za-z0-9_-]+/);
-      if (!catMatch) throw new Error('category button not found');
-      await bot.handleUpdate(cb(2, `c-${customer}-2`, userId, 10, catMatch[0]));
-      stepDurations.push(performance.now() - start);
-
-      start = performance.now();
-      const edits2 = port.getCallsForMethod('editMessageText');
-      const lastEdit2 = edits2[edits2.length - 1]!;
-      const prdMatch = JSON.stringify(lastEdit2.args[3]).match(/prd:open:[A-Za-z0-9_-]+/);
-      if (!prdMatch) throw new Error('product button not found');
-      await bot.handleUpdate(cb(3, `c-${customer}-3`, userId, 10, prdMatch[0]));
-      stepDurations.push(performance.now() - start);
-
-      start = performance.now();
-      const edits3 = port.getCallsForMethod('editMessageText');
-      const lastEdit3 = edits3[edits3.length - 1]!;
-      const addMatch = JSON.stringify(lastEdit3.args[3]).match(/prd:add:[A-Za-z0-9_-]+/);
-      if (!addMatch) throw new Error('add button not found');
-      await bot.handleUpdate(cb(4, `c-${customer}-4`, userId, 10, addMatch[0]));
-      stepDurations.push(performance.now() - start);
-
-      start = performance.now();
-      await bot.handleUpdate(cb(5, `c-${customer}-5`, userId, 10, 'cart:show'));
-      stepDurations.push(performance.now() - start);
-
-      start = performance.now();
-      await bot.handleUpdate(cb(6, `c-${customer}-6`, userId, 10, 'chk:start'));
-      stepDurations.push(performance.now() - start);
-
-      const freeDate = addDays(toIsoDate(now, 'Europe/Moscow'), 5 + (customer % 30));
-      start = performance.now();
-      await bot.handleUpdate(cb(7, `c-${customer}-7`, userId, 10, `chk:date:${freeDate}`));
-      stepDurations.push(performance.now() - start);
-
-      start = performance.now();
-      await bot.handleUpdate(msg(20 + customer * 10, userId, 'к 15:00'));
-      stepDurations.push(performance.now() - start);
-
-      start = performance.now();
-      await bot.handleUpdate(cb(8, `c-${customer}-8`, userId, 10, 'chk:ful:pickup'));
-      stepDurations.push(performance.now() - start);
-
-      start = performance.now();
-      await bot.handleUpdate(msg(21 + customer * 10, userId, 'Иван, +79991234567'));
-      stepDurations.push(performance.now() - start);
-
-      start = performance.now();
-      await bot.handleUpdate(msg(22 + customer * 10, userId, 'Без комментария'));
-      stepDurations.push(performance.now() - start);
-
-      start = performance.now();
-      await bot.handleUpdate(cb(9, `c-${customer}-9`, userId, 10, 'chk:skip'));
-      stepDurations.push(performance.now() - start);
-
-      start = performance.now();
-      const confirmEdits = port.getCallsForMethod('editMessageText');
-      const confirm = confirmEdits[confirmEdits.length - 1]!;
-      const submitMatch = JSON.stringify(confirm.args[3]).match(/chk:submit:[A-Za-z0-9_-]+/);
-      if (!submitMatch) throw new Error('submit button not found');
-      await bot.handleUpdate(cb(10, `c-${customer}-10`, userId, 10, submitMatch[0]));
-      stepDurations.push(performance.now() - start);
-
-      expectedOrders++;
+    const timed = async <T>(fn: () => Promise<T>): Promise<T> => {
+      const start = performance.now();
+      try {
+        return await fn();
+      } finally {
+        durations.push(performance.now() - start);
+      }
     };
 
-    await timeSteps();
-    for (const d of stepDurations) durations.push(d);
+    await timed(() => bot.handleUpdate(cb(`${tag}-1`, userId, 10, 'cat:list')));
+    const catMatch = JSON.stringify(lastEditFor(userId, 'editMessageText').args[3]).match(
+      /cat:open:[A-Za-z0-9_-]+/
+    );
+    if (!catMatch) throw new Error('category button not found');
+    await timed(() => bot.handleUpdate(cb(`${tag}-2`, userId, 10, catMatch[0])));
+
+    const prdMatch = JSON.stringify(lastEditFor(userId, 'editMessageText').args[3]).match(
+      /prd:open:[A-Za-z0-9_-]+/
+    );
+    if (!prdMatch) throw new Error('product button not found');
+    await timed(() => bot.handleUpdate(cb(`${tag}-3`, userId, 10, prdMatch[0])));
+
+    const addMatch = JSON.stringify(lastEditFor(userId, 'editMessageText').args[3]).match(
+      /prd:add:[A-Za-z0-9_-]+/
+    );
+    if (!addMatch) throw new Error('add button not found');
+    await timed(() => bot.handleUpdate(cb(`${tag}-4`, userId, 10, addMatch[0])));
+
+    await timed(() => bot.handleUpdate(cb(`${tag}-5`, userId, 10, 'cart:show')));
+    await timed(() => bot.handleUpdate(cb(`${tag}-6`, userId, 10, 'chk:start')));
+
+    const freeDate = addDays(toIsoDate(now, 'Europe/Moscow'), 5 + (n % 30));
+    await timed(() => bot.handleUpdate(cb(`${tag}-7`, userId, 10, `chk:date:${freeDate}`)));
+
+    await timed(() => bot.handleUpdate(msg(userId, 'к 15:00')));
+    await timed(() => bot.handleUpdate(cb(`${tag}-8`, userId, 10, 'chk:ful:pickup')));
+    await timed(() => bot.handleUpdate(msg(userId, 'Иван, +79991234567')));
+    await timed(() => bot.handleUpdate(msg(userId, 'Без комментария')));
+    await timed(() => bot.handleUpdate(cb(`${tag}-9`, userId, 10, 'chk:skip')));
+
+    const confirm = lastEditFor(userId, 'editMessageText');
+    const submitMatch = JSON.stringify(confirm.args[3]).match(/chk:submit:[A-Za-z0-9_-]+/);
+    if (!submitMatch) throw new Error('submit button not found');
+    await timed(() => bot.handleUpdate(cb(`${tag}-10`, userId, 10, submitMatch[0])));
+
+    expectedOrders++;
+  }
+
+  // Waves of truly concurrent customers: 10, then 50, then 100.
+  for (const waveSize of [10, 50, 100]) {
+    const waveStart = performance.now();
+    await Promise.all(Array.from({ length: waveSize }, () => runCustomerFlow()));
+    const waveMs = Math.round(performance.now() - waveStart);
+    console.log(`wave ${waveSize}: ${waveMs}ms`);
   }
 
   const allOrders = await getDb().select().from(orders);
@@ -184,7 +201,7 @@ async function main() {
   console.log(
     JSON.stringify(
       {
-        customers: 300,
+        customers: expectedOrders,
         orders: allOrders.length,
         expectedOrders,
         uniqueOrderIds: uniqueIds.size,
@@ -203,32 +220,6 @@ async function main() {
 
   closeDatabase();
   process.exit(passed && raceWins === 1 && p95 < 200 ? 0 : 1);
-}
-
-function cb(update_id: number, id: string, from: number, msgId: number, data: string) {
-  return {
-    update_id,
-    callback_query: {
-      id,
-      from: { id: from, is_bot: false, first_name: 'C' },
-      message: { message_id: msgId, date: 1, chat: { id: from, type: 'private' } },
-      data,
-    },
-  } as never;
-}
-
-function msg(update_id: number, from: number, text: string) {
-  return {
-    update_id,
-    message: {
-      message_id: update_id,
-      date: 1,
-      chat: { id: from, type: 'private' },
-      from: { id: from, is_bot: false, first_name: 'C' },
-      text,
-      entities: [],
-    },
-  } as never;
 }
 
 main().catch((error) => {
