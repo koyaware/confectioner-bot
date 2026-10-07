@@ -2,8 +2,9 @@ import { JobHandler, JobResult } from '../types.js';
 import { getDb } from '../../db/client.js';
 import { customers, orders, tenants } from '../../db/schema.js';
 import { getCustomerOrderNumber } from '../../services/orders.js';
+import { sendCustomerMessage } from '../../services/notify.js';
+import { TelegramPort } from '../../telegram/port.js';
 import { eq } from 'drizzle-orm';
-import { TelegramError, TelegramPort } from '../../telegram/port.js';
 
 export function createPickupReminderHandler(ports: {
   getPort(tenantId: string): TelegramPort | undefined;
@@ -39,16 +40,16 @@ export function createPickupReminderHandler(ports: {
         ? `доставка${order.address ? `, адрес: ${order.address}` : ''}`
         : 'самовывоз';
     try {
-      await port.sendMessage(
-        customer.telegramId,
+      const result = await sendCustomerMessage(
+        port,
+        order.tenantId,
+        customer.id,
         `Напоминание: заказ №${(await getCustomerOrderNumber(order.id)) ?? order.number} — ${order.dueDate}${order.dueTimeText ? `, ${order.dueTimeText}` : ''}. ${detail}.`
       );
-    } catch (error) {
-      if (error instanceof TelegramError && error.code === 'BLOCKED') {
-        const db2 = getDb();
-        await db2.update(customers).set({ botBlocked: true }).where(eq(customers.id, customer.id));
+      if (result === 'failed') {
         return { success: true };
       }
+    } catch (error) {
       return { success: false, error: String(error) };
     }
     return { success: true };

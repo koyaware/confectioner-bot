@@ -3,7 +3,8 @@ import { getDb } from '../../db/client.js';
 import { customers, orders, tenants } from '../../db/schema.js';
 import { eq } from 'drizzle-orm';
 import { applyOrderEvent, getCustomerOrderNumber } from '../../services/orders.js';
-import { TelegramPort, TelegramError } from '../../telegram/port.js';
+import { sendCustomerMessage } from '../../services/notify.js';
+import { TelegramPort } from '../../telegram/port.js';
 import { formatMinor } from '../../lib/money.js';
 
 export interface PortResolver {
@@ -48,16 +49,16 @@ export function createPaymentReminderHandler(ports: PortResolver): JobHandler<{ 
             minute: '2-digit',
           }).format(new Date(order.paymentDueAt))
         : '—';
-      await port.sendMessage(
-        customer.telegramId,
+      const result = await sendCustomerMessage(
+        port,
+        order.tenantId,
+        customer.id,
         `Напоминаем: предоплата по заказу №${(await getCustomerOrderNumber(order.id)) ?? order.number} — ${formatMinor(order.prepaymentMinor, tenant.currency)}. Срок до ${deadline}.`
       );
-    } catch (error) {
-      if (error instanceof TelegramError && error.code === 'BLOCKED') {
-        const db = getDb();
-        await db.update(customers).set({ botBlocked: true }).where(eq(customers.id, customer.id));
+      if (result === 'failed') {
         return { success: true };
       }
+    } catch (error) {
       return { success: false, error: String(error) };
     }
     return { success: true };
@@ -79,18 +80,14 @@ export function createPaymentExpireHandler(ports: PortResolver): JobHandler<{ or
     if (port) {
       if (customer && !customer.botBlocked) {
         try {
-          await port.sendMessage(
-            customer.telegramId,
+          await sendCustomerMessage(
+            port,
+            order.tenantId,
+            customer.id,
             `Заказ №${(await getCustomerOrderNumber(order.id)) ?? order.number} снят: предоплата не поступила вовремя.`
           );
-        } catch (error) {
-          if (error instanceof TelegramError && error.code === 'BLOCKED') {
-            const db = getDb();
-            await db
-              .update(customers)
-              .set({ botBlocked: true })
-              .where(eq(customers.id, customer.id));
-          }
+        } catch {
+          // network errors are swallowed here: the order already expired
         }
       }
       if (tenant?.ownerTelegramId) {

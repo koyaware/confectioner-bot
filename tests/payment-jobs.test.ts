@@ -156,4 +156,27 @@ describe('payment jobs', () => {
       (expireBefore.runAt as Date).getTime()
     );
   });
+
+  it('BLOCKED marks botBlocked and notifies owner once', async () => {
+    const { order } = await setup();
+    await applyOrderEvent(order.id, 'owner_accept', 'owner', now);
+
+    const port = new FakePort();
+    port.addBlockedOnFirstCall('sendMessage');
+    const handler = createPaymentReminderHandler({ getPort: () => port });
+
+    const first = await handler({ orderId: order.id }, 'job1');
+    expect(first.success).toBe(true);
+    const second = await handler({ orderId: order.id }, 'job1');
+    expect(second.success).toBe(true);
+
+    const db = getDb();
+    const { customers } = await import('../src/db/schema.js');
+    const custRows = await db.select().from(customers);
+    expect(custRows[0]!.botBlocked).toBe(true);
+
+    const sent = port.getCallsForMethod('sendMessage');
+    expect(sent.filter((c) => c.args[0] === 555)).toHaveLength(1);
+    expect(sent.filter((c) => c.args[0] === 42)).toHaveLength(1);
+  });
 });
