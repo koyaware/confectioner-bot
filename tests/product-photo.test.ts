@@ -129,6 +129,28 @@ describe('product photo on card', () => {
     ).toBe(false);
   });
 
+  it('broken photo falls back to the text card without user error', async () => {
+    const { tenantId } = await seedDemo(appSecret, new Date());
+    const db = getDb();
+    const all = await db.select().from(products).limit(1);
+    await db
+      .update(products)
+      .set({ photoFileId: 'photo-file-1' })
+      .where(eq(products.id, all[0]!.id));
+
+    const port = new FakePort();
+    port.addErrorRule('sendPhoto', 'OTHER', 'bad file_id', 50);
+    const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
+
+    await bot.handleUpdate(cb(1, 'c1', 42, 10, `prd:open:${all[0]!.id}`));
+
+    const edits = port.getCallsForMethod('editMessageTextOrSend');
+    expect(edits.length).toBeGreaterThan(0);
+    expect(String(edits[edits.length - 1]!.args[2])).toContain(all[0]!.title);
+    const sends = port.getCallsForMethod('sendMessage');
+    expect(sends.some((c) => String(c.args[1]).includes('Произошла ошибка'))).toBe(false);
+  });
+
   it('card without photo stays a text screen', async () => {
     const { tenantId } = await seedDemo(appSecret, new Date());
     const db = getDb();

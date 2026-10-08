@@ -79,30 +79,37 @@ export async function renderProductCard(
   rows.push([{ text: ctx.t.catalog.back, callback_data: `cat:open:${product.categoryId}` }]);
 
   const keyboard = { inline_keyboard: rows };
+  const text = lines.join('\n');
   if (product.photoFileId) {
-    const caption = truncateText(lines.join('\n'), 1024);
+    const caption = truncateText(text, 1024);
     const screen = ctx.callbackQuery?.message;
-    if (screen && 'photo' in screen) {
-      // Already a photo screen: swap media in place (one API call).
-      await ctx.port.editMessageMedia(chatId, messageId, product.photoFileId, caption, {
-        keyboard,
-        parseMode: 'HTML',
-      });
-      return;
-    }
-    // Text screen becomes a photo screen so the chat keeps a single message.
     try {
-      await ctx.port.deleteMessage(chatId, messageId);
+      if (screen && 'photo' in screen) {
+        // Already a photo screen: swap media in place (one API call).
+        await ctx.port.editMessageMedia(chatId, messageId, product.photoFileId, caption, {
+          keyboard,
+          parseMode: 'HTML',
+        });
+      } else {
+        // Text screen becomes a photo screen: send first so a media
+        // failure still leaves the old screen intact for the fallback.
+        await ctx.port.sendPhoto(chatId, product.photoFileId, caption, {
+          keyboard,
+          parseMode: 'HTML',
+        });
+        try {
+          await ctx.port.deleteMessage(chatId, messageId);
+        } catch {
+          // already gone
+        }
+      }
+      return;
     } catch {
-      // already gone
+      // Bad/expired file_id or oversized media: fall back to the text card
+      // instead of surfacing an error on every card interaction.
     }
-    await ctx.port.sendPhoto(chatId, product.photoFileId, caption, {
-      keyboard,
-      parseMode: 'HTML',
-    });
-    return;
   }
-  await ctx.port.editMessageTextOrSend(chatId, messageId, lines.join('\n'), {
+  await ctx.port.editMessageTextOrSend(chatId, messageId, text, {
     keyboard,
     parseMode: 'HTML',
   });
