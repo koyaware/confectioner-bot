@@ -10,6 +10,12 @@ export function resolveSelections(
   selected: string[] | undefined,
   options: { id: string; groupTitle: string; isActive: boolean }[]
 ): string[] {
+  const known = new Set(options.map((o) => o.id));
+  if (selected !== undefined) {
+    // Explicit choice (may be empty after toggle-off): keep known ids.
+    return selected.filter((id) => known.has(id));
+  }
+  // First view: default to the first active option per group.
   const byGroup = new Map<string, string[]>();
   for (const o of options) {
     if (!o.isActive) continue;
@@ -19,8 +25,7 @@ export function resolveSelections(
   }
   const result: string[] = [];
   for (const ids of byGroup.values()) {
-    const chosen = selected?.find((s) => ids.includes(s));
-    result.push(chosen ?? ids[0]!);
+    result.push(ids[0]!);
   }
   return result;
 }

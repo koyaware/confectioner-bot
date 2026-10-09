@@ -80,7 +80,7 @@ describe('createOrder', () => {
     expect(result).toEqual({ ok: false, error: 'CUSTOMER_BLOCKED' });
   });
 
-  it('rejects empty option selection on optioned products', async () => {
+  it('allows empty option selection on optioned products', async () => {
     const { tenantId, products, customerId } = await setup();
     const product = products[0]!;
     const dueDate = addDays(toIsoDate(now, 'Europe/Moscow'), 5);
@@ -100,6 +100,37 @@ describe('createOrder', () => {
       now,
     });
 
+    expect(result.ok).toBe(true);
+  });
+
+  it('rejects multiple options from one group', async () => {
+    const { tenantId, products, customerId } = await setup();
+    const db = getDb();
+    const { productOptions } = await import('../src/db/schema.js');
+    const opts = await db
+      .select()
+      .from(productOptions)
+      .where(eq(productOptions.productId, products[0]!.id));
+    const group = opts[0]!.groupTitle;
+    const pair = opts.filter((o) => o.groupTitle === group).map((o) => o.id);
+    expect(pair.length).toBeGreaterThanOrEqual(2);
+    const dueDate = addDays(toIsoDate(now, 'Europe/Moscow'), 5);
+
+    const result = await createOrder({
+      tenantId,
+      customerId,
+      cart: cartWith(products[0]!.id, 1, [pair[0]!, pair[1]!]).cart,
+      checkout: {
+        checkoutId: 'chk-twoopts',
+        dueDate,
+        fulfillment: 'pickup',
+        contactName: 'Иван',
+        contactPhone: '+7999',
+        referenceFileIds: [],
+      },
+      now,
+    });
+
     expect(result).toEqual({ ok: false, error: 'BAD_OPTIONS' });
   });
 
@@ -107,10 +138,7 @@ describe('createOrder', () => {
     const { tenantId, products, customerId } = await setup();
     const db = getDb();
     const { products: pTable } = await import('../src/db/schema.js');
-    await db
-      .update(pTable)
-      .set({ priceMinor: 0 })
-      .where(eq(pTable.id, products[0]!.id));
+    await db.update(pTable).set({ priceMinor: 0 }).where(eq(pTable.id, products[0]!.id));
 
     const result = await createOrder({
       tenantId,
@@ -218,7 +246,7 @@ describe('createOrder', () => {
     // fill capacity: 5 orders of 1 unit each
     // find a product with capacityUnits = 1
     const allProducts = await getDb().query.products.findMany();
-    const product = allProducts.find(p => p.capacityUnits === 1)!;
+    const product = allProducts.find((p) => p.capacityUnits === 1)!;
     const dueDate = addDays(toIsoDate(now, 'Europe/Moscow'), 5);
 
     for (let i = 0; i < 5; i++) {

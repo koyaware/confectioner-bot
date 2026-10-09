@@ -161,7 +161,7 @@ export async function createOrder(
           }
           for (const ids of activeByGroup.values()) {
             const chosen = selected.filter((s) => ids.includes(s.id));
-            if (chosen.length !== 1) {
+            if (chosen.length > 1) {
               return { error: 'BAD_OPTIONS' as const };
             }
           }

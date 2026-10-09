@@ -157,6 +157,59 @@ describe('cart', () => {
     expect(data.cart.lines[0]!.qty).toBe(2);
   });
 
+  it('tapping a chosen option deselects it; add keeps empty selection', async () => {
+    const { tenantId } = await seedDemo(appSecret, new Date());
+    const port = new FakePort();
+    const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
+
+    await bot.handleUpdate(cb(1, 'c1', 42, 10, 'cat:list'));
+    let edits = port.getCallsForMethod('editMessageTextOrSend');
+    const catBtn = JSON.stringify(edits[0]!.args[3]).match(/cat:open:[A-Za-z0-9_-]+/)![0];
+    await bot.handleUpdate(cb(2, 'c2', 42, 10, catBtn));
+    edits = port.getCallsForMethod('editMessageTextOrSend');
+    const prdBtn = JSON.stringify(edits[1]!.args[3]).match(/prd:open:[A-Za-z0-9_-]+/)![0];
+    await bot.handleUpdate(cb(3, 'c3', 42, 10, prdBtn));
+    edits = port.getCallsForMethod('editMessageTextOrSend');
+    const cardKb = JSON.stringify(edits[2]!.args[3]);
+    const optBtn = cardKb.match(/prd:opt:[A-Za-z0-9_-]+:[A-Za-z0-9_-]+/)![0];
+    const addBtn = cardKb.match(/prd:add:[A-Za-z0-9_-]+/)![0];
+
+    const checkedOptBtns = (): string[] => {
+      const allEdits = port.getCallsForMethod('editMessageTextOrSend');
+      const opts = allEdits[allEdits.length - 1]!.args[3] as {
+        keyboard: { inline_keyboard: { text: string; callback_data?: string }[][] };
+      };
+      const kb = opts.keyboard.inline_keyboard;
+      return kb
+        .flat()
+        .filter((b) => b.text.startsWith('✅ ') && b.callback_data?.startsWith('prd:opt:'))
+        .map((b) => b.callback_data!);
+    };
+    // defaults are checked; tapping a checked option deselects it
+    expect(checkedOptBtns().length).toBeGreaterThan(0);
+    const first = checkedOptBtns()[0]!;
+    await bot.handleUpdate(cb(4, 'c4', 42, 10, first));
+    expect(checkedOptBtns()).not.toContain(first);
+    // tapping again selects it back
+    await bot.handleUpdate(cb(5, 'c5', 42, 10, first));
+    expect(checkedOptBtns()).toContain(first);
+    // deselect everything, then add: line stored with empty options
+    let n = 6;
+    for (const data of [...checkedOptBtns()]) {
+      await bot.handleUpdate(cb(n, `c${n}`, 42, 10, data));
+      n++;
+    }
+    expect(checkedOptBtns()).toHaveLength(0);
+    await bot.handleUpdate(cb(n, `c${n}`, 42, 10, addBtn));
+
+    const rows = await getDb().select().from(sessions);
+    const data = (
+      typeof rows[0]!.data === 'string' ? JSON.parse(rows[0]!.data) : rows[0]!.data
+    ) as { cart: { lines: { optionIds: string[] }[] } };
+    expect(data.cart.lines).toHaveLength(1);
+    expect(data.cart.lines[0]!.optionIds).toEqual([]);
+  });
+
   it('hidden product cannot be added via stale card', async () => {
     const { tenantId } = await seedDemo(appSecret, new Date());
     const db = getDb();

@@ -244,12 +244,21 @@ export function registerCartHandlers(bot: Bot<BotContextWithSession>): void {
     const clicked = options.find((o) => o.id === optionId);
     if (!clicked) return;
 
-    const current = ctx.session.selections?.[productId!] ?? [];
-    const sameGroupIds = options
-      .filter((o) => o.groupTitle === clicked.groupTitle)
-      .map((o) => o.id);
-    const next = current.filter((id) => !sameGroupIds.includes(id));
-    next.push(optionId!);
+    // Effective choice = stored selection, or defaults on first view.
+    // Defaults live only in render, so compare against them too.
+    const stored = ctx.session.selections?.[productId!];
+    const effective = stored ?? resolveSelections(undefined, options);
+    let next: string[];
+    if (effective.includes(optionId!)) {
+      // Tapping the chosen option deselects it: options are optional.
+      next = effective.filter((id) => id !== optionId);
+    } else {
+      const sameGroupIds = options
+        .filter((o) => o.groupTitle === clicked.groupTitle)
+        .map((o) => o.id);
+      next = effective.filter((id) => !sameGroupIds.includes(id));
+      next.push(optionId!);
+    }
 
     ctx.session.selections = ctx.session.selections ?? {};
     ctx.session.selections[productId!] = next;
