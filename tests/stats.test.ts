@@ -12,7 +12,7 @@ import { computeStats } from '../src/services/stats.js';
 describe('stats', () => {
   const testDbPath = './test-stats.db';
   const appSecret = 's'.repeat(32);
-  const now = new Date('2026-10-02T12:00:00Z');
+  const now = new Date();
 
   beforeEach(() => {
     for (const suffix of ['', '-wal', '-shm']) {
