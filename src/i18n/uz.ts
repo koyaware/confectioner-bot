@@ -283,6 +283,8 @@ export const uz: Strings = {
     overloadDisable: 'Bandlik: qabulni oʻchirish',
     overloadOn: 'Buyurtmalar qabuli yoqildi.',
     overloadOff: 'Buyurtmalar qabuli oʻchirildi («band» rejimi).',
+    warnRange: '⚠️ Min. muddat maks. gorizontdan katta — barcha sanalar mavjud emas.',
+    warnCapacity: '⚠️ Kunlik buyurtma limiti 1 dan kichik — barcha sanalar mavjud emas.',
     langTitle: '🌐 Interfeys tili',
     curTitle: '💰 Valyuta',
     langNames: { ru: 'Русский', uz: 'Oʻzbekcha', kk: 'Қазақша' },

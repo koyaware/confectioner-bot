@@ -49,7 +49,20 @@ async function showSettingsList(
     },
   ]);
   rows.push([{ text: t.common.back, callback_data: 'adm:menu' }]);
-  await ctx.port.editMessageTextOrSend(chatId, messageId, t.ownerSettings.title, {
+  // Static misconfiguration check: these settings alone close every date,
+  // and the owner calendar still looks "open". Warn right where they edit.
+  const warnings: string[] = [];
+  if (ctx.tenant.minLeadDays > ctx.tenant.maxAdvanceDays) {
+    warnings.push(t.ownerSettings.warnRange);
+  }
+  if (ctx.tenant.defaultDailyCapacity < 1) {
+    warnings.push(t.ownerSettings.warnCapacity);
+  }
+  const text =
+    warnings.length > 0
+      ? `${t.ownerSettings.title}\n\n${warnings.join('\n')}`
+      : t.ownerSettings.title;
+  await ctx.port.editMessageTextOrSend(chatId, messageId, text, {
     keyboard: { inline_keyboard: rows },
   });
 }

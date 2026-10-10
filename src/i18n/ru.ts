@@ -288,6 +288,8 @@ export const ru = {
     overloadDisable: 'Перегруз: выключить приём',
     overloadOn: 'Приём заказов включён.',
     overloadOff: 'Приём заказов выключен (режим «перегруз»).',
+    warnRange: '⚠️ Мин. срок больше макс. горизонта — все даты недоступны.',
+    warnCapacity: '⚠️ Лимит заказов в день меньше 1 — все даты недоступны.',
     langTitle: '🌐 Язык интерфейса',
     curTitle: '💰 Валюта',
     langNames: { ru: 'Русский', uz: 'Oʻzbekcha', kk: 'Қазақша' } as Record<string, string>,

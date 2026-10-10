@@ -171,4 +171,39 @@ describe('owner settings', () => {
     const rows = await getDb().select().from(tenants);
     expect(rows[0]!.deliveryFeeMinor).toBe(35000);
   });
+
+  it('warns when settings close every date', async () => {
+    const { tenantId } = await seedDemo(appSecret, new Date());
+    await getDb().update(tenants).set({ ownerTelegramId: 555 }).where(eq(tenants.id, tenantId));
+
+    const port = new FakePort();
+    const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
+    const listText = async () => {
+      await bot.handleUpdate({
+        update_id: 1,
+        callback_query: {
+          id: 'cb1',
+          from: { id: 555, is_bot: false, first_name: 'O' },
+          message: { message_id: 1, date: 1, chat: { id: 555, type: 'private' } },
+          data: 'adm:set:list',
+        },
+      } as never);
+      const edits = port.getCallsForMethod('editMessageTextOrSend');
+      return edits[edits.length - 1]!.args[2] as string;
+    };
+
+    expect(await listText()).not.toContain('⚠️');
+
+    await getDb()
+      .update(tenants)
+      .set({ minLeadDays: 90, maxAdvanceDays: 60 })
+      .where(eq(tenants.id, tenantId));
+    expect(await listText()).toContain('Мин. срок больше макс. горизонта');
+
+    await getDb()
+      .update(tenants)
+      .set({ minLeadDays: 2, maxAdvanceDays: 60, defaultDailyCapacity: 0 })
+      .where(eq(tenants.id, tenantId));
+    expect(await listText()).toContain('Лимит заказов в день меньше 1');
+  });
 });
