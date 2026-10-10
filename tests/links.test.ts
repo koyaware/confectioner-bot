@@ -92,6 +92,34 @@ describe('links', () => {
     expect(detailKb).toContain('adm:src:list');
   });
 
+  it('empty and overlong source labels are rejected', async () => {
+    const { tenantId } = await seedDemo(appSecret, new Date());
+    await getDb().update(tenants).set({ ownerTelegramId: 555 }).where(eq(tenants.id, tenantId));
+    const port = new FakePort();
+    const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
+    const msg = (update_id: number, text: string) =>
+      ({
+        update_id,
+        message: {
+          message_id: update_id,
+          date: 1,
+          chat: { id: 555, type: 'private' },
+          from: { id: 555, is_bot: false, first_name: 'O' },
+          text,
+          entities: [],
+        },
+      }) as never;
+
+    await bot.handleUpdate(cb(1, 'c1', 555, 10, 'adm:src:add'));
+    await bot.handleUpdate(msg(2, '   '));
+    let edits = port.getCallsForMethod('editMessageTextOrSend');
+    expect(String(edits[edits.length - 1]!.args[2])).toContain('не подходит');
+    await bot.handleUpdate(msg(3, 'x'.repeat(65)));
+    edits = port.getCallsForMethod('editMessageTextOrSend');
+    expect(String(edits[edits.length - 1]!.args[2])).toContain('не подходит');
+    expect(await getDb().select().from(sources)).toHaveLength(0);
+  });
+
   it('backfills source on later start with code', async () => {
     const { tenantId } = await seedDemo(appSecret, new Date());
     const port = new FakePort();

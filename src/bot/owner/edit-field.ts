@@ -401,6 +401,12 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
         return;
       }
       case 'src_add_label': {
+        if (text.length === 0 || text.length > 64) {
+          ctx.sessionState = 'owner.edit_field';
+          ctx.session.ownerDraft = draft;
+          await editScreenOrSend(ctx, draft, ctx.t.ownerLinks.badLabel);
+          return;
+        }
         const result = await addSource(ctx.tenant.id, text);
         if (result.ok) {
           await editScreenOrSend(ctx, draft, ctx.t.ownerLinks.labelCreated(result.code), [
