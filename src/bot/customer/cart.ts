@@ -200,7 +200,10 @@ export function registerCartHandlers(bot: Bot<BotContextWithSession>): void {
       };
       ctx.session.cart.lines.push(line);
     }
-    delete ctx.session.selections?.[productId];
+    // Keep the added configuration selected so the card stays in sync
+    // with its line: qty stepper remains visible for +/- right away.
+    ctx.session.selections = ctx.session.selections ?? {};
+    ctx.session.selections[productId] = [...selectedOptionIds];
 
     await trackFunnelEvent(ctx, 'cart_add');
     await ctx.port.answerCallback(ctx.callbackQuery.id, ctx.t.cart.added);

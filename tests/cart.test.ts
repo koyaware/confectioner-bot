@@ -210,6 +210,42 @@ describe('cart', () => {
     expect(data.cart.lines[0]!.optionIds).toEqual([]);
   });
 
+  it('added configuration stays selected so qty stepper persists', async () => {
+    const { tenantId } = await seedDemo(appSecret, new Date());
+    const port = new FakePort();
+    const { bot } = createTenantBot('123:x', tenantId, 'demo', port);
+
+    await bot.handleUpdate(cb(1, 'c1', 42, 10, 'cat:list'));
+    let edits = port.getCallsForMethod('editMessageTextOrSend');
+    const catBtn = JSON.stringify(edits[0]!.args[3]).match(/cat:open:[A-Za-z0-9_-]+/)![0];
+    await bot.handleUpdate(cb(2, 'c2', 42, 10, catBtn));
+    edits = port.getCallsForMethod('editMessageTextOrSend');
+    const prdBtn = JSON.stringify(edits[1]!.args[3]).match(/prd:open:[A-Za-z0-9_-]+/)![0];
+    await bot.handleUpdate(cb(3, 'c3', 42, 10, prdBtn));
+    edits = port.getCallsForMethod('editMessageTextOrSend');
+    const cardKb = JSON.stringify(edits[2]!.args[3]);
+    const addBtn = cardKb.match(/prd:add:[A-Za-z0-9_-]+/)![0];
+    // deselect everything first so the added line has empty options
+    const optBtn = cardKb.match(/prd:opt:[A-Za-z0-9_-]+:[A-Za-z0-9_-]+/)![0];
+    await bot.handleUpdate(cb(4, 'c4', 42, 10, optBtn));
+
+    await bot.handleUpdate(cb(5, 'c5', 42, 10, addBtn));
+    // reopening the card shows the stepper for the just-added line
+    await bot.handleUpdate(cb(6, 'c6', 42, 10, prdBtn));
+    edits = port.getCallsForMethod('editMessageTextOrSend');
+    const kb = (
+      edits[edits.length - 1]!.args[3] as {
+        keyboard: { inline_keyboard: { text: string; callback_data?: string }[][] };
+      }
+    ).keyboard.inline_keyboard;
+    const qtyBtns = kb
+      .flat()
+      .filter((b) => b.callback_data?.startsWith('prd:qty:'))
+      .map((b) => b.text);
+    expect(qtyBtns).toContain('−');
+    expect(qtyBtns).toContain('+');
+  });
+
   it('hidden product cannot be added via stale card', async () => {
     const { tenantId } = await seedDemo(appSecret, new Date());
     const db = getDb();
