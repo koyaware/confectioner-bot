@@ -156,7 +156,7 @@ export const uz: Strings = {
     badQty: '❌ Mahsulot miqdori notoʻgʻri.',
     emptyCart: '🛒 Savatcha boʻsh.',
     orderSent: (n: number) => `✅ №${n} buyurtma yuborildi. Usta javob beradi`,
-    orderSentSlaDefault: 'bir necha soat ichida',
+    orderSentSlaDefault: '(bir necha soat ichida)',
   },
   faq: {
     title: '❓ FAQ',
@@ -439,7 +439,7 @@ export const uz: Strings = {
     digestUndecided: (n: number) => `Qarorsiz: ${n}`,
     digestAwaitPay: (n: number) => `Toʻlov kutilmoqda: ${n}`,
     digestOrderBtn: (n: number) => `Buyurtma №${n}`,
-    backupCaption: (date: string) => `MB dayjesti ${date}`,
+    backupCaption: (date: string) => `MB nusxasi ${date}`,
   },
   notify: {
     blocked: (client: string) => `Mijoz ${client} botni blokladi. Bildirishnomalar unga yetmaydi.`,
