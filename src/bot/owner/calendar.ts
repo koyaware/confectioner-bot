@@ -2,7 +2,7 @@ import { Bot } from 'grammy';
 import { canAccessOwner } from '../permissions.js';
 import { BotContextWithSession } from '../context.js';
 import { InlineKeyboard } from '../../telegram/port.js';
-import { addDays, monthEndOf } from '../../lib/time.js';
+import { addDays, isValidIsoDate, isValidIsoMonth, monthEndOf } from '../../lib/time.js';
 import { getCapacityForDate, setCapacityForDate } from '../../services/calendar.js';
 import { getDateAvailability } from '../../services/dates.js';
 import { getDb } from '../../db/client.js';
@@ -93,6 +93,7 @@ export function registerCalendarHandlers(bot: Bot<BotContextWithSession>): void 
     const pageMatch = /^adm:cal:page:(\d{4}-\d{2})$/.exec(data);
     if (pageMatch) {
       const ym = pageMatch[1]!;
+      if (!isValidIsoMonth(ym)) return;
       const monthStart = `${ym}-01`;
       const monthEnd = monthEndOf(monthStart);
       const availability = await getDateAvailability(
@@ -118,6 +119,7 @@ export function registerCalendarHandlers(bot: Bot<BotContextWithSession>): void 
 
     const dayMatch = /^adm:cal:day:(\d{4}-\d{2}-\d{2})$/.exec(data);
     if (dayMatch) {
+      if (!isValidIsoDate(dayMatch[1]!)) return;
       await showDateScreen(ctx, dayMatch[1]!, chatId, messageId);
       return;
     }
@@ -125,6 +127,7 @@ export function registerCalendarHandlers(bot: Bot<BotContextWithSession>): void 
     const toggleMatch = /^adm:cal:toggle:(\d{4}-\d{2}-\d{2})$/.exec(data);
     if (toggleMatch) {
       const date = toggleMatch[1]!;
+      if (!isValidIsoDate(date)) return;
       const info = await getCapacityForDate(ctx.tenant.id, date);
       const capacity = info.isOverride ? info.capacity! : ctx.tenant.defaultDailyCapacity;
       await setCapacityForDate(ctx.tenant.id, date, capacity, !(info.isOverride && info.isClosed));
@@ -136,6 +139,7 @@ export function registerCalendarHandlers(bot: Bot<BotContextWithSession>): void 
     const setcapMatch = /^adm:cal:setcap:(\d{4}-\d{2}-\d{2})$/.exec(data);
     if (setcapMatch) {
       const date = setcapMatch[1]!;
+      if (!isValidIsoDate(date)) return;
       beginOwnerDraft(ctx, { kind: 'cal_capacity', targetId: date });
       await ctx.port.editMessageTextOrSend(chatId, messageId, ctx.t.ownerCalendar.promptCapacity, {
         keyboard: {

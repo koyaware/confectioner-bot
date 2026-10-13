@@ -245,8 +245,9 @@ export function registerOwnerCatalogHandlers(bot: Bot<BotContextWithSession>): v
       if (action === 'del' && arg) {
         const res = await deleteCategory(ctx.tenant.id, arg);
         if (!res.ok) {
-          await showCategoryList(ctx);
-          return;
+          // HAS_PRODUCTS: tell why nothing happened instead of a silent re-render.
+          await ctx.port.answerCallback(ctx.callbackQuery.id, ctx.t.ownerCatalog.catNotEmpty);
+          return showCategoryList(ctx);
         }
         return showCategoryList(ctx);
       }
@@ -279,9 +280,35 @@ export function registerOwnerCatalogHandlers(bot: Bot<BotContextWithSession>): v
       return showProductEdit(ctx, arg);
     }
     if (action === 'del' && arg) {
+      // Two-step delete: options die with the product, so confirm first.
+      const product = await getProductById(ctx.tenant.id, arg);
+      if (!product) return showCategoryList(ctx);
+      await ctx.port.editMessageTextOrSend(
+        ctx.callbackQuery.message!.chat.id,
+        ctx.callbackQuery.message!.message_id,
+        `<b>${escapeHtml(product.title)}</b>\n${ctx.t.ownerCatalog.confirmDeleteProduct}`,
+        {
+          keyboard: {
+            inline_keyboard: [
+              [
+                {
+                  text: ctx.t.ownerCatalog.confirmDeleteYes,
+                  callback_data: `adm:prd:delcf:${product.id}`,
+                },
+              ],
+              [{ text: ctx.t.common.back, callback_data: `adm:prd:edit:${product.id}` }],
+            ],
+          },
+          parseMode: 'HTML',
+        }
+      );
+      return;
+    }
+    if (action === 'delcf' && arg) {
       const product = await getProductById(ctx.tenant.id, arg);
       await deleteProduct(ctx.tenant.id, arg);
-      return showProductList(ctx, product?.categoryId ?? '');
+      if (!product) return showCategoryList(ctx);
+      return showProductList(ctx, product.categoryId);
     }
     if (action === 'field' && arg && arg2) {
       beginOwnerDraft(ctx, { kind: 'prd_field', targetId: arg, extra: { field: arg2 } });

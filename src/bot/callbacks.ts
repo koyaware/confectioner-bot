@@ -74,7 +74,18 @@ const callbackSchema = z
     z.object({
       ns: z.literal('adm'),
       area: z.literal('prd'),
-      action: z.enum(['list', 'add', 'edit', 'toggle', 'up', 'down', 'del', 'opt', 'optadd']),
+      action: z.enum([
+        'list',
+        'add',
+        'edit',
+        'toggle',
+        'up',
+        'down',
+        'del',
+        'delcf',
+        'opt',
+        'optadd',
+      ]),
       arg: idSchema,
     }),
     z.object({

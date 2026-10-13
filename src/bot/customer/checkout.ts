@@ -8,7 +8,7 @@ import { getDb } from '../../db/client.js';
 import { customers, orders } from '../../db/schema.js';
 import { eq, and } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
-import { addDays, monthEndOf, toIsoDate } from '../../lib/time.js';
+import { addDays, isValidIsoDate, isValidIsoMonth, monthEndOf, toIsoDate } from '../../lib/time.js';
 import { InlineKeyboard } from '../../telegram/port.js';
 import { getProductById, listProductOptions } from '../../services/catalog.js';
 import { sendContactKeyboard, clearContactKeyboard } from './contact-keyboard.js';
@@ -343,7 +343,7 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
   bot.callbackQuery(/^chk:datepage:/, async (ctx) => {
     await ctx.port.answerCallback(ctx.callbackQuery.id);
     const m = /^chk:datepage:(\d{4})-(\d{2})$/.exec(ctx.callbackQuery.data);
-    if (!m) return;
+    if (!m || !isValidIsoMonth(`${m[1]}-${m[2]}`)) return;
     const year = Number(m[1]);
     const month = Number(m[2]);
     const monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
@@ -370,6 +370,10 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
     const m = /^chk:closed:(\d{4}-\d{2}-\d{2})$/.exec(ctx.callbackQuery.data);
     if (!m) return;
     const iso = m[1]!;
+    if (!isValidIsoDate(iso)) {
+      await ctx.port.answerCallback(ctx.callbackQuery.id);
+      return;
+    }
     const availability = await getDateAvailability(
       ctx.tenant.id,
       iso,
@@ -396,6 +400,7 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
     const m = /^chk:date:(\d{4}-\d{2}-\d{2})$/.exec(ctx.callbackQuery.data);
     if (!m) return;
     const iso = m[1]!;
+    if (!isValidIsoDate(iso)) return;
     const chatId = ctx.callbackQuery.message?.chat.id;
     const messageId = ctx.callbackQuery.message?.message_id;
     if (!chatId || !messageId) return;

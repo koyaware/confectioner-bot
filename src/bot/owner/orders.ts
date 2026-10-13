@@ -17,7 +17,7 @@ import {
 } from '../../db/schema.js';
 import { effectiveCapacity, OCCUPYING_STATUSES, usedUnits } from '../../domain/capacity.js';
 import { and, desc, eq, inArray } from 'drizzle-orm';
-import { addDays, toIsoDate } from '../../lib/time.js';
+import { addDays, isValidIsoDate, isValidIsoMonth, toIsoDate } from '../../lib/time.js';
 import { getDateAvailability } from '../../services/dates.js';
 import { stringsFor, localeFor, type Strings } from '../../i18n/index.js';
 
@@ -544,7 +544,7 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
 
       if (action === 'datepage') {
         const [orderId, ym] = rest.split(':');
-        if (!orderId || !ym) return;
+        if (!orderId || !ym || !isValidIsoMonth(ym)) return;
         const db = getDb();
         const rows = await db.select().from(orders).where(eq(orders.id, orderId)).limit(1);
         const order = rows[0];
@@ -630,6 +630,7 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
         const parts = rest.split(':');
         const orderId = parts[0]!;
         const iso = parts[1]!;
+        if (!orderId || !iso || !isValidIsoDate(iso)) return;
         const db = getDb();
         const rows = await db.select().from(orders).where(eq(orders.id, orderId)).limit(1);
         const order = rows[0];

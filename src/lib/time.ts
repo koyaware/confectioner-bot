@@ -51,3 +51,28 @@ export function zonedTimeToUtc(dateIso: IsoDate, time: string, timezone: string)
 export function monthEndOf(monthStart: IsoDate): IsoDate {
   return addDays(`${addDays(monthStart, 32).slice(0, 8)}01`, -1);
 }
+
+/**
+ * Strict calendar-date check: regex shape plus real month/day ranges
+ * (round-trip through UTC, so 2023-02-29 and 2026-13-40 fail).
+ * Guards callback data before it reaches addDays/monthEndOf, which throw
+ * RangeError on impossible dates.
+ */
+export function isValidIsoDate(s: string): boolean {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (!m) return false;
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const d = Number(m[3]);
+  if (mo < 1 || mo > 12 || d < 1 || d > 31) return false;
+  const dt = new Date(Date.UTC(y, mo - 1, d));
+  return dt.getUTCFullYear() === y && dt.getUTCMonth() === mo - 1 && dt.getUTCDate() === d;
+}
+
+/** Strict year-month check for calendar paging callbacks (`YYYY-MM`). */
+export function isValidIsoMonth(s: string): boolean {
+  const m = /^(\d{4})-(\d{2})$/.exec(s);
+  if (!m) return false;
+  const mo = Number(m[2]);
+  return mo >= 1 && mo <= 12;
+}

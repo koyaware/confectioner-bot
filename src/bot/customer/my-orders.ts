@@ -261,6 +261,28 @@ export function registerMyOrdersHandlers(bot: Bot<BotContextWithSession>): void 
     if (!chatId || !messageId) return;
 
     const orderId = m[1]!;
+    // Same ownership check as my:view/doCustomerCancel: never render
+    // the reason picker for somebody else's order.
+    const db = getDb();
+    const owned = await db
+      .select({ id: orders.id })
+      .from(orders)
+      .innerJoin(customers, eq(orders.customerId, customers.id))
+      .where(
+        and(
+          eq(orders.id, orderId),
+          eq(orders.tenantId, ctx.tenant.id),
+          eq(customers.telegramId, ctx.from.id),
+          eq(customers.tenantId, ctx.tenant.id)
+        )
+      )
+      .limit(1);
+    if (!owned[0]) {
+      await ctx.port.editMessageTextOrSend(chatId, messageId, ctx.t.my.notFound, {
+        keyboard: { inline_keyboard: [[{ text: ctx.t.catalog.back, callback_data: 'my:list' }]] },
+      });
+      return;
+    }
     const reasonRows: InlineKeyboard['inline_keyboard'] = Object.entries(
       ctx.t.my.cancelReasons
     ).map(([code, label]) => [
