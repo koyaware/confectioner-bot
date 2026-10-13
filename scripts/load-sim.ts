@@ -62,15 +62,17 @@ async function main() {
   let customerSeq = 0;
 
   function lastEditFor(userId: number): { args: unknown[] } {
-    const calls = port.getCallsForMethod('editMessageTextOrSend').filter((c) => (c.args[0] as number) === userId);
+    const calls = port
+      .getCallsForMethod('editMessageTextOrSend')
+      .filter((c) => (c.args[0] as number) === userId);
     const last = calls[calls.length - 1];
     if (!last) throw new Error(`no editMessageTextOrSend for user ${userId}`);
     return last;
   }
 
-  async function runCustomerFlow(): Promise<void> {
+  async function runCustomerFlow(targetDate?: string, idBase = 200000): Promise<void> {
     const n = ++customerSeq;
-    const userId = 200000 + n;
+    const userId = idBase + n;
     const tag = `u${n}`;
 
     const timed = async <T>(fn: () => Promise<T>): Promise<T> => {
@@ -83,28 +85,22 @@ async function main() {
     };
 
     await timed(() => bot.handleUpdate(cb(`${tag}-1`, userId, 10, 'cat:list')));
-    const catMatch = JSON.stringify(lastEditFor(userId).args[3]).match(
-      /cat:open:[A-Za-z0-9_-]+/
-    );
+    const catMatch = JSON.stringify(lastEditFor(userId).args[3]).match(/cat:open:[A-Za-z0-9_-]+/);
     if (!catMatch) throw new Error('category button not found');
     await timed(() => bot.handleUpdate(cb(`${tag}-2`, userId, 10, catMatch[0])));
 
-    const prdMatch = JSON.stringify(lastEditFor(userId).args[3]).match(
-      /prd:open:[A-Za-z0-9_-]+/
-    );
+    const prdMatch = JSON.stringify(lastEditFor(userId).args[3]).match(/prd:open:[A-Za-z0-9_-]+/);
     if (!prdMatch) throw new Error('product button not found');
     await timed(() => bot.handleUpdate(cb(`${tag}-3`, userId, 10, prdMatch[0])));
 
-    const addMatch = JSON.stringify(lastEditFor(userId).args[3]).match(
-      /prd:add:[A-Za-z0-9_-]+/
-    );
+    const addMatch = JSON.stringify(lastEditFor(userId).args[3]).match(/prd:add:[A-Za-z0-9_-]+/);
     if (!addMatch) throw new Error('add button not found');
     await timed(() => bot.handleUpdate(cb(`${tag}-4`, userId, 10, addMatch[0])));
 
     await timed(() => bot.handleUpdate(cb(`${tag}-5`, userId, 10, 'cart:show')));
     await timed(() => bot.handleUpdate(cb(`${tag}-6`, userId, 10, 'chk:start')));
 
-    const freeDate = addDays(toIsoDate(now, 'Europe/Moscow'), 5 + (n % 30));
+    const freeDate = targetDate ?? addDays(toIsoDate(now, 'Europe/Moscow'), 5 + (n % 30));
     await timed(() => bot.handleUpdate(cb(`${tag}-7`, userId, 10, `chk:date:${freeDate}`)));
 
     await timed(() => bot.handleUpdate(msg(userId, 'к 15:00')));
@@ -115,7 +111,7 @@ async function main() {
 
     const confirm = lastEditFor(userId);
     const submitMatch = JSON.stringify(confirm.args[3]).match(/chk:submit:[A-Za-z0-9_-]+/);
-    if (!submitMatch) throw new Error('submit button not found');
+    if (!submitMatch) throw new Error('submit button not found (date likely full)');
     await timed(() => bot.handleUpdate(cb(`${tag}-10`, userId, 10, submitMatch[0])));
 
     expectedOrders++;
@@ -146,6 +142,40 @@ async function main() {
 
   const durationsSorted = [...durations].sort((a, b) => a - b);
   const p95 = durationsSorted[Math.floor(durationsSorted.length * 0.95)] ?? 0;
+
+  // Flash sale: 50 simultaneous customers fight for 30 slots on one date.
+  // Exactly 30 must win, losers get an honest rejection, zero crashes/duplicates.
+  const { setCapacityForDate: setCap } = await import('../src/services/calendar.js');
+  const flashCapacity = 30;
+  const flashDate = addDays(toIsoDate(now, 'Europe/Moscow'), 60);
+  await setCap(tenantId, flashDate, flashCapacity, false);
+  const flashStart = performance.now();
+  const flashResults = await Promise.allSettled(
+    Array.from({ length: 50 }, () => runCustomerFlow(flashDate, 300000))
+  );
+  const flashMs = Math.round(performance.now() - flashStart);
+  const flashErrors = flashResults.filter((r) => r.status === 'rejected');
+  console.log(`flash 50->${flashCapacity}: ${flashMs}ms crashed=${flashErrors.length}`);
+  for (const e of flashErrors.slice(0, 3)) {
+    console.log(`  crash reason: ${String((e as PromiseRejectedResult).reason).slice(0, 120)}`);
+  }
+  // Slots, not orders: the first product consumes 2 slots per unit.
+  const { orderItems: flashItems, products: flashProducts } = await import('../src/db/schema.js');
+  const flashOrders = await getDb().select().from(orders).where(eq(orders.dueDate, flashDate));
+  const flashOrderIds = new Set(flashOrders.map((o) => o.id));
+  const allItems = await getDb().select().from(flashItems);
+  const allProducts = await getDb().select().from(flashProducts);
+  const capByProduct = new Map(allProducts.map((p) => [p.id, p.capacityUnits]));
+  let flashSlots = 0;
+  for (const item of allItems) {
+    if (item.orderId && flashOrderIds.has(item.orderId) && item.productId) {
+      flashSlots += item.qty * (capByProduct.get(item.productId) ?? 1);
+    }
+  }
+  const flashDupes = new Set(flashOrders.map((o) => o.idempotencyKey)).size !== flashOrders.length;
+  const flashLost = 50 - flashOrders.length;
+  const flashPassed =
+    flashErrors.length === 0 && flashSlots === flashCapacity && flashLost > 0 && !flashDupes;
 
   // Last-slot race: 10 concurrent creations on a capacity-1 date, exactly one wins.
   const { createOrder } = await import('../src/services/orders.js');
@@ -211,8 +241,15 @@ async function main() {
         sessions: allSessions.length,
         p95Ms: Math.round(p95),
         passedCapacityCheck: Object.values(byDue).every((v) => v <= 1000),
+        flashMs,
+        flashWon: flashOrders.length,
+        flashLost,
+        flashSlotsUsed: flashSlots,
+        flashOrdersOnDate: flashOrders.length,
+        flashDupes,
+        flashPassed,
         raceWins,
-        passed: passed && raceWins === 1,
+        passed: passed && raceWins === 1 && flashPassed,
       },
       null,
       2
@@ -220,7 +257,7 @@ async function main() {
   );
 
   closeDatabase();
-  process.exit(passed && raceWins === 1 && p95 < 200 ? 0 : 1);
+  process.exit(passed && raceWins === 1 && flashPassed && p95 < 200 ? 0 : 1);
 }
 
 main().catch((error) => {
