@@ -449,7 +449,8 @@ describe('checkout steps', () => {
       .set({ data, state: 'checkout.confirm', updatedAt: now })
       .where(eq(sessions.tenantId, tenantId));
 
-    await bot.handleUpdate(cb(50, 'c50', 42, 10, 'chk:photos:done'));
+    // photos:done is state-guarded now; a stale submit reaches the same recovery.
+    await bot.handleUpdate(cb(50, 'c50', 42, 10, 'chk:submit:ghost'));
 
     const edits = port.getCallsForMethod('editMessageTextOrSend');
     const last = edits[edits.length - 1]!;

@@ -482,6 +482,7 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
 
   bot.callbackQuery(/^chk:photos:done$/, async (ctx) => {
     await ctx.port.answerCallback(ctx.callbackQuery.id);
+    if (ctx.sessionState !== 'checkout.photos') return;
     ctx.sessionState = 'checkout.confirm';
     await showCurrentStep(ctx);
   });
@@ -620,6 +621,10 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
           checkoutId: nanoid(10),
           referenceFileIds: [],
         };
+        if (text.length > 100) {
+          await showScreen(ctx, ctx.t.common.badText, stepKeyboard(ctx));
+          return;
+        }
         ctx.session.checkout.dueTimeText = text || undefined;
         ctx.sessionState = 'checkout.fulfillment';
         await showCurrentStep(ctx);
@@ -627,6 +632,10 @@ export function registerCheckoutHandlers(bot: Bot<BotContextWithSession>): void 
       case 'checkout.address':
         if (!text) {
           await showScreen(ctx, addressPromptText(ctx), stepKeyboard(ctx));
+          return;
+        }
+        if (text.length > 500) {
+          await showScreen(ctx, ctx.t.common.badText, stepKeyboard(ctx));
           return;
         }
         ctx.session.checkout!.address = text;
@@ -722,6 +731,10 @@ function contextHasPhone(contact: { phone_number?: string }): boolean {
   return typeof contact.phone_number === 'string' && contact.phone_number.length > 0;
 }
 
+function hasPhoneDigits(s: string): boolean {
+  return s.length <= 25 && /^\+?[\d\s()-]+$/.test(s) && s.replace(/\D/g, '').length >= 7;
+}
+
 function parseContact(text: string): { name: string; phone: string } | null {
   const parts = text
     .split(',')
@@ -730,12 +743,12 @@ function parseContact(text: string): { name: string; phone: string } | null {
   if (parts.length >= 2) {
     const phone = parts[parts.length - 1]!;
     const name = parts.slice(0, -1).join(', ');
-    if (/^\+?[\d\s()-]{7,}$/.test(phone) && name.length > 0) {
+    if (hasPhoneDigits(phone) && name.length > 0 && name.length <= 100) {
       return { name, phone };
     }
   }
   const phoneOnly = text.trim();
-  if (/^\+?[\d\s()-]{7,}$/.test(phoneOnly)) {
+  if (hasPhoneDigits(phoneOnly)) {
     return { name: '', phone: phoneOnly };
   }
   return null;
