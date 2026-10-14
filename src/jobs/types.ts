@@ -73,7 +73,7 @@ export interface Job {
   tenantId: string | null;
   payload: unknown;
   runAt: Date;
-  status: 'pending' | 'done' | 'failed';
+  status: 'pending' | 'running' | 'done' | 'failed';
   attempts: number;
   dedupeKey: string;
   lastError: string | null;

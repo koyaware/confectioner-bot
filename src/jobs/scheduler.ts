@@ -1,12 +1,13 @@
 import { getDb } from '../db/client.js';
 import { jobs } from '../db/schema.js';
-import { eq, and, lte, asc } from 'drizzle-orm';
+import { eq, and, lte, asc, or } from 'drizzle-orm';
 import { JobHandler, JobResult, Job, validateJobPayload } from './types.js';
 import { ensureDailyDigestJobs } from '../services/digest.js';
 import { ensureDailyBackupJob } from '../services/backup.js';
 
 const RETRY_DELAYS = [60_000, 300_000, 1_800_000]; // 60s, 300s, 1800s in milliseconds
 const POLL_INTERVAL = 30_000; // 30 seconds, per tech.md
+const CLAIM_LEASE_MS = 10 * 60_000; // a crashed worker's job becomes reclaimable
 
 /**
  * Job scheduler - polls database for pending jobs and executes them
@@ -82,16 +83,39 @@ export class JobScheduler {
       await ensureDailyDigestJobs(now);
       await ensureDailyBackupJob(now);
 
-      // Find pending jobs that are due, oldest first
-      const pendingJobs = await db
+      // Find due jobs, oldest first. A 'running' job past its lease means
+      // its worker died mid-run: count the crash and requeue, run next poll.
+      const dueJobs = await db
         .select()
         .from(jobs)
-        .where(and(eq(jobs.status, 'pending'), lte(jobs.runAt, now)))
+        .where(
+          and(or(eq(jobs.status, 'pending'), eq(jobs.status, 'running')), lte(jobs.runAt, now))
+        )
         .orderBy(asc(jobs.runAt))
         .limit(10);
 
-      for (const job of pendingJobs) {
-        await this.executeJob(job as Job);
+      for (const row of dueJobs) {
+        const job = row as Job;
+        if (job.status === 'running') {
+          await db
+            .update(jobs)
+            .set({
+              status: 'pending',
+              attempts: job.attempts + 1,
+              runAt: now,
+              lastError: 'worker lost (reaped)',
+            })
+            .where(eq(jobs.id, job.id));
+          continue;
+        }
+        // Atomic claim: exactly one worker wins even with two processes.
+        const claimed = await db
+          .update(jobs)
+          .set({ status: 'running', runAt: new Date(now.getTime() + CLAIM_LEASE_MS) })
+          .where(and(eq(jobs.id, job.id), eq(jobs.status, 'pending')))
+          .returning({ id: jobs.id });
+        if (claimed.length === 0) continue;
+        await this.executeJob({ ...job, status: 'running' });
       }
     } catch (error) {
       console.error('Error polling jobs:', error);
@@ -172,6 +196,7 @@ export class JobScheduler {
       await db
         .update(jobs)
         .set({
+          status: 'pending',
           attempts: nextAttempt,
           runAt: nextRunAt,
           lastError: errorMessage,

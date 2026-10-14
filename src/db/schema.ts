@@ -352,7 +352,7 @@ export const jobs = sqliteTable(
     tenantId: text('tenant_id'),
     payload: text('payload', { mode: 'json' }).notNull(),
     runAt: ts('run_at').notNull(),
-    status: text('status', { enum: ['pending', 'done', 'failed'] })
+    status: text('status', { enum: ['pending', 'running', 'done', 'failed'] })
       .notNull()
       .default('pending'),
     attempts: integer('attempts').notNull().default(0),
