@@ -1,6 +1,6 @@
 # ТЗ: Telegram-бот приема заказов для кондитеров
 
-**Версия ядра: v1.39**
+**Версия ядра: v1.40**
 
 Changelog:
 
@@ -40,6 +40,7 @@ Changelog:
 - v1.33: референсы только фото (решение владельца продукта, расширяет v1.30): документы в `checkout.photos` удаляются молча; старые файловые вложения по-прежнему показываются в `my:refs` / `adm:ord:refs`.
 - v1.34: статистика: канонический порядок воронки и статусов, мёртвый `free_text` скрыт из воронки (в подсчёте bot-only участвует), источник без метки из словаря, склонение обращений; повторное редактирование тем же текстом — no-op (толерантность к 400).
 - v1.35: тапы по закрытым датам объясняют причину тостом (`chk:closed:<YYYY-MM-DD>`); опции владельца читаются включая скрытые (`listProductOptionsAll`, метка 🙈).
+- v1.40: снимок валюты в заказе (`orders.currency`, `0008_order_currency.sql` с backfill из tenants): суммы старых заказов показывают символ на момент создания, а не текущий.
 - v1.39: атомарный claim джобов: опрос забирает работу одним UPDATE ... WHERE status='pending' (второй воркер пропускает), лиза 10 минут + reaper для упавших воркеров; статус `running` в схеме и контракте (`0007_job_claim.sql` — no-op: SQLite не материализует text-enum).
 - v1.38: изоляция падений поллинга: упавшая задача раннера (401/409, исчерпанные ретраи) больше не роняет процесс — тенант снимается, суперадмин уведомляется; 401/409 ждут человека, прочие ошибки перезапускают опрос через минуту.
 - v1.37: удаление товара в два шага (`adm:prd:del:<id>` → экран-подтверждение → `adm:prd:delcf:<id>`): опции удаляются вместе с товаром, один тап больше не уничтожает данные; удаление непустой категории объясняет причину алертом (`ownerCatalog.catNotEmpty`); даты и месяцы в callback-данных валидируются строго (`isValidIsoDate`/`isValidIsoMonth`): невозможные даты (`9999-99-99`) игнорируются вместо падения с `RangeError`; экран причин отмены клиентского заказа проверяет владение заказом (`my:cancel:<id>`).
@@ -390,6 +391,7 @@ export const orders = sqliteTable(
     deliveryFeeMinor: integer('delivery_fee_minor').notNull().default(0),
     totalMinor: integer('total_minor').notNull(),
     prepaymentMinor: integer('prepayment_minor').notNull(),
+    currency: text('currency').notNull().default('₽'),
     capacityUnits: integer('capacity_units').notNull(),
     source: text('source'),
     idempotencyKey: text('idempotency_key').notNull(), // checkoutId из сессии

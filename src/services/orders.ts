@@ -280,6 +280,7 @@ export async function createOrder(
             deliveryFeeMinor: deliveryFee,
             totalMinor: total,
             prepaymentMinor: prepayment,
+            currency: tenant.currency,
             capacityUnits: cartCapacityUnits,
             source: customer?.source ?? null,
             idempotencyKey: input.checkout.checkoutId,

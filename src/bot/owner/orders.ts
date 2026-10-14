@@ -32,6 +32,8 @@ export async function buildOrderCardText(
   const rows = await db.select().from(orders).where(eq(orders.id, orderId)).limit(1);
   const order = rows[0];
   if (!order || order.tenantId !== tenantId) return null;
+  // Sums keep the symbol current at creation, not the tenant's new one.
+  const cur = order.currency ?? currency;
 
   const customerRows = await db
     .select()
@@ -54,7 +56,7 @@ export async function buildOrderCardText(
   for (const item of items) {
     const opts = item.optionsSnapshot.map((o) => o.title).join(', ');
     lines.push(
-      `• ${escapeHtml(item.titleSnapshot)}${opts ? ` (${escapeHtml(opts)})` : ''} × ${item.qty} — ${formatMinor(item.unitPriceMinor * item.qty, currency)}`
+      `• ${escapeHtml(item.titleSnapshot)}${opts ? ` (${escapeHtml(opts)})` : ''} × ${item.qty} — ${formatMinor(item.unitPriceMinor * item.qty, cur)}`
     );
   }
   lines.push('');
@@ -74,10 +76,7 @@ export async function buildOrderCardText(
   if (refs.length > 0) lines.push(t.orderCard.refs(refs.length));
   lines.push('');
   lines.push(
-    t.orderCard.totals(
-      formatMinor(order.totalMinor, currency),
-      formatMinor(order.prepaymentMinor, currency)
-    )
+    t.orderCard.totals(formatMinor(order.totalMinor, cur), formatMinor(order.prepaymentMinor, cur))
   );
   if (order.source) {
     lines.push(t.orderCard.source(escapeHtml(order.source)));

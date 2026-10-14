@@ -100,7 +100,9 @@ export function registerMyOrdersHandlers(bot: Bot<BotContextWithSession>): void 
       )
     );
     lines.push(
-      ctx.t.checkout.confirmTotal(formatMinor(found.order.totalMinor, ctx.tenant.currency))
+      ctx.t.checkout.confirmTotal(
+        formatMinor(found.order.totalMinor, found.order.currency ?? ctx.tenant.currency)
+      )
     );
     if (refs.length > 0) {
       lines.push(ctx.t.orderCard.refs(refs.length));

@@ -42,6 +42,51 @@ describe('QA fixes 3: timezone fallback', () => {
     expect(zonedTimeToUtc('2026-10-02', '09:00', 'Mars/Olympus')).toBeInstanceOf(Date);
   });
 
+  it('bug 63: old orders keep their creation currency', async () => {
+    const { tenantId } = await seedDemo(appSecret, new Date());
+    await getDb().update(tenants).set({ ownerTelegramId: 555 }).where(eq(tenants.id, tenantId));
+    const { createOrder } = await import('../src/services/orders.js');
+    const { customers, products } = await import('../src/db/schema.js');
+    const plist = await getDb().select().from(products).where(eq(products.tenantId, tenantId));
+    const p = plist[0]!;
+    const { firstActiveOptionIds } = await import('./helpers.js');
+    const [c] = await getDb()
+      .insert(customers)
+      .values({
+        id: 'c63',
+        tenantId,
+        telegramId: 42,
+        firstSeenAt: new Date(),
+        lastSeenAt: new Date(),
+      })
+      .returning();
+    const { addDays, toIsoDate } = await import('../src/domain/dates.js');
+    const res = await createOrder({
+      tenantId,
+      customerId: c!.id,
+      cart: {
+        lines: [
+          { lineId: 'l1', productId: p.id, qty: 1, optionIds: await firstActiveOptionIds(p.id) },
+        ],
+      },
+      checkout: {
+        checkoutId: 'chk-63',
+        dueDate: addDays(toIsoDate(new Date(), 'Europe/Moscow'), 5),
+        fulfillment: 'pickup',
+        contactName: 'T',
+        contactPhone: '+7999',
+        referenceFileIds: [],
+      },
+      now: new Date(),
+    });
+    if (!res.ok) throw new Error('seed order');
+    await getDb().update(tenants).set({ currency: '₸' }).where(eq(tenants.id, tenantId));
+    const { buildOrderCardText } = await import('../src/bot/owner/orders.js');
+    const card = await buildOrderCardText(res.value.id, tenantId, '₸', 'ru');
+    expect(card).toContain('₽');
+    expect(card).not.toContain('₸');
+  });
+
   it('bug 61: bad tenant timezone keeps date screens alive', async () => {
     const { tenantId } = await seedDemo(appSecret, new Date());
     await getDb()

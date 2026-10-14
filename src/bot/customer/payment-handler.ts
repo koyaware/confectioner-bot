@@ -46,7 +46,9 @@ export async function sendPaymentCard(
   const card =
     t.payment.accepted(customerNumber) +
     '\n\n' +
-    t.checkout.confirmPrepay(formatMinor(order.prepaymentMinor, tenant.currency)) +
+    t.checkout.confirmPrepay(
+      formatMinor(order.prepaymentMinor, order.currency ?? tenant.currency)
+    ) +
     '\n\n' +
     `${tenant.paymentText ? escapeHtml(tenant.paymentText) : t.payment.noRequisites}` +
     '\n\n' +

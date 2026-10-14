@@ -178,6 +178,7 @@ export const orders = sqliteTable(
     deliveryFeeMinor: integer('delivery_fee_minor').notNull().default(0),
     totalMinor: integer('total_minor').notNull(),
     prepaymentMinor: integer('prepayment_minor').notNull(),
+    currency: text('currency').notNull().default('₽'),
     capacityUnits: integer('capacity_units').notNull(),
     source: text('source'),
     idempotencyKey: text('idempotency_key').notNull(),
