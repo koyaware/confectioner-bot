@@ -109,7 +109,18 @@ export function registerSuperadminCommands(
 
     await db.update(tenants).set({ status: 'active' }).where(eq(tenants.id, tenant.id));
     if (runner) {
-      await runner.startTenant(tenant.id, tenant.slug, tenant.botTokenEnc);
+      try {
+        await runner.startTenant(tenant.id, tenant.slug, tenant.botTokenEnc);
+      } catch (error) {
+        // Do not leave a phantom-active tenant: bot is down, back to paused.
+        await db.update(tenants).set({ status: 'paused' }).where(eq(tenants.id, tenant.id));
+        const reason = error instanceof Error ? error.message : String(error);
+        await ctx.port.sendMessage(
+          ctx.chat.id,
+          `Не удалось запустить бота: ${reason}. Магазин оставлен на паузе.`
+        );
+        return;
+      }
     }
     await ctx.port.sendMessage(ctx.chat.id, `Магазин «${tenant.shopName}» возобновлён.`);
   });
