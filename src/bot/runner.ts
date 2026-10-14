@@ -8,8 +8,12 @@ import { decrypt } from '../lib/crypto.js';
 export class BotRunner {
   private bots: Map<string, TenantBot> = new Map();
   private handles: Map<string, RunnerHandle> = new Map();
+  private tokens: Map<string, { slug: string; encryptedToken: string }> = new Map();
 
-  constructor(private readonly appSecret: string = process.env.APP_SECRET || '') {}
+  constructor(
+    private readonly appSecret: string = process.env.APP_SECRET || '',
+    private readonly restartDelayMs = 60_000
+  ) {}
 
   /**
    * Load all active tenants and start their bots
@@ -54,12 +58,69 @@ export class BotRunner {
 
     // Store bot
     this.bots.set(tenantId, tenantBot);
+    this.tokens.set(tenantId, { slug: tenantSlug, encryptedToken });
 
     // Start bot with runner
     const handle = run(tenantBot.bot);
     this.handles.set(tenantId, handle);
+    this.watchTask(tenantId);
 
     console.log(`Started bot @${tenantBot.username} for tenant ${tenantSlug}`);
+  }
+
+  /**
+   * A rejected runner task (401/409, or retries exhausted after a long
+   * outage) must never kill the whole process: isolate the tenant,
+   * tell the superadmin, and restart polling when a human cannot help.
+   */
+  private watchTask(tenantId: string): void {
+    const handle = this.handles.get(tenantId);
+    if (!handle) return;
+    const task = handle.task();
+    if (!task) return;
+    task.then(
+      () => {
+        // Stopped cleanly via stopTenant.
+      },
+      (error: unknown) => {
+        void this.onTenantDown(tenantId, error);
+      }
+    );
+  }
+
+  /** @internal exposed for tests */
+  async onTenantDown(tenantId: string, error: unknown): Promise<void> {
+    const meta = this.tokens.get(tenantId);
+    const slug = meta?.slug ?? tenantId;
+    this.handles.delete(tenantId);
+    this.bots.delete(tenantId);
+    const code =
+      typeof error === 'object' && error !== null && 'error_code' in error
+        ? (error as { error_code?: unknown }).error_code
+        : undefined;
+    if (code === 401 || code === 409) {
+      // Needs a human: revoked token or a second process with the same token.
+      const why =
+        code === 401
+          ? 'токен отозван (401)'
+          : 'конфликт: токен уже используется другим процессом (409)';
+      console.error(`Bot for tenant ${slug} stopped: ${why}`);
+      await this.notifySuperadmin(
+        `🛑 Бот магазина ${slug} остановлен: ${why}. Проверьте токен и перезапустите процесс.`
+      );
+      return;
+    }
+    console.error(`Bot for tenant ${slug} crashed, restarting:`, error);
+    await this.notifySuperadmin(`⚠️ Бот магазина ${slug} упал, перезапуск через минуту.`);
+    await new Promise((resolve) => setTimeout(resolve, this.restartDelayMs));
+    const fresh = this.tokens.get(tenantId);
+    if (!fresh) return;
+    try {
+      await this.startTenant(tenantId, slug, fresh.encryptedToken);
+    } catch (restartError) {
+      console.error(`Failed to restart bot for tenant ${slug}:`, restartError);
+      await this.notifySuperadmin(`Не удалось перезапустить бота ${slug}, нужен человек.`);
+    }
   }
 
   /**
@@ -73,6 +134,7 @@ export class BotRunner {
     }
 
     this.bots.delete(tenantId);
+    this.tokens.delete(tenantId);
     console.log(`Stopped bot for tenant ${tenantId}`);
   }
 
