@@ -1,8 +1,20 @@
 export type IsoDate = string;
 
+function safeTimeZone(timezone: string): string {
+  try {
+    new Intl.DateTimeFormat('en-CA', { timeZone: timezone });
+    return timezone;
+  } catch {
+    // A bad tenant timezone must not take down every date screen:
+    // fall back loudly instead of throwing RangeError per call.
+    console.error(`Invalid timezone "${timezone}", falling back to UTC`);
+    return 'UTC';
+  }
+}
+
 export function toIsoDate(date: Date, timezone: string): IsoDate {
   const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: timezone,
+    timeZone: safeTimeZone(timezone),
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -34,7 +46,7 @@ export function compareIso(a: IsoDate, b: IsoDate): number {
 export function zonedTimeToUtc(dateIso: IsoDate, time: string, timezone: string): Date {
   const guessMs = Date.parse(`${dateIso}T${time}:00Z`);
   const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: timezone,
+    timeZone: safeTimeZone(timezone),
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
