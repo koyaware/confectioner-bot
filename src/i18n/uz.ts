@@ -6,7 +6,7 @@ export const uz: Strings = {
   },
   start: {
     greeting: (shopName: string, userName: string) =>
-      `👋 Tanishganimdan xursandman, ${userName}!\n\nMen «${shopName}» doʻkonining botiman. Quyidagi boʻlimni tanlang.`,
+      `👋 Salom, ${userName}! Bu «${shopName}» — buyurtma asosida tort va shirinliklar boti 🎂\n\nKatalogga koʻz tashlang — u yerda mazali narsalar bor 👇`,
     buttonCatalog: '📦 Katalog',
     claimSuccess: (shopName: string) =>
       `Tayyor! Endi siz «${shopName}» doʻkonining egasisiz. /menu egasi menyusini koʻrsatadi.`,
@@ -27,7 +27,7 @@ export const uz: Strings = {
     title: '📦 Katalog',
     empty: '📦 Doʻkonda hali kategoriyalar yoʻq.',
     categoriesEmpty: '🔍 Kategoriyalar topilmadi.',
-    productsEmpty: '📦 Bu kategoriyada hali mahsulotlar yoʻq.',
+    productsEmpty: '📦 Bu kategoriyada hali mahsulotlar yoʻq. Keyinroq koʻring 🙂',
     back: '🔙 Orqaga',
   },
   product: {
@@ -87,7 +87,7 @@ export const uz: Strings = {
     empty: '📞 Instagram profil shapkasida koʻrsatilgan telefon orqali usta bilan bogʻlaning.',
   },
   cart: {
-    empty: '🛒 Savatcha boʻsh.',
+    empty: '🛒 Savatcha boʻsh. Katalogga koʻz tashlang — u yerda mazali narsalar bor 🙂',
     blocked: '🚫 Afsuski, siz uchun buyurtmalarni rasmiylashtirish mavjud emas.',
     button: '🛒 Savatcha',
     total: '💰 Jami',
@@ -152,10 +152,10 @@ export const uz: Strings = {
     dateTooSoon: '❌ Bu yerga hali erta — keyingi sanani tanlang.',
     dateTooFar: '❌ Juda uzoq — yaqinroq sanani tanlang.',
     productInactive: '❌ Mahsulotlardan biri endi sotuvda yoʻq. Katalogga qayting.',
-    busy: '⏸ Buyurtmalar qabul qilish vaqtincha toʻxtatilgan.',
+    busy: '⏸ Buyurtmalar qabuli vaqtincha toʻxtatildi. Keyinroq kiring yoki menyudagi «📞 Kontaktlar» orqali ustaga yozing.',
     badQty: '❌ Mahsulot miqdori notoʻgʻri.',
     emptyCart: '🛒 Savatcha boʻsh.',
-    orderSent: (n: number) => `✅ №${n} buyurtma yuborildi. Usta javob beradi`,
+    orderSent: (n: number) => `✅ №${n} buyurtma yuborildi! Rahmat! Usta`,
     orderSentSlaDefault: '(bir necha soat ichida)',
   },
   faq: {
@@ -166,7 +166,7 @@ export const uz: Strings = {
   },
   my: {
     listTitle: '📋 Buyurtmalaringiz',
-    empty: '📋 Hali buyurtmalaringiz yoʻq.',
+    empty: '📋 Hali buyurtmalaringiz yoʻq — katalog allaqachon kutmoqda 🙂',
     notFound: '❌ Buyurtma topilmadi.',
     cancelFailed: '❌ Buyurtmani joriy holatda bekor qilib boʻlmaydi.',
     actionFailed: '❌ Amalni bajarib boʻlmadi.',
@@ -182,7 +182,8 @@ export const uz: Strings = {
       `№${n} buyurtma tayyor! Topshirishni kelishish uchun usta tez orada siz bilan bogʻlanadi.`,
     doneMsg: (n: number) =>
       `✅ №${n} buyurtma yakunlandi! Buyurtmangiz uchun rahmat, yana kutamiz! 🍰`,
-    cancelledByOwner: (n: number) => `№${n} buyurtma usta tomonidan bekor qilindi.`,
+    cancelledByOwner: (n: number) =>
+      `Afsuski, №${n} buyurtma usta tomonidan bekor qilindi. Tafsilotlarni «📞 Kontaktlar» boʻlimida aniqlang.`,
     pdDeclined: 'Yaxshi, ustadan yangi taklif kutyapmiz.',
     pdTaken: 'Bu sana band. Ustadan boshqa sana soʻrang.',
     pdAccepted: (n: number) => `№${n} buyurtma ishga qabul qilindi.`,
@@ -198,7 +199,7 @@ export const uz: Strings = {
     promptReceipt: '📎 Chek fotosini yuboring.',
     paidButton: '💳 Men toʻladim',
     accepted: (n: number) => `№${n} buyurtma qabul qilindi.`,
-    noRequisites: 'Rekvizitlarni ustadan aniqlang',
+    noRequisites: 'Rekvizitlar hali yoʻq — menyudagi «📞 Kontaktlar» orqali ustadan aniqlang',
     payCall: (button: string, deadline: string) =>
       `Toʻlang va «${button}» ni bosing. Muddat: ${deadline}gacha`,
     confirmedMsg: 'Toʻlov tasdiqlandi. Buyurtma ishda.',

@@ -168,6 +168,6 @@ describe('catalog flow', () => {
 
     const sendCalls = port.getCallsForMethod('sendMessage');
     expect(sendCalls).toHaveLength(1);
-    expect(sendCalls[0]!.args[1] as string).toContain('Приятно познакомиться, Test!');
+    expect(sendCalls[0]!.args[1] as string).toContain('Привет, Test!');
   });
 });
