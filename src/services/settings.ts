@@ -58,18 +58,20 @@ export function validateSetting(
     case 'maxAdvanceDays':
     case 'paymentDeadlineHours': {
       const n = Number(trimmed);
-      if (!Number.isInteger(n) || n < 0) return { ok: false };
+      if (!Number.isInteger(n) || n < 0 || n > 3650) return { ok: false };
       return { ok: true, value: n };
     }
     case 'defaultDailyCapacity': {
       const n = Number(trimmed);
-      if (!Number.isInteger(n) || n < 1) return { ok: false };
+      if (!Number.isInteger(n) || n < 1 || n > 10000) return { ok: false };
       return { ok: true, value: n };
     }
     case 'deliveryFeeMinor': {
       const n = Number(trimmed.replace(/\s/g, '').replace(',', '.'));
-      if (!Number.isFinite(n) || n < 0) return { ok: false };
-      return { ok: true, value: Math.round(n * 100) };
+      // Digit cap instead of a currency cap: minor units differ per currency.
+      const minor = Math.round(n * 100);
+      if (!Number.isFinite(n) || n < 0 || minor > 9_999_999_999) return { ok: false };
+      return { ok: true, value: minor };
     }
     default: {
       if (trimmed.length === 0 || trimmed.length > 1000) return { ok: false };

@@ -24,12 +24,17 @@ const tenantFieldCheck: Record<string, true> = Object.fromEntries(
   SETTINGS_FIELDS.map((f) => [f, true])
 );
 
+export const MAX_PRICE_MINOR = 9_999_999_999;
+
 function parsePriceRubles(s: string): number | null {
   const m = /^(\d+)([.,](\d{1,2}))?$/.exec(s.trim());
   if (!m) return null;
   const rubles = Number(m[1]);
   const kopecks = m[3] ? Number(m[3].padEnd(2, '0')) : 0;
-  return rubles * 100 + kopecks;
+  const minor = rubles * 100 + kopecks;
+  // Digit cap instead of a currency cap: minor units differ per currency.
+  if (minor > MAX_PRICE_MINOR) return null;
+  return minor;
 }
 
 function badText(text: string, max: number): boolean {
