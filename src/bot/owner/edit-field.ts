@@ -489,12 +489,10 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
     } catch {
       // already gone
     }
-    const doc = ctx.message.document;
-    if (doc && draft.targetId) {
-      await updateProduct(ctx.tenant.id, draft.targetId, { photoFileId: doc.file_id });
-    }
-    ctx.sessionState = 'idle';
-    ctx.session.ownerDraft = undefined;
-    await sendSaved(ctx, draft, ctx.t.ownerCatalog.saved);
+    // Product photos are photos, not files: keep the draft and explain.
+    // (Storing a document id as photoFileId breaks the card at display time.)
+    ctx.sessionState = 'owner.edit_field';
+    ctx.session.ownerDraft = draft;
+    await editScreenOrSend(ctx, draft, ctx.t.ownerCatalog.badPhoto);
   });
 }

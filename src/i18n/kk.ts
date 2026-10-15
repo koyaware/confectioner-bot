@@ -345,6 +345,7 @@ export const kk: Strings = {
     empty: '📋 Тапсырыстар әзірге жоқ.',
     dateUnavailable: 'Күн бос емес.',
     listTitle: 'Тапсырыстар:',
+    more: (n: number) => `Тағы көрсету (${n})`,
     groups: {
       new: 'Жаңа',
       work: 'Жұмыста',
@@ -391,6 +392,7 @@ export const kk: Strings = {
     promptProductPrice: '✍️ Тауар бағасын дүкен валютасында енгізіңіз.',
     promptField: '✍️ Жаңа мән енгізіңіз',
     promptPhoto: '📸 Тауар фотосын жіберіңіз.',
+    badPhoto: '❌ Файл емес, фото керек. Тауар фотосын жіберіңіз.',
     promptOptionGroup: '✍️ Опциялар тобының атауын енгізіңіз (мысалы, Салмасы).',
     promptOptionTitle: '✍️ Опция атауын енгізіңіз.',
     promptOptionDelta: '💰 Қосымша төлем (жоқ болса 0).',

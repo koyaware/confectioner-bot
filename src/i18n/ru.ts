@@ -350,6 +350,7 @@ export const ru = {
     empty: '📋 Заказов пока нет.',
     dateUnavailable: 'Дата уже недоступна.',
     listTitle: 'Заказы:',
+    more: (n: number) => `Показать ещё (${n})`,
     groups: {
       new: 'Новые',
       work: 'В работе',
@@ -396,6 +397,7 @@ export const ru = {
     promptProductPrice: '✍️ Введите цену в рублях.',
     promptField: '✍️ Введите новое значение',
     promptPhoto: '📸 Пришлите фото товара.',
+    badPhoto: '❌ Нужно фото, а не файл. Пришлите фото товара.',
     promptOptionGroup: '✍️ Введите название группы опций (например, Начинка).',
     promptOptionTitle: '✍️ Введите название опции.',
     promptOptionDelta: '💰 Доплата в рублях (0 если нет).',

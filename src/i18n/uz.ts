@@ -345,6 +345,7 @@ export const uz: Strings = {
     empty: '📋 Buyurtmalar hali yoʻq.',
     dateUnavailable: 'Sana band.',
     listTitle: 'Buyurtmalar:',
+    more: (n: number) => `Yana koʻrsatish (${n})`,
     groups: {
       new: 'Yangi',
       work: 'Ishda',
@@ -391,6 +392,7 @@ export const uz: Strings = {
     promptProductPrice: '✍️ Mahsulot narxini doʻkon valyutasida kiriting.',
     promptField: '✍️ Yangi qiymatni kiriting',
     promptPhoto: '📸 Mahsulot fotosini yuboring.',
+    badPhoto: '❌ Fayl emas, foto kerak. Mahsulot fotosini yuboring.',
     promptOptionGroup: '✍️ Variantlar guruhi nomini kiriting (masalan, Nachinka).',
     promptOptionTitle: '✍️ Variant nomini kiriting.',
     promptOptionDelta: '💰 Qoʻshimcha toʻlov (0 — boʻlmasa).',
