@@ -238,24 +238,22 @@ function orderDateKeyboard(
 }
 
 export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
-  bot.callbackQuery(/^adm:ord:list$/, async (ctx) => {
-    if (!canAccessOwner(ctx)) {
-      await ctx.port.answerCallback(ctx.callbackQuery.id, ctx.t.ownerCatalog.notOwner);
-      return;
-    }
-    await ctx.port.answerCallback(ctx.callbackQuery.id);
+  type OrderGroupKey = 'new' | 'work' | 'ready' | 'upcoming';
 
-    const chatId = ctx.callbackQuery.message?.chat.id;
-    const messageId = ctx.callbackQuery.message?.message_id;
-    if (!chatId || !messageId) return;
-
+  async function showOrderList(
+    ctx: BotContextWithSession,
+    chatId: number,
+    messageId: number,
+    more?: { group: OrderGroupKey; page: number }
+  ): Promise<void> {
+    const PAGE = 8;
     const db = getDb();
     const rows = await db
       .select()
       .from(orders)
       .where(eq(orders.tenantId, ctx.tenant.id))
       .orderBy(desc(orders.createdAt))
-      .limit(50);
+      .limit(200);
 
     if (rows.length === 0) {
       await ctx.port.editMessageTextOrSend(chatId, messageId, ctx.t.ownerOrders.empty, {
@@ -268,11 +266,24 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
     const tomorrowIso = addDays(todayIso, 1);
     const isWork = (s: string) =>
       s === 'awaiting_payment' || s === 'payment_review' || s === 'confirmed';
-    const groups: { title: string; orders: typeof rows }[] = [
-      { title: ctx.t.ownerOrders.groups.new, orders: rows.filter((o) => o.status === 'new') },
-      { title: ctx.t.ownerOrders.groups.work, orders: rows.filter((o) => isWork(o.status)) },
-      { title: ctx.t.ownerOrders.groups.ready, orders: rows.filter((o) => o.status === 'ready') },
+    const groups: { key: OrderGroupKey; title: string; orders: typeof rows }[] = [
       {
+        key: 'new',
+        title: ctx.t.ownerOrders.groups.new,
+        orders: rows.filter((o) => o.status === 'new'),
+      },
+      {
+        key: 'work',
+        title: ctx.t.ownerOrders.groups.work,
+        orders: rows.filter((o) => isWork(o.status)),
+      },
+      {
+        key: 'ready',
+        title: ctx.t.ownerOrders.groups.ready,
+        orders: rows.filter((o) => o.status === 'ready'),
+      },
+      {
+        key: 'upcoming',
         title: ctx.t.ownerOrders.groups.upcoming,
         orders: rows.filter((o) => o.dueDate === todayIso || o.dueDate === tomorrowIso),
       },
@@ -283,8 +294,9 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
     const shown = new Set<string>();
     for (const g of groups) {
       if (g.orders.length === 0) continue;
+      const limit = more?.group === g.key ? (more.page + 1) * PAGE : PAGE;
       lines.push('', `<b>${g.title}</b>`);
-      for (const order of g.orders.slice(0, 8)) {
+      for (const order of g.orders.slice(0, limit)) {
         lines.push(`• №${order.number} · ${order.status} · ${order.dueDate}`);
         if (!shown.has(order.id)) {
           shown.add(order.id);
@@ -296,12 +308,53 @@ export function registerOrderHandlers(bot: Bot<BotContextWithSession>): void {
           ]);
         }
       }
+      const left = g.orders.length - limit;
+      if (left > 0) {
+        keyboardRows.push([
+          {
+            text: ctx.t.ownerOrders.more(left),
+            callback_data: `adm:ord:more:${g.key}:${(more?.group === g.key ? more.page : 0) + 1}`,
+          },
+        ]);
+      }
     }
     keyboardRows.push([{ text: ctx.t.common.back, callback_data: 'adm:menu' }]);
 
     await ctx.port.editMessageTextOrSend(chatId, messageId, lines.join('\n'), {
       keyboard: { inline_keyboard: keyboardRows },
       parseMode: 'HTML',
+    });
+  }
+
+  bot.callbackQuery(/^adm:ord:list$/, async (ctx) => {
+    if (!canAccessOwner(ctx)) {
+      await ctx.port.answerCallback(ctx.callbackQuery.id, ctx.t.ownerCatalog.notOwner);
+      return;
+    }
+    await ctx.port.answerCallback(ctx.callbackQuery.id);
+
+    const chatId = ctx.callbackQuery.message?.chat.id;
+    const messageId = ctx.callbackQuery.message?.message_id;
+    if (!chatId || !messageId) return;
+
+    await showOrderList(ctx, chatId, messageId);
+  });
+
+  bot.callbackQuery(/^adm:ord:more:(new|work|ready|upcoming):(\d{1,2})$/, async (ctx) => {
+    if (!canAccessOwner(ctx)) {
+      await ctx.port.answerCallback(ctx.callbackQuery.id, ctx.t.ownerCatalog.notOwner);
+      return;
+    }
+    await ctx.port.answerCallback(ctx.callbackQuery.id);
+
+    const m = /^adm:ord:more:(new|work|ready|upcoming):(\d{1,2})$/.exec(ctx.callbackQuery.data);
+    if (!m) return;
+    const chatId = ctx.callbackQuery.message?.chat.id;
+    const messageId = ctx.callbackQuery.message?.message_id;
+    if (!chatId || !messageId) return;
+    await showOrderList(ctx, chatId, messageId, {
+      group: m[1] as OrderGroupKey,
+      page: Math.min(Number(m[2]), 20),
     });
   });
 

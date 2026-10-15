@@ -190,6 +190,13 @@ const callbackSchema = z
     z.object({
       ns: z.literal('adm'),
       area: z.literal('ord'),
+      action: z.literal('more'),
+      arg: z.enum(['new', 'work', 'ready', 'upcoming']),
+      arg2: z.string().regex(/^\d{1,2}$/),
+    }),
+    z.object({
+      ns: z.literal('adm'),
+      area: z.literal('ord'),
       action: z.literal('pd'),
       arg: idSchema,
       arg2: isoDateSchema,
