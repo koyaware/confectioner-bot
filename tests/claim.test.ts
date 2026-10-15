@@ -54,7 +54,7 @@ describe('owner claim', () => {
 
   it('claims tenant via code and clears claim fields', async () => {
     const shop = await createShopAndCode();
-    const result = await claimTenant(shop.claimCode, 555, new Date());
+    const result = await claimTenant(shop.claimCode, 555, new Date(), shop.id);
 
     expect(result.ok).toBe(true);
     const rows = await getDb().select().from(tenants).where(eq(tenants.id, shop.id));
@@ -65,22 +65,44 @@ describe('owner claim', () => {
 
   it('rejects reuse of the same code', async () => {
     const shop = await createShopAndCode();
-    await claimTenant(shop.claimCode, 555, new Date());
-    const second = await claimTenant(shop.claimCode, 666, new Date());
+    await claimTenant(shop.claimCode, 555, new Date(), shop.id);
+    const second = await claimTenant(shop.claimCode, 666, new Date(), shop.id);
     expect(second).toEqual({ ok: false, error: 'NOT_FOUND' });
   });
 
   it('rejects an expired code', async () => {
     const shop = await createShopAndCode();
     const later = new Date(Date.now() + 25 * 60 * 60 * 1000);
-    const result = await claimTenant(shop.claimCode, 555, later);
+    const result = await claimTenant(shop.claimCode, 555, later, shop.id);
     expect(result).toEqual({ ok: false, error: 'EXPIRED' });
   });
 
   it('rejects unknown code', async () => {
-    await createShopAndCode();
-    const result = await claimTenant('nope', 555, new Date());
+    const shop = await createShopAndCode();
+    const result = await claimTenant('nope', 555, new Date(), shop.id);
     expect(result).toEqual({ ok: false, error: 'NOT_FOUND' });
+  });
+
+  it('rejects a code typed in another tenant bot without burning it', async () => {
+    const shopA = await createShopAndCode();
+    const createdB = await createTenant({
+      slug: 'pies',
+      shopName: 'Pies',
+      botToken: '456:y',
+      botId: 778,
+      botUsername: 'pies_bot',
+      appSecret,
+      now: new Date(),
+    });
+    if (!createdB.ok) throw new Error(createdB.error);
+    // Attacker types shop A's code inside shop B's bot.
+    const cross = await claimTenant(shopA.claimCode, 777, new Date(), createdB.value.id);
+    expect(cross).toEqual({ ok: false, error: 'NOT_FOUND' });
+    // Shop A untouched and the code still works in the right bot.
+    const rowsA = await getDb().select().from(tenants).where(eq(tenants.id, shopA.id));
+    expect(rowsA[0]!.ownerTelegramId).toBeNull();
+    const legit = await claimTenant(shopA.claimCode, 555, new Date(), shopA.id);
+    expect(legit.ok).toBe(true);
   });
 
   it('stores only the hash of the claim code', async () => {

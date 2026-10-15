@@ -23,7 +23,7 @@ export function registerStartHandler(bot: Bot<BotContextWithSession>): void {
         await ctx.port.sendMessage(ctx.chat.id, ctx.t.start.claimInvalid);
         return;
       }
-      const result = await claimTenant(code, ctx.from!.id, new Date());
+      const result = await claimTenant(code, ctx.from!.id, new Date(), ctx.tenant.id);
       if (result.ok) {
         ctx.role = 'owner';
         ctx.tenant.ownerTelegramId = ctx.from!.id;

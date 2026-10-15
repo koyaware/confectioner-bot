@@ -8,17 +8,20 @@ import { Result } from '../types.js';
 export async function claimTenant(
   claimCode: string,
   telegramId: number,
-  now: Date
+  now: Date,
+  tenantId: string
 ): Promise<
   Result<{ tenantId: string; shopName: string }, 'NOT_FOUND' | 'EXPIRED' | 'ALREADY_CLAIMED'>
 > {
   const db = getDb();
   const codeHash = hash(`claim_${claimCode}`);
 
+  // Scoped to the bot the code was typed in: a claim link for shop A
+  // must never transfer shop A when typed inside shop B's bot.
   const candidates = await db
     .select()
     .from(tenants)
-    .where(eq(tenants.claimCodeHash, codeHash))
+    .where(and(eq(tenants.claimCodeHash, codeHash), eq(tenants.id, tenantId)))
     .limit(1);
   const candidate = candidates[0];
   if (!candidate) {
