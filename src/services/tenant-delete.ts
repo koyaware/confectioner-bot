@@ -65,6 +65,7 @@ export async function deleteTenantBySlug(
     db.prepare('DELETE FROM sessions WHERE tenant_id = ?').run(tenant.id);
     db.prepare('DELETE FROM jobs WHERE tenant_id = ?').run(tenant.id);
     db.prepare('DELETE FROM faq_items WHERE tenant_id = ?').run(tenant.id);
+    db.prepare('DELETE FROM feature_flags WHERE tenant_id = ?').run(tenant.id);
 
     db.prepare(
       'DELETE FROM product_options WHERE product_id IN (SELECT id FROM products WHERE tenant_id = ?)'

@@ -49,12 +49,16 @@ describe('tenant delete', () => {
   });
 
   it('deletes related rows when forced', async () => {
-    await seedDemo(appSecret, now);
+    const { tenantId } = await seedDemo(appSecret, now);
+    const { setFeatureFlag } = await import('../src/services/feature-flags.js');
+    await setFeatureFlag(tenantId, 'daily_digest', false);
     const result = await deleteTenantBySlug('demo', { force: true });
     expect(result.deleted).toBe(true);
 
     expect((await getDb().select().from(tenants)).length).toBe(0);
     expect((await getDb().select().from(categories)).length).toBe(0);
     expect((await getDb().select().from(products)).length).toBe(0);
+    const { featureFlags } = await import('../src/db/schema.js');
+    expect((await getDb().select().from(featureFlags)).length).toBe(0);
   });
 });
