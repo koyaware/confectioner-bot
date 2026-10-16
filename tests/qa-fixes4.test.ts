@@ -222,6 +222,48 @@ describe('QA fixes 4: order pagination, photo document', () => {
     void txt;
   });
 
+  it('bug 73: editing deleted targets says not found', async () => {
+    const { bot, port, tenantId } = await setup();
+    const {
+      categories: catTbl,
+      products: prodTbl,
+      faqItems: faqTbl,
+    } = await import('../src/db/schema.js');
+    const { deleteProduct, deleteCategory } = await import('../src/services/catalog-editor.js');
+    const { deleteFaq } = await import('../src/services/faq.js');
+    const cats = await getDb()
+      .select()
+      .from(catTbl)
+      .where(eq((catTbl as never as { tenantId: unknown }).tenantId, tenantId));
+    const plist = await getDb()
+      .select()
+      .from(prodTbl)
+      .where(eq((prodTbl as never as { tenantId: unknown }).tenantId, tenantId));
+    const faqs = await getDb().select().from(faqTbl);
+    const cat = cats[0]!;
+    const prod = plist[0]!;
+    const faq = faqs[0]!;
+    await bot.handleUpdate(cb('e1', 555, 10, `adm:prd:field:${prod.id}:title`));
+    await deleteProduct(tenantId, prod.id);
+    await bot.handleUpdate(txt(555, 'Ghost title'));
+    await bot.handleUpdate(cb('e2', 555, 10, `adm:cat:rename:${cat.id}`));
+    const catProds = plist.filter((x: { categoryId: string }) => x.categoryId === cat.id);
+    for (const cp of catProds) await deleteProduct(tenantId, cp.id);
+    const delCat = await deleteCategory(tenantId, cat.id);
+    if (!delCat.ok) throw new Error('cat delete failed');
+    await bot.handleUpdate(txt(555, 'Ghost cat'));
+    await bot.handleUpdate(cb('e3', 555, 10, `adm:faq:q:${faq.id}`));
+    await deleteFaq(tenantId, faq.id);
+    await bot.handleUpdate(txt(555, 'Ghost q'));
+    const texts = port
+      .getCallsForMethod('editMessageTextOrSend')
+      .filter((c) => (c.args[0] as number) === 555)
+      .map((c) => String(c.args[2]));
+    expect(texts.some((t) => t.includes('Товар не найден'))).toBe(true);
+    expect(texts.some((t) => t.includes('Категория не найдена'))).toBe(true);
+    expect(texts.some((t) => t.includes('Вопрос не найден'))).toBe(true);
+  });
+
   it('bug 67: document is refused as product photo, draft kept', async () => {
     const { bot, port, tenantId } = await setup();
     const plist = await getDb().select().from(products).where(eq(products.tenantId, tenantId));

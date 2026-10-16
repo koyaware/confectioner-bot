@@ -187,7 +187,10 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
           await editScreenOrSend(ctx, draft, ctx.t.ownerCatalog.badTitle);
           return;
         }
-        await updateCategoryTitle(ctx.tenant.id, draft.targetId, text);
+        if (!(await updateCategoryTitle(ctx.tenant.id, draft.targetId, text))) {
+          await editScreenOrSend(ctx, draft, ctx.t.ownerCatalog.catNotFound);
+          return;
+        }
         await sendSaved(ctx, draft, ctx.t.ownerCatalog.saved);
         return;
       }
@@ -233,7 +236,10 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
               await editScreenOrSend(ctx, draft, ctx.t.ownerCatalog.badTitle);
               return;
             }
-            await updateProduct(ctx.tenant.id, draft.targetId, { title: text });
+            if (!(await updateProduct(ctx.tenant.id, draft.targetId, { title: text }))) {
+              await editScreenOrSend(ctx, draft, ctx.t.product.notFound);
+              return;
+            }
           } else if (field === 'description') {
             if (badText(text, 1000)) {
               ctx.sessionState = 'owner.edit_field';
@@ -241,7 +247,10 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
               await editScreenOrSend(ctx, draft, ctx.t.common.badText);
               return;
             }
-            await updateProduct(ctx.tenant.id, draft.targetId, { description: text });
+            if (!(await updateProduct(ctx.tenant.id, draft.targetId, { description: text }))) {
+              await editScreenOrSend(ctx, draft, ctx.t.product.notFound);
+              return;
+            }
           } else if (field === 'price') {
             const priceMinor = parsePriceRubles(text);
             if (priceMinor === null || priceMinor <= 0) {
@@ -250,7 +259,10 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
               await editScreenOrSend(ctx, draft, ctx.t.ownerCatalog.badPrice);
               return;
             }
-            await updateProduct(ctx.tenant.id, draft.targetId, { priceMinor });
+            if (!(await updateProduct(ctx.tenant.id, draft.targetId, { priceMinor }))) {
+              await editScreenOrSend(ctx, draft, ctx.t.product.notFound);
+              return;
+            }
           } else if (field === 'unit') {
             if (badText(text, 20)) {
               ctx.sessionState = 'owner.edit_field';
@@ -258,7 +270,10 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
               await editScreenOrSend(ctx, draft, ctx.t.ownerCatalog.badTitle);
               return;
             }
-            await updateProduct(ctx.tenant.id, draft.targetId, { unit: text });
+            if (!(await updateProduct(ctx.tenant.id, draft.targetId, { unit: text }))) {
+              await editScreenOrSend(ctx, draft, ctx.t.product.notFound);
+              return;
+            }
           } else if (field === 'lead') {
             const days = Number(text);
             if (!Number.isInteger(days) || days < 0 || days > 3650) {
@@ -267,7 +282,10 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
               await editScreenOrSend(ctx, draft, ctx.t.ownerCatalog.badNumber);
               return;
             }
-            await updateProduct(ctx.tenant.id, draft.targetId, { leadDays: days });
+            if (!(await updateProduct(ctx.tenant.id, draft.targetId, { leadDays: days }))) {
+              await editScreenOrSend(ctx, draft, ctx.t.product.notFound);
+              return;
+            }
           } else if (field === 'capacity') {
             const units = Number(text);
             if (!Number.isInteger(units) || units < 1 || units > 10000) {
@@ -276,7 +294,10 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
               await editScreenOrSend(ctx, draft, ctx.t.ownerCatalog.badNumber);
               return;
             }
-            await updateProduct(ctx.tenant.id, draft.targetId, { capacityUnits: units });
+            if (!(await updateProduct(ctx.tenant.id, draft.targetId, { capacityUnits: units }))) {
+              await editScreenOrSend(ctx, draft, ctx.t.product.notFound);
+              return;
+            }
           }
         }
         await sendSaved(ctx, draft, ctx.t.ownerCatalog.saved);
@@ -363,7 +384,10 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
           await editScreenOrSend(ctx, draft, ctx.t.ownerCatalog.badTitle);
           return;
         }
-        await updateFaq(ctx.tenant.id, draft.targetId, { question: text });
+        if (!(await updateFaq(ctx.tenant.id, draft.targetId, { question: text }))) {
+          await editScreenOrSend(ctx, draft, ctx.t.faq.notFound);
+          return;
+        }
         await sendSaved(ctx, draft, ctx.t.ownerCatalog.saved);
         return;
       }
@@ -374,7 +398,10 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
           await editScreenOrSend(ctx, draft, ctx.t.common.badText);
           return;
         }
-        await updateFaq(ctx.tenant.id, draft.targetId, { answer: text });
+        if (!(await updateFaq(ctx.tenant.id, draft.targetId, { answer: text }))) {
+          await editScreenOrSend(ctx, draft, ctx.t.faq.notFound);
+          return;
+        }
         await sendSaved(ctx, draft, ctx.t.ownerCatalog.saved);
         return;
       }
@@ -462,7 +489,12 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
     }
     const photo = ctx.message.photo[ctx.message.photo.length - 1];
     if (photo && draft.targetId) {
-      await updateProduct(ctx.tenant.id, draft.targetId, { photoFileId: photo.file_id });
+      if (!(await updateProduct(ctx.tenant.id, draft.targetId, { photoFileId: photo.file_id }))) {
+        ctx.sessionState = 'idle';
+        ctx.session.ownerDraft = undefined;
+        await editScreenOrSend(ctx, draft, ctx.t.product.notFound);
+        return;
+      }
     }
     ctx.sessionState = 'idle';
     ctx.session.ownerDraft = undefined;

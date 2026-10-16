@@ -16,12 +16,18 @@ export async function createCategory(tenantId: string, title: string): Promise<{
   return { id };
 }
 
-export async function updateCategoryTitle(tenantId: string, categoryId: string, title: string) {
+export async function updateCategoryTitle(
+  tenantId: string,
+  categoryId: string,
+  title: string
+): Promise<boolean> {
   const db = getDb();
-  await db
+  const updated = await db
     .update(categories)
     .set({ title })
-    .where(and(eq(categories.id, categoryId), eq(categories.tenantId, tenantId)));
+    .where(and(eq(categories.id, categoryId), eq(categories.tenantId, tenantId)))
+    .returning({ id: categories.id });
+  return updated.length > 0;
 }
 
 export async function setCategoryActive(tenantId: string, categoryId: string, isActive: boolean) {
@@ -115,12 +121,14 @@ export async function updateProduct(
   tenantId: string,
   productId: string,
   patch: ProductPatch
-): Promise<void> {
+): Promise<boolean> {
   const db = getDb();
-  await db
+  const updated = await db
     .update(products)
     .set(patch)
-    .where(and(eq(products.id, productId), eq(products.tenantId, tenantId)));
+    .where(and(eq(products.id, productId), eq(products.tenantId, tenantId)))
+    .returning({ id: products.id });
+  return updated.length > 0;
 }
 
 export async function setProductActive(tenantId: string, productId: string, isActive: boolean) {

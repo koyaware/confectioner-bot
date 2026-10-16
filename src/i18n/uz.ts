@@ -378,6 +378,7 @@ export const uz: Strings = {
     down: '⬇️ Pastga',
     products: '🎂 Mahsulotlar',
     delete: '🗑 Oʻchirish',
+    catNotFound: '🔍 Kategoriya topilmadi.',
     catNotEmpty: '❌ Kategoriyada mahsulotlar bor — avval ularni oʻchiring yoki koʻchiring.',
     confirmDeleteProduct: '❓ Mahsulot oʻchirilsinmi? Optsiyalar ham oʻchadi.',
     confirmDeleteYes: '✅ Ha, oʻchirish',

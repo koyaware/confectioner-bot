@@ -38,12 +38,14 @@ export async function updateFaq(
   tenantId: string,
   faqId: string,
   patch: { question?: string; answer?: string }
-) {
+): Promise<boolean> {
   const db = getDb();
-  await db
+  const updated = await db
     .update(faqItems)
     .set(patch)
-    .where(and(eq(faqItems.id, faqId), eq(faqItems.tenantId, tenantId)));
+    .where(and(eq(faqItems.id, faqId), eq(faqItems.tenantId, tenantId)))
+    .returning({ id: faqItems.id });
+  return updated.length > 0;
 }
 
 export async function deleteFaq(tenantId: string, faqId: string) {

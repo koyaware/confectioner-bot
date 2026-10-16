@@ -378,6 +378,7 @@ export const kk: Strings = {
     down: '⬇️ Төмен',
     products: '🎂 Тауарлар',
     delete: '🗑 Өшіру',
+    catNotFound: '🔍 Санат табылмады.',
     catNotEmpty: '❌ Санатта тауарлар бар — алдымен оларды өшіріңіз немесе көшіріңіз.',
     confirmDeleteProduct: '❓ Тауар өшірілсін бе? Опциялар да өшеді.',
     confirmDeleteYes: '✅ Иә, өшіру',

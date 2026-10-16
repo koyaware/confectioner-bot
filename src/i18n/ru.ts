@@ -383,6 +383,7 @@ export const ru = {
     down: '⬇️ Ниже',
     products: '🎂 Товары',
     delete: '🗑 Удалить',
+    catNotFound: '🔍 Категория не найдена.',
     catNotEmpty: '❌ В категории есть товары — сначала удалите или перенесите их.',
     confirmDeleteProduct: '❓ Удалить товар? Опции тоже удалятся.',
     confirmDeleteYes: '✅ Да, удалить',
