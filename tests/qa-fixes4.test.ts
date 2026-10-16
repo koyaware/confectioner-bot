@@ -206,6 +206,22 @@ describe('QA fixes 4: order pagination, photo document', () => {
     void port;
   });
 
+  it('bug 69: product lead/capacity upper bounds', async () => {
+    const { bot, tenantId } = await setup();
+    const plist = await getDb().select().from(products).where(eq(products.tenantId, tenantId));
+    const p = plist[0]!;
+    const before = { lead: p.leadDays, cap: p.capacityUnits };
+    await bot.handleUpdate(cb('n1', 555, 10, `adm:prd:field:${p.id}:lead`));
+    await bot.handleUpdate(txt(555, '999999999'));
+    await bot.handleUpdate(cb('n2', 555, 10, `adm:prd:field:${p.id}:capacity`));
+    await bot.handleUpdate(txt(555, '999999999'));
+    const rows = await getDb().select().from(products).where(eq(products.id, p.id));
+    expect(rows[0]!.leadDays).toBe(before.lead);
+    expect(rows[0]!.capacityUnits).toBe(before.cap);
+    void tenantId;
+    void txt;
+  });
+
   it('bug 67: document is refused as product photo, draft kept', async () => {
     const { bot, port, tenantId } = await setup();
     const plist = await getDb().select().from(products).where(eq(products.tenantId, tenantId));

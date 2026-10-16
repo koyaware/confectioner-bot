@@ -261,7 +261,7 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
             await updateProduct(ctx.tenant.id, draft.targetId, { unit: text });
           } else if (field === 'lead') {
             const days = Number(text);
-            if (!Number.isInteger(days) || days < 0) {
+            if (!Number.isInteger(days) || days < 0 || days > 3650) {
               ctx.sessionState = 'owner.edit_field';
               ctx.session.ownerDraft = draft;
               await editScreenOrSend(ctx, draft, ctx.t.ownerCatalog.badNumber);
@@ -270,7 +270,7 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
             await updateProduct(ctx.tenant.id, draft.targetId, { leadDays: days });
           } else if (field === 'capacity') {
             const units = Number(text);
-            if (!Number.isInteger(units) || units < 1) {
+            if (!Number.isInteger(units) || units < 1 || units > 10000) {
               ctx.sessionState = 'owner.edit_field';
               ctx.session.ownerDraft = draft;
               await editScreenOrSend(ctx, draft, ctx.t.ownerCatalog.badNumber);
@@ -388,7 +388,7 @@ export function registerEditFieldHandlers(bot: Bot<BotContextWithSession>): void
             // already gone
           }
         }
-        if (draft.targetId && Number.isInteger(n) && n >= 0) {
+        if (draft.targetId && Number.isInteger(n) && n >= 0 && n <= 10000) {
           const current = await getCapacityForDate(ctx.tenant.id, draft.targetId);
           const closed = current.isOverride ? current.isClosed : false;
           await setCapacityForDate(ctx.tenant.id, draft.targetId, n, closed);
