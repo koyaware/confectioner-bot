@@ -171,6 +171,7 @@ export const uz: Strings = {
     cancelFailed: '❌ Buyurtmani joriy holatda bekor qilib boʻlmaydi.',
     actionFailed: '❌ Amalni bajarib boʻlmadi.',
     button: '📋 Buyurtmalarim',
+    more: (n: number) => `Yana koʻrsatish (${n})`,
     cancelTitle: '❓ Nima uchun buyurtmani bekor qilyapsiz?',
     cancelSkip: '⏭ Oʻtkazib yuborish',
     cancelOrderBtn: '❌ Buyurtmani bekor qilish',
@@ -442,6 +443,7 @@ export const uz: Strings = {
     digestUndecided: (n: number) => `Qarorsiz: ${n}`,
     digestAwaitPay: (n: number) => `Toʻlov kutilmoqda: ${n}`,
     digestOrderBtn: (n: number) => `Buyurtma №${n}`,
+    digestMore: (n: number) => `…yana ${n} ta`,
     backupCaption: (date: string) => `MB nusxasi ${date}`,
   },
   notify: {

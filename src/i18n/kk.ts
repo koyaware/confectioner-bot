@@ -171,6 +171,7 @@ export const kk: Strings = {
     cancelFailed: '❌ Тапсырысты ағымдағы мәртебеде болдырмау мүмкін емес.',
     actionFailed: '❌ Әрекетті орындау мүмкін болмады.',
     button: '📋 Менің тапсырыстарым',
+    more: (n: number) => `Тағы көрсету (${n})`,
     cancelTitle: '❓ Тапсырысты неге болдырасыз?',
     cancelSkip: '⏭ Өткізіп жіберу',
     cancelOrderBtn: '❌ Тапсырысты болдырмау',
@@ -442,6 +443,7 @@ export const kk: Strings = {
     digestUndecided: (n: number) => `Шешімсіз: ${n}`,
     digestAwaitPay: (n: number) => `Төлем күтуде: ${n}`,
     digestOrderBtn: (n: number) => `№${n} тапсырыс`,
+    digestMore: (n: number) => `…тағы ${n}`,
     backupCaption: (date: string) => `МҚ көшірмесі ${date}`,
   },
   notify: {

@@ -167,6 +167,7 @@ export const ru = {
     cancelFailed: '❌ Заказ нельзя отменить в текущем статусе.',
     actionFailed: '❌ Не получилось выполнить действие.',
     button: '📋 Мои заказы',
+    more: (n: number) => `Показать ещё (${n})`,
     cancelTitle: '❓ Почему отменяете заказ?',
     cancelSkip: '⏭ Пропустить',
     cancelOrderBtn: '❌ Отменить заказ',
@@ -445,6 +446,7 @@ export const ru = {
     digestUndecided: (n: number) => `Без решения: ${n}`,
     digestAwaitPay: (n: number) => `Ждут оплаты: ${n}`,
     digestOrderBtn: (n: number) => `Заказ №${n}`,
+    digestMore: (n: number) => `…и ещё ${n}`,
     backupCaption: (date: string) => `Бэкап БД ${date}`,
   },
   notify: {

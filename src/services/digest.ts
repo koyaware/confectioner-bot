@@ -106,15 +106,25 @@ export async function ensureDailyDigestJobs(now: Date = new Date()): Promise<voi
   }
 }
 
+const DIGEST_LINES = 20;
+
 export function formatDigest(summary: DigestSummary, t: Strings): string {
   const statusLabel = (s: string) => t.orderStatuses[s as keyof typeof t.orderStatuses] ?? s;
+  const rows = (list: { number: number; status: string }[]): string[] => {
+    const shown = list
+      .slice(0, DIGEST_LINES)
+      .map((o) => `  • №${o.number} — ${statusLabel(o.status)}`);
+    if (list.length > DIGEST_LINES)
+      shown.push(`  ${t.jobs.digestMore(list.length - DIGEST_LINES)}`);
+    return shown;
+  };
   const lines = [
     t.jobs.digestTitle(summary.date),
     '',
     t.jobs.digestToday(summary.todayCount),
-    ...summary.today.map((o) => `  • №${o.number} — ${statusLabel(o.status)}`),
+    ...rows(summary.today),
     t.jobs.digestTomorrow(summary.tomorrowCount),
-    ...summary.tomorrow.map((o) => `  • №${o.number} — ${statusLabel(o.status)}`),
+    ...rows(summary.tomorrow),
     t.jobs.digestUndecided(summary.awaitingDecisionCount),
     t.jobs.digestAwaitPay(summary.awaitingPaymentCount),
   ];
