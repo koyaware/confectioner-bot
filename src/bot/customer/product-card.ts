@@ -1,6 +1,6 @@
 import { BotContextWithSession } from '../context.js';
 import { escapeHtml } from '../../domain/escape.js';
-import { truncateText } from '../../domain/truncate.js';
+import { truncateHtml } from '../../domain/truncate.js';
 import { formatMinor } from '../../lib/money.js';
 import { getProductById, listProductOptions } from '../../services/catalog.js';
 import { priceLine } from '../../domain/pricing.js';
@@ -86,7 +86,7 @@ export async function renderProductCard(
   const keyboard = { inline_keyboard: rows };
   const text = lines.join('\n');
   if (product.photoFileId) {
-    const caption = truncateText(text, 1024);
+    const caption = truncateHtml(text, 1024);
     const screen = ctx.callbackQuery?.message;
     try {
       if (screen && 'photo' in screen) {
