@@ -307,7 +307,8 @@ export function registerMyOrdersHandlers(bot: Bot<BotContextWithSession>): void 
     const messageId = ctx.callbackQuery.message?.message_id;
     if (!chatId || !messageId) return;
 
-    const reason = ctx.t.my.cancelReasons[m[2]!] ?? m[2]!;
+    // Only contract codes land in the DB: crafted callbacks fall back to 'other'.
+    const reason = ctx.t.my.cancelReasons[m[2]!] ?? ctx.t.my.cancelReasons.other!;
     await doCustomerCancel(ctx, m[1]!, reason, chatId, messageId);
   });
 

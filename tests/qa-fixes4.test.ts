@@ -163,6 +163,49 @@ describe('QA fixes 4: order pagination, photo document', () => {
     await bot.handleUpdate(cb('g6', 555, 10, 'adm:ord:more:nope:1'));
   });
 
+  it('bug 68: crafted cancel reason falls back to other', async () => {
+    const { bot, port, tenantId } = await setup();
+    const plist = await getDb().select().from(products).where(eq(products.tenantId, tenantId));
+    const p = plist[0]!;
+    const { customers: custTbl } = await import('../src/db/schema.js');
+    const [c] = await getDb()
+      .insert(custTbl)
+      .values({
+        id: 'c68',
+        tenantId,
+        telegramId: 42,
+        firstSeenAt: now,
+        lastSeenAt: now,
+      })
+      .returning();
+    const { createOrder: mkOrder } = await import('../src/services/orders.js');
+    const { firstActiveOptionIds: fao } = await import('./helpers.js');
+    const { addDays: ad, toIsoDate: ti } = await import('../src/domain/dates.js');
+    const r = await mkOrder({
+      tenantId,
+      customerId: c!.id,
+      cart: {
+        lines: [{ lineId: 'l1', productId: p.id, qty: 1, optionIds: await fao(p.id) }],
+      },
+      checkout: {
+        checkoutId: 'chk-68',
+        dueDate: ad(ti(new Date(), 'Europe/Moscow'), 5),
+        fulfillment: 'pickup',
+        contactName: 'T',
+        contactPhone: '+7999',
+        referenceFileIds: [],
+      },
+      now: new Date(),
+    });
+    if (!r.ok) throw new Error('seed');
+    await bot.handleUpdate(cb('cr1', 42, 10, `my:cancelreason:${r.value.id}:injected`));
+    const { orders: ordTbl } = await import('../src/db/schema.js');
+    const rows = await getDb().select().from(ordTbl).where(eq(ordTbl.id, r.value.id));
+    expect(rows[0]!.status).toBe('cancelled');
+    expect(rows[0]!.cancelReason).not.toContain('injected');
+    void port;
+  });
+
   it('bug 67: document is refused as product photo, draft kept', async () => {
     const { bot, port, tenantId } = await setup();
     const plist = await getDb().select().from(products).where(eq(products.tenantId, tenantId));
