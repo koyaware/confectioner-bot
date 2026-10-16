@@ -16,25 +16,51 @@ import { sendPaymentCard } from './payment-handler.js';
 import { customerMenuKeyboard } from '../owner/menu.js';
 
 export function registerMyOrdersHandlers(bot: Bot<BotContextWithSession>): void {
-  bot.callbackQuery(/^my:list$/, async (ctx) => {
-    await ctx.port.answerCallback(ctx.callbackQuery.id);
-
+  async function showMyList(
+    ctx: BotContextWithSession,
+    chatId: number,
+    messageId: number,
+    page: number
+  ): Promise<void> {
+    if (!ctx.from) return;
+    const PAGE = 10;
     const list = await listCustomerOrders(ctx.tenant.id, ctx.from.id);
-    const rows: InlineKeyboard['inline_keyboard'] = list.map((o) => [
+    const slice = list.slice(0, (page + 1) * PAGE);
+    const rows: InlineKeyboard['inline_keyboard'] = slice.map((o) => [
       {
         text: ctx.t.my.listRow(o.number, ctx.t.orderStatuses[o.status] ?? o.status),
         callback_data: `my:view:${o.id}`,
       },
     ]);
+    const left = list.length - slice.length;
+    if (left > 0) {
+      rows.push([{ text: ctx.t.my.more(left), callback_data: `my:more:${page + 1}` }]);
+    }
     const text = list.length > 0 ? ctx.t.my.listTitle : ctx.t.my.empty;
     rows.push([{ text: ctx.t.common.toMenu, callback_data: 'nav:menu' }]);
+    await ctx.port.editMessageTextOrSend(chatId, messageId, text, {
+      keyboard: { inline_keyboard: rows },
+    });
+  }
+
+  bot.callbackQuery(/^my:list$/, async (ctx) => {
+    await ctx.port.answerCallback(ctx.callbackQuery.id);
+
     const chatId = ctx.callbackQuery.message?.chat.id;
     const messageId = ctx.callbackQuery.message?.message_id;
-    if (chatId && messageId) {
-      await ctx.port.editMessageTextOrSend(chatId, messageId, text, {
-        keyboard: { inline_keyboard: rows },
-      });
-    }
+    if (!chatId || !messageId) return;
+    await showMyList(ctx, chatId, messageId, 0);
+  });
+
+  bot.callbackQuery(/^my:more:(\d{1,2})$/, async (ctx) => {
+    await ctx.port.answerCallback(ctx.callbackQuery.id);
+
+    const m = /^my:more:(\d{1,2})$/.exec(ctx.callbackQuery.data);
+    if (!m) return;
+    const chatId = ctx.callbackQuery.message?.chat.id;
+    const messageId = ctx.callbackQuery.message?.message_id;
+    if (!chatId || !messageId) return;
+    await showMyList(ctx, chatId, messageId, Math.min(Number(m[1]), 20));
   });
 
   bot.callbackQuery(/^my:view:(.+)$/, async (ctx) => {

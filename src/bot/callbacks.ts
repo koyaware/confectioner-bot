@@ -42,6 +42,11 @@ const callbackSchema = z
     z.object({ ns: z.literal('chk'), action: z.literal('submit'), arg: idSchema }),
     z.object({ ns: z.literal('chk'), action: z.literal('photos'), arg: z.literal('done') }),
     z.object({ ns: z.literal('my'), action: z.literal('list') }),
+    z.object({
+      ns: z.literal('my'),
+      action: z.literal('more'),
+      arg: z.string().regex(/^\d{1,2}$/),
+    }),
     z.object({ ns: z.literal('my'), action: z.enum(['view', 'cancel', 'refs']), arg: idSchema }),
     z.object({
       ns: z.literal('my'),
